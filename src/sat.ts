@@ -111,6 +111,7 @@ export class IncrementalSolver {
         this.watches[litIdx(raw[1])].push(ci);
       }
     }
+
   }
 
   /** Process unit clauses and propagate. Call once after construction. */
