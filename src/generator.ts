@@ -232,6 +232,10 @@ const MEDIUM_TYPES: Set<Constraint["type"]> = new Set([
 
 const MAX_RETRIES = 100;
 
+/**
+ * Generate a logic grid puzzle with a unique solution and minimal constraint set.
+ * Throws if generation fails after 100 retries (e.g. impossible difficulty for grid size).
+ */
 export function generate(options?: GenerateOptions): Puzzle {
   const size = options?.size ?? 4;
   const numCategories = options?.categories ?? 4;
@@ -359,9 +363,8 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Pairwise constraints between values of different categories
-  // For larger grids, limit negative constraints (not_same_house, not_next_to)
-  // to keep the constraint set manageable for minimization
+  // Negative constraints (not_same_house, not_next_to) grow O(n²) and are rarely
+  // essential for uniqueness — cap them to keep the minimization set tractable.
   const maxNegative = n <= 4 ? Infinity : n * n * 2;
   let negativeCount = 0;
 
@@ -527,7 +530,9 @@ function filterByDifficulty(
   return constraints.filter((c) => allowedTypes.has(c.type));
 }
 
-// Higher = more informative, added first in constructive phase
+// Constraint types ranked by how much they narrow the solution space.
+// Constructive phase adds high-informativeness constraints first to reach
+// uniqueness in fewer SAT calls; destructive phase removes low ones first.
 const INFORMATIVENESS: Record<string, number> = {
   at_position: 7,
   same_house: 6,
@@ -545,6 +550,12 @@ interface IncSolverCtx {
   total: number;
 }
 
+/**
+ * Build a single solver for all minimization checks. Each constraint's clauses
+ * are guarded by an activation literal: [-act_i, ...clause]. Setting act_i true
+ * enables the constraint; false disables it. This avoids rebuilding the solver
+ * for each uniqueness check — just change the assumptions.
+ */
 function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
@@ -611,7 +622,8 @@ function minimizeConstraints(
     return rng() - 0.5;
   });
 
-  // Phase 1: Binary search for minimum prefix that gives uniqueness
+  // Phase 1: Binary search for the smallest prefix (in informativeness order)
+  // that yields a unique solution. O(log n) SAT calls instead of O(n).
   const active = new Array<boolean>(total).fill(false);
   let lo = 1;
   let hi = indices.length;
@@ -630,9 +642,10 @@ function minimizeConstraints(
   active.fill(false);
   for (let i = 0; i < lo; i++) active[indices[i]] = true;
 
-  // Phase 2: Batch removal of redundant constraints
+  // Phase 2: Remove redundant constraints from the prefix. Tries removing
+  // groups at once (least informative first) to reduce SAT calls.
   const selected = indices.slice(0, lo);
-  selected.reverse(); // least informative first for removal
+  selected.reverse();
 
   batchRemove(selected, solver, actBase, total, active);
 
