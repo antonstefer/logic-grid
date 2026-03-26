@@ -355,25 +355,63 @@ function minimizeConstraints(
     return rng() - 0.5;
   });
 
-  // Phase 1: Constructive — add constraints until unique
+  // Phase 1: Binary search for minimum prefix that gives uniqueness
   const active = new Array(total).fill(false);
-  for (const idx of indices) {
-    active[idx] = true;
-    if (checkUnique(solver, actBase, total, active)) break;
+  let lo = 1;
+  let hi = indices.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    // Activate first `mid` constraints in sorted order
+    active.fill(false);
+    for (let i = 0; i < mid; i++) active[indices[i]] = true;
+    if (checkUnique(solver, actBase, total, active)) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
   }
+  // Activate the found prefix
+  active.fill(false);
+  for (let i = 0; i < lo; i++) active[indices[i]] = true;
 
-  // Phase 2: Destructive — remove redundant (least informative first)
-  const selectedArr = indices.filter(i => active[i]);
-  selectedArr.reverse(); // least informative first (indices were sorted most-first)
+  // Phase 2: Batch removal of redundant constraints
+  const selected = indices.slice(0, lo);
+  selected.reverse(); // least informative first for removal
 
-  for (const idx of selectedArr) {
+  batchRemove(selected, solver, actBase, total, active);
+
+  return constraints.filter((_, i) => active[i]);
+}
+
+/** Recursively try removing groups of constraints. */
+function batchRemove(
+  toTry: number[],
+  solver: IncrementalSolver,
+  actBase: number,
+  total: number,
+  active: boolean[],
+): void {
+  if (toTry.length === 0) return;
+
+  if (toTry.length === 1) {
+    // Single constraint: try removing it
+    const idx = toTry[0];
     active[idx] = false;
     if (!checkUnique(solver, actBase, total, active)) {
       active[idx] = true;
     }
+    return;
   }
 
-  return constraints.filter((_, i) => active[i]);
+  // Try removing all at once
+  for (const idx of toTry) active[idx] = false;
+  if (checkUnique(solver, actBase, total, active)) return; // all redundant
+  for (const idx of toTry) active[idx] = true; // restore
+
+  // Split and recurse
+  const mid = toTry.length >> 1;
+  batchRemove(toTry.slice(0, mid), solver, actBase, total, active);
+  batchRemove(toTry.slice(mid), solver, actBase, total, active);
 }
 
 // Seeded PRNG (xorshift32)
