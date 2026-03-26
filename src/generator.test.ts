@@ -139,6 +139,20 @@ describe('generate', () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
+  it('generates 10x10 puzzles', () => {
+    const puzzle = generate({ size: 10, categories: 10, seed: 42 });
+    expect(puzzle.grid.size).toBe(10);
+    expect(puzzle.grid.categories.length).toBe(10);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  });
+
+  it('generates 15x10 puzzles (matches Python benchmark)', () => {
+    const puzzle = generate({ size: 15, categories: 10, seed: 42 });
+    expect(puzzle.grid.size).toBe(15);
+    expect(puzzle.grid.categories.length).toBe(10);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  }, 10000);
+
   it('accepts custom categories', () => {
     const puzzle = generate({
       size: 3,
