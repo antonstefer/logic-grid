@@ -129,11 +129,25 @@ function dpll(clauses: number[][], assignment: Map<number, boolean>): boolean {
 }
 
 function simplify(clauses: number[][], lit: number): number[][] {
+  const neg = -lit;
   const result: number[][] = [];
   for (const clause of clauses) {
-    if (clause.includes(lit)) continue; // clause satisfied
-    const filtered = clause.filter(l => l !== -lit);
-    result.push(filtered);
+    let satisfied = false;
+    let hasNeg = false;
+    for (let i = 0; i < clause.length; i++) {
+      if (clause[i] === lit) { satisfied = true; break; }
+      if (clause[i] === neg) { hasNeg = true; }
+    }
+    if (satisfied) continue;
+    if (hasNeg) {
+      const filtered: number[] = [];
+      for (let i = 0; i < clause.length; i++) {
+        if (clause[i] !== neg) filtered.push(clause[i]);
+      }
+      result.push(filtered);
+    } else {
+      result.push(clause);
+    }
   }
   return result;
 }
