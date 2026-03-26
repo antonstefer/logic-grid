@@ -24,6 +24,9 @@
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ bench/",
+    "format": "prettier --write src/ bench/",
+    "format:check": "prettier --check src/ bench/",
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.ts",
     "bench:profile": "tsup --entry.profile bench/profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
@@ -41,6 +44,10 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^10.1.0",
+    "prettier": "^3.8.1",
     "tsup": "^8.0.0",
     "typescript": "^5.5.3",
     "vitest": "^3.0.0"
