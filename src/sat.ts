@@ -125,6 +125,11 @@ class SATBase {
     this.trail[this.trailSize++] = v;
   }
 
+  /**
+   * Unit propagation with watched literals. Each clause watches two literals;
+   * only re-examine a clause when a watched literal becomes false.
+   * Returns false on conflict.
+   */
   protected propagate(): boolean {
     while (this.propHead < this.trailSize) {
       const v = this.trail[this.propHead++];

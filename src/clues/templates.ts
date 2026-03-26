@@ -1,5 +1,6 @@
 import type { Constraint, Clue, Grid } from "../types";
 
+/** Convert a constraint into a human-readable English clue. */
 export function renderClue(constraint: Constraint, grid: Grid): Clue {
   const text = renderText(constraint, grid);
   return { constraint, text };

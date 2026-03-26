@@ -8,6 +8,7 @@ import {
 } from "./encoding";
 import { solveSAT, solveAllSAT, isUnique } from "./sat";
 
+/** Solve a puzzle. Returns the solution, or `null` if the constraints are unsatisfiable. */
 export function solve(constraints: Constraint[], grid: Grid): Solution | null {
   const ctx = createContext(grid);
   const clauses = encodePuzzle(ctx, constraints);
@@ -17,6 +18,7 @@ export function solve(constraints: Constraint[], grid: Grid): Solution | null {
   return decodeSolution(ctx, result.assignment);
 }
 
+/** Check whether a constraint set produces exactly one solution. */
 export function hasUniqueSolution(
   constraints: Constraint[],
   grid: Grid,
@@ -33,6 +35,7 @@ export interface SolverContext {
   allVars: Set<number>;
 }
 
+/** Pre-compute base clauses for a grid. Reuse across multiple solve/uniqueness calls on the same grid. */
 export function createSolverContext(grid: Grid): SolverContext {
   const ctx = createContext(grid);
   const baseClauses = encodeBase(ctx);
@@ -46,6 +49,7 @@ export function createSolverContext(grid: Grid): SolverContext {
   return { ctx, baseClauses, allVars };
 }
 
+/** Like {@link hasUniqueSolution} but reuses a pre-built {@link SolverContext}. */
 export function hasUniqueSolutionFast(
   constraints: Constraint[],
   solverCtx: SolverContext,

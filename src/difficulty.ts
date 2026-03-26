@@ -15,6 +15,10 @@ const MEDIUM_TYPES: Set<ConstraintType> = new Set([
 
 // Hard types: between, not_next_to (plus everything else)
 
+/**
+ * Classify puzzle difficulty. Uses constraint types as a floor, then (if grid
+ * is provided) checks whether the puzzle is solvable by direct elimination alone.
+ */
 export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   const typeFloor = classifyByTypes(constraints);
 
