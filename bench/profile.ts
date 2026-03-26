@@ -7,7 +7,7 @@
  *
  * Open .cpuprofile in Chrome DevTools or https://www.speedscope.app.
  */
-import { generate } from '../src';
+import { generate } from "../src";
 
 const sizes: [number, number][] = [
   [4, 4],
@@ -24,17 +24,19 @@ export function runBench(): void {
   // Warm up JIT
   generate({ size: 10, categories: 6, seed: 1 });
 
-  console.log('size        time');
-  console.log('----        ----');
+  console.log("size        time");
+  console.log("----        ----");
   for (const [size, cats] of sizes) {
     const start = performance.now();
     generate({ size, categories: cats, seed: 42 });
     const ms = performance.now() - start;
-    console.log(`${String(size).padStart(2)}x${String(cats).padEnd(2)}   ${ms.toFixed(0).padStart(7)}ms`);
+    console.log(
+      `${String(size).padStart(2)}x${String(cats).padEnd(2)}   ${ms.toFixed(0).padStart(7)}ms`,
+    );
   }
 }
 
 // Auto-run when executed directly (node), not when imported (vitest)
-const isDirectRun = typeof process !== 'undefined'
-  && process.argv[1]?.includes('profile');
+const isDirectRun =
+  typeof process !== "undefined" && process.argv[1]?.includes("profile");
 if (isDirectRun) runBench();

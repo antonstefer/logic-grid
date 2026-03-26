@@ -1,11 +1,16 @@
-import { Constraint, ConstraintType, Difficulty, Grid } from './types';
+import { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 
 const EASY_TYPES: Set<ConstraintType> = new Set([
-  'same_house', 'not_same_house', 'at_position', 'not_at_position',
+  "same_house",
+  "not_same_house",
+  "at_position",
+  "not_at_position",
 ]);
 
 const MEDIUM_TYPES: Set<ConstraintType> = new Set([
-  ...EASY_TYPES, 'next_to', 'left_of',
+  ...EASY_TYPES,
+  "next_to",
+  "left_of",
 ]);
 
 // Hard types: between, not_next_to (plus everything else)
@@ -13,11 +18,11 @@ const MEDIUM_TYPES: Set<ConstraintType> = new Set([
 export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   const typeFloor = classifyByTypes(constraints);
 
-  if (grid && typeFloor === 'easy') {
+  if (grid && typeFloor === "easy") {
     // Check if human-style elimination can fully solve it
     const canEliminate = humanSolve(constraints, grid);
-    if (canEliminate) return 'easy';
-    return 'medium';
+    if (canEliminate) return "easy";
+    return "medium";
   }
 
   return typeFloor;
@@ -37,9 +42,9 @@ function classifyByTypes(constraints: Constraint[]): Difficulty {
     }
   }
 
-  if (hasHard) return 'hard';
-  if (hasMedium) return 'medium';
-  return 'easy';
+  if (hasHard) return "hard";
+  if (hasMedium) return "medium";
+  return "easy";
 }
 
 /**
@@ -51,8 +56,8 @@ function humanSolve(constraints: Constraint[], grid: Grid): boolean {
   const categories = grid.categories;
 
   // possible[catIdx][valIdx] = set of possible positions
-  const possible: Set<number>[][] = categories.map(cat =>
-    cat.values.map(() => new Set(Array.from({ length: n }, (_, i) => i)))
+  const possible: Set<number>[][] = categories.map((cat) =>
+    cat.values.map(() => new Set(Array.from({ length: n }, (_, i) => i))),
   );
 
   // Helper: find category and value index
@@ -81,7 +86,7 @@ function humanSolve(constraints: Constraint[], grid: Grid): boolean {
 
     for (const c of constraints) {
       switch (c.type) {
-        case 'at_position': {
+        case "at_position": {
           const ps = getPossible(c.value);
           if (ps.size > 1) {
             ps.clear();
@@ -90,7 +95,7 @@ function humanSolve(constraints: Constraint[], grid: Grid): boolean {
           }
           break;
         }
-        case 'not_at_position': {
+        case "not_at_position": {
           const ps = getPossible(c.value);
           if (ps.has(c.position)) {
             ps.delete(c.position);
@@ -98,28 +103,40 @@ function humanSolve(constraints: Constraint[], grid: Grid): boolean {
           }
           break;
         }
-        case 'same_house': {
+        case "same_house": {
           const pa = getPossible(c.a);
           const pb = getPossible(c.b);
           // Intersect: both must be in the same position
           for (const p of pa) {
-            if (!pb.has(p)) { pa.delete(p); changed = true; }
+            if (!pb.has(p)) {
+              pa.delete(p);
+              changed = true;
+            }
           }
           for (const p of pb) {
-            if (!pa.has(p)) { pb.delete(p); changed = true; }
+            if (!pa.has(p)) {
+              pb.delete(p);
+              changed = true;
+            }
           }
           break;
         }
-        case 'not_same_house': {
+        case "not_same_house": {
           const posA = getAssigned(c.a);
           const posB = getAssigned(c.b);
           if (posA !== null) {
             const pb = getPossible(c.b);
-            if (pb.has(posA)) { pb.delete(posA); changed = true; }
+            if (pb.has(posA)) {
+              pb.delete(posA);
+              changed = true;
+            }
           }
           if (posB !== null) {
             const pa = getPossible(c.a);
-            if (pa.has(posB)) { pa.delete(posB); changed = true; }
+            if (pa.has(posB)) {
+              pa.delete(posB);
+              changed = true;
+            }
           }
           break;
         }

@@ -8,14 +8,17 @@ export function solveSAT(clauses: number[][]): SATResult {
   return { satisfiable: true, assignment: solver.getAssignment() };
 }
 
-export function solveAllSAT(clauses: number[][], limit: number): Map<number, boolean>[] {
+export function solveAllSAT(
+  clauses: number[][],
+  limit: number,
+): Map<number, boolean>[] {
   const allVars = new Set<number>();
   for (const clause of clauses) {
     for (const lit of clause) allVars.add(Math.abs(lit));
   }
 
   const solutions: Map<number, boolean>[] = [];
-  const working = clauses.map(c => [...c]);
+  const working = clauses.map((c) => [...c]);
 
   while (solutions.length < limit) {
     const solver = new Solver(working);
@@ -58,7 +61,7 @@ const TRUE = 1;
 const FALSE = 2;
 
 function litIdx(lit: number): number {
-  return lit > 0 ? lit * 2 : (-lit) * 2 + 1;
+  return lit > 0 ? lit * 2 : -lit * 2 + 1;
 }
 
 /** Base class for watched-literal DPLL solvers with flat Int32Array storage. */
@@ -215,7 +218,6 @@ class Solver extends SATBase {
     return this.processUnitClauses() && this.search();
   }
 
-
   getAssignment(): Map<number, boolean> {
     const result = new Map<number, boolean>();
     for (let v = 1; v <= this.numVars; v++) {
@@ -229,7 +231,10 @@ class Solver extends SATBase {
   private search(): boolean {
     let chosen = 0;
     for (let v = 1; v <= this.numVars; v++) {
-      if (this.values[v] === UNDEF) { chosen = v; break; }
+      if (this.values[v] === UNDEF) {
+        chosen = v;
+        break;
+      }
     }
     if (chosen === 0) return true;
 
@@ -288,7 +293,10 @@ export class IncrementalSolver extends SATBase {
   private countSolutions(limit: number): number {
     let chosen = 0;
     for (let v = 1; v <= this.numVars; v++) {
-      if (this.values[v] === UNDEF) { chosen = v; break; }
+      if (this.values[v] === UNDEF) {
+        chosen = v;
+        break;
+      }
     }
     if (chosen === 0) return 1;
 

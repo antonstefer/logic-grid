@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { solve, hasUniqueSolution } from './solver';
-import { Grid, Constraint } from './types';
+import { describe, it, expect } from "vitest";
+import { solve, hasUniqueSolution } from "./solver";
+import { Grid, Constraint } from "./types";
 
 /**
  * 3x3 puzzle: 3 houses, 3 categories
@@ -21,23 +21,23 @@ import { Grid, Constraint } from './types';
 const grid3x3: Grid = {
   size: 3,
   categories: [
-    { name: 'Color', values: ['Red', 'Blue', 'Green'] },
-    { name: 'Pet', values: ['Cat', 'Dog', 'Fish'] },
-    { name: 'Drink', values: ['Tea', 'Coffee', 'Water'] },
+    { name: "Color", values: ["Red", "Blue", "Green"] },
+    { name: "Pet", values: ["Cat", "Dog", "Fish"] },
+    { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
 };
 
 const puzzle3x3: Constraint[] = [
-  { type: 'at_position', value: 'Red', position: 0 },
-  { type: 'same_house', a: 'Red', b: 'Cat' },
-  { type: 'left_of', a: 'Blue', b: 'Green' },
-  { type: 'same_house', a: 'Blue', b: 'Dog' },
-  { type: 'same_house', a: 'Dog', b: 'Coffee' },
-  { type: 'at_position', value: 'Tea', position: 0 },
+  { type: "at_position", value: "Red", position: 0 },
+  { type: "same_house", a: "Red", b: "Cat" },
+  { type: "left_of", a: "Blue", b: "Green" },
+  { type: "same_house", a: "Blue", b: "Dog" },
+  { type: "same_house", a: "Dog", b: "Coffee" },
+  { type: "at_position", value: "Tea", position: 0 },
 ];
 
-describe('solve', () => {
-  it('solves a 3x3 puzzle with known solution', () => {
+describe("solve", () => {
+  it("solves a 3x3 puzzle with known solution", () => {
     const solution = solve(puzzle3x3, grid3x3);
     expect(solution).not.toBeNull();
 
@@ -47,15 +47,15 @@ describe('solve', () => {
     expect(drinks).toEqual({ Tea: 0, Coffee: 1, Water: 2 });
   });
 
-  it('returns null for contradictory constraints', () => {
+  it("returns null for contradictory constraints", () => {
     const impossible: Constraint[] = [
-      { type: 'at_position', value: 'Red', position: 0 },
-      { type: 'at_position', value: 'Red', position: 1 },
+      { type: "at_position", value: "Red", position: 0 },
+      { type: "at_position", value: "Red", position: 1 },
     ];
     expect(solve(impossible, grid3x3)).toBeNull();
   });
 
-  it('returns a valid solution even with no puzzle constraints', () => {
+  it("returns a valid solution even with no puzzle constraints", () => {
     const solution = solve([], grid3x3);
     expect(solution).not.toBeNull();
     for (const assignment of solution!) {
@@ -93,29 +93,29 @@ describe('solve', () => {
 const grid4x4: Grid = {
   size: 4,
   categories: [
-    { name: 'Name', values: ['Alice', 'Bob', 'Carol', 'Dave'] },
-    { name: 'Color', values: ['Red', 'Blue', 'Green', 'Yellow'] },
-    { name: 'Pet', values: ['Cat', 'Dog', 'Fish', 'Bird'] },
-    { name: 'Drink', values: ['Tea', 'Coffee', 'Milk', 'Water'] },
+    { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+    { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
+    { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird"] },
+    { name: "Drink", values: ["Tea", "Coffee", "Milk", "Water"] },
   ],
 };
 
 const puzzle4x4: Constraint[] = [
-  { type: 'at_position', value: 'Alice', position: 0 },
-  { type: 'same_house', a: 'Alice', b: 'Red' },
-  { type: 'same_house', a: 'Alice', b: 'Tea' },
-  { type: 'next_to', a: 'Bob', b: 'Alice' },
-  { type: 'same_house', a: 'Dave', b: 'Yellow' },
-  { type: 'left_of', a: 'Blue', b: 'Green' },
-  { type: 'same_house', a: 'Carol', b: 'Fish' },
-  { type: 'at_position', value: 'Milk', position: 2 },
-  { type: 'same_house', a: 'Dog', b: 'Coffee' },
-  { type: 'left_of', a: 'Dog', b: 'Fish' },
-  { type: 'not_same_house', a: 'Alice', b: 'Bird' },
+  { type: "at_position", value: "Alice", position: 0 },
+  { type: "same_house", a: "Alice", b: "Red" },
+  { type: "same_house", a: "Alice", b: "Tea" },
+  { type: "next_to", a: "Bob", b: "Alice" },
+  { type: "same_house", a: "Dave", b: "Yellow" },
+  { type: "left_of", a: "Blue", b: "Green" },
+  { type: "same_house", a: "Carol", b: "Fish" },
+  { type: "at_position", value: "Milk", position: 2 },
+  { type: "same_house", a: "Dog", b: "Coffee" },
+  { type: "left_of", a: "Dog", b: "Fish" },
+  { type: "not_same_house", a: "Alice", b: "Bird" },
 ];
 
-describe('solve 4x4', () => {
-  it('solves a 4x4 puzzle with known solution', () => {
+describe("solve 4x4", () => {
+  it("solves a 4x4 puzzle with known solution", () => {
     const solution = solve(puzzle4x4, grid4x4);
     expect(solution).not.toBeNull();
 
@@ -127,22 +127,22 @@ describe('solve 4x4', () => {
   });
 });
 
-describe('hasUniqueSolution', () => {
-  it('returns true for the 3x3 puzzle', () => {
+describe("hasUniqueSolution", () => {
+  it("returns true for the 3x3 puzzle", () => {
     expect(hasUniqueSolution(puzzle3x3, grid3x3)).toBe(true);
   });
 
-  it('returns true for the 4x4 puzzle', () => {
+  it("returns true for the 4x4 puzzle", () => {
     expect(hasUniqueSolution(puzzle4x4, grid4x4)).toBe(true);
   });
 
-  it('returns false when a constraint is removed', () => {
+  it("returns false when a constraint is removed", () => {
     // Remove last constraint — Blue/Dog link breaks, multiple solutions
     const weakened = puzzle3x3.slice(0, -1);
     expect(hasUniqueSolution(weakened, grid3x3)).toBe(false);
   });
 
-  it('returns false with no constraints', () => {
+  it("returns false with no constraints", () => {
     expect(hasUniqueSolution([], grid3x3)).toBe(false);
   });
 });
