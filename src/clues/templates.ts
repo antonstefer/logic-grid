@@ -1,4 +1,4 @@
-import { Constraint, Clue, Grid } from "../types";
+import type { Constraint, Clue, Grid } from "../types";
 
 export function renderClue(constraint: Constraint, grid: Grid): Clue {
   const text = renderText(constraint, grid);

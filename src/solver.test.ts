@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { solve, hasUniqueSolution } from "./solver";
-import { Grid, Constraint } from "./types";
+import type { Grid, Constraint } from "./types";
 
 /**
  * 3x3 puzzle: 3 houses, 3 categories

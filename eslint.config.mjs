@@ -1,22 +1,24 @@
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsparser from '@typescript-eslint/parser';
+import tseslint from "typescript-eslint";
+import prettier from "eslint-config-prettier";
 
-export default [
+export default tseslint.config(
   {
-    files: ['src/**/*.ts', 'bench/**/*.ts'],
+    files: ["src/**/*.ts", "bench/**/*.ts"],
+    extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
-      parser: tsparser,
       parserOptions: {
-        project: './tsconfig.json',
+        project: "./tsconfig.json",
       },
     },
-    plugins: {
-      '@typescript-eslint': tseslint,
-    },
     rules: {
-      '@typescript-eslint/prefer-readonly': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-constant-condition': 'off',
+      "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
     },
   },
-];
+  prettier,
+);

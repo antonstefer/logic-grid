@@ -1,10 +1,10 @@
-import { Constraint, Grid, Solution, Assignment } from "./types";
+import type { Constraint, Grid, Solution, Assignment } from "./types";
+import type { EncodingContext } from "./encoding";
 import {
   createContext,
   encodeBase,
   encodeConstraint,
   encodePuzzle,
-  EncodingContext,
 } from "./encoding";
 import { solveSAT, solveAllSAT, isUnique } from "./sat";
 

@@ -1,4 +1,4 @@
-import { Constraint, ConstraintType, Difficulty, Grid } from "./types";
+import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 
 const EASY_TYPES: Set<ConstraintType> = new Set([
   "same_house",

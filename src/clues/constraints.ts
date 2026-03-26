@@ -1,4 +1,4 @@
-import { Constraint } from "../types";
+import type { Constraint } from "../types";
 
 export function sameHouse(a: string, b: string): Constraint {
   return { type: "same_house", a, b };

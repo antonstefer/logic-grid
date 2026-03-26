@@ -100,7 +100,7 @@ class SATBase {
     this.clauseLen = new Uint16Array(inputClauses.length);
 
     const litCount = 2 * (maxVar + 1);
-    this.watches = new Array(litCount);
+    this.watches = new Array<number[]>(litCount);
     for (let i = 0; i < litCount; i++) this.watches[i] = [];
 
     let offset = 0;
