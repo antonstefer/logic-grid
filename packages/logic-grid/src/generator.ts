@@ -15,14 +15,83 @@ import { renderClue } from "./clues/templates";
 import { classify } from "./difficulty";
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"] },
-  { name: "Color", values: ["Red", "Blue", "Green", "Yellow", "White", "Orange", "Purple", "Pink"] },
-  { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird", "Rabbit", "Turtle", "Hamster", "Snake"] },
-  { name: "Drink", values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"] },
-  { name: "Food", values: ["Pizza", "Pasta", "Sushi", "Tacos", "Salad", "Steak", "Curry", "Soup"] },
-  { name: "Hobby", values: ["Reading", "Painting", "Cooking", "Running", "Chess", "Gardening", "Hiking", "Knitting"] },
-  { name: "Music", values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"] },
-  { name: "Sport", values: ["Soccer", "Tennis", "Golf", "Boxing", "Rugby", "Cricket", "Hockey", "Skiing"] },
+  {
+    name: "Name",
+    values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"],
+  },
+  {
+    name: "Color",
+    values: [
+      "Red",
+      "Blue",
+      "Green",
+      "Yellow",
+      "White",
+      "Orange",
+      "Purple",
+      "Pink",
+    ],
+  },
+  {
+    name: "Pet",
+    values: [
+      "Cat",
+      "Dog",
+      "Fish",
+      "Bird",
+      "Rabbit",
+      "Turtle",
+      "Hamster",
+      "Snake",
+    ],
+  },
+  {
+    name: "Drink",
+    values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"],
+  },
+  {
+    name: "Food",
+    values: [
+      "Pizza",
+      "Pasta",
+      "Sushi",
+      "Tacos",
+      "Salad",
+      "Steak",
+      "Curry",
+      "Soup",
+    ],
+  },
+  {
+    name: "Hobby",
+    values: [
+      "Reading",
+      "Painting",
+      "Cooking",
+      "Running",
+      "Chess",
+      "Gardening",
+      "Hiking",
+      "Knitting",
+    ],
+  },
+  {
+    name: "Music",
+    values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"],
+  },
+  {
+    name: "Sport",
+    values: [
+      "Soccer",
+      "Tennis",
+      "Golf",
+      "Boxing",
+      "Rugby",
+      "Cricket",
+      "Hockey",
+      "Skiing",
+    ],
+  },
 ];
 
 const EASY_TYPES: Set<Constraint["type"]> = new Set([
@@ -47,7 +116,8 @@ export function generate(options?: GenerateOptions): Puzzle {
   const size = options?.size ?? 4;
   const numCategories = options?.categories ?? 4;
   if (size < 3 || size > 8) throw new RangeError("size must be 3-8");
-  if (numCategories < 3 || numCategories > 8) throw new RangeError("categories must be 3-8");
+  if (numCategories < 3 || numCategories > 8)
+    throw new RangeError("categories must be 3-8");
   const difficulty = options?.difficulty;
   const rng = createRng(options?.seed);
 
@@ -431,10 +501,7 @@ function minimizeConstraints(
   for (const fraction of [0.1, 0.05]) {
     let offset = 0;
     while (offset < indices.length) {
-      const count = Math.max(
-        1,
-        Math.floor(activeCount(active) * fraction),
-      );
+      const count = Math.max(1, Math.floor(activeCount(active) * fraction));
       const batch: number[] = [];
       let scan = offset;
       while (batch.length < count && scan < indices.length) {
