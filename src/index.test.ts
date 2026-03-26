@@ -1,11 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
-  generate, solve, hasUniqueSolution, classify,
-  sameHouse, nextTo, leftOf, atPosition,
-} from './index';
+  generate,
+  solve,
+  hasUniqueSolution,
+  classify,
+  sameHouse,
+  nextTo,
+  leftOf,
+  atPosition,
+} from "./index";
 
-describe('public API integration', () => {
-  it('generate → solve → verify solution matches', () => {
+describe("public API integration", () => {
+  it("generate → solve → verify solution matches", () => {
     const puzzle = generate({ seed: 77 });
 
     const solved = solve(puzzle.constraints, puzzle.grid);
@@ -19,48 +25,48 @@ describe('public API integration', () => {
     }
   });
 
-  it('generate → classify → difficulty matches', () => {
+  it("generate → classify → difficulty matches", () => {
     const puzzle = generate({ seed: 88 });
     const difficulty = classify(puzzle.constraints, puzzle.grid);
     expect(difficulty).toBe(puzzle.difficulty);
   });
 
-  it('generate → hasUniqueSolution confirms uniqueness', () => {
+  it("generate → hasUniqueSolution confirms uniqueness", () => {
     const puzzle = generate({ seed: 99 });
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it('constraint factories work with solve', () => {
+  it("constraint factories work with solve", () => {
     const grid = {
       size: 3,
       categories: [
-        { name: 'Color', values: ['Red', 'Blue', 'Green'] },
-        { name: 'Pet', values: ['Cat', 'Dog', 'Fish'] },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+        { name: "Pet", values: ["Cat", "Dog", "Fish"] },
       ],
     };
     const constraints = [
-      atPosition('Red', 0),
-      sameHouse('Red', 'Cat'),
-      leftOf('Blue', 'Green'),
+      atPosition("Red", 0),
+      sameHouse("Red", "Cat"),
+      leftOf("Blue", "Green"),
     ];
     const solution = solve(constraints, grid);
     expect(solution).not.toBeNull();
-    expect(solution![0]['Red']).toBe(0);
-    expect(solution![1]['Cat']).toBe(0);
+    expect(solution![0]["Red"]).toBe(0);
+    expect(solution![1]["Cat"]).toBe(0);
   });
 
-  it('renderClue produces text for generated puzzles', () => {
+  it("renderClue produces text for generated puzzles", () => {
     const puzzle = generate({ seed: 55 });
     for (const clue of puzzle.clues) {
       expect(clue.text.length).toBeGreaterThan(0);
-      expect(clue.text.endsWith('.')).toBe(true);
+      expect(clue.text.endsWith(".")).toBe(true);
     }
   });
 
-  it('all constraint factories are exported', () => {
-    expect(typeof sameHouse).toBe('function');
-    expect(typeof nextTo).toBe('function');
-    expect(typeof leftOf).toBe('function');
-    expect(typeof atPosition).toBe('function');
+  it("all constraint factories are exported", () => {
+    expect(typeof sameHouse).toBe("function");
+    expect(typeof nextTo).toBe("function");
+    expect(typeof leftOf).toBe("function");
+    expect(typeof atPosition).toBe("function");
   });
 });

@@ -1,28 +1,236 @@
-import { Puzzle, GenerateOptions, Grid, Solution, Constraint, Category, Difficulty, Assignment } from './types';
-import { createSolverContext, encodeConstraintCached, SolverContext } from './solver';
-import { IncrementalSolver } from './sat';
-import { renderClue } from './clues/templates';
-import { classify } from './difficulty';
+import {
+  Puzzle,
+  GenerateOptions,
+  Grid,
+  Solution,
+  Constraint,
+  Category,
+  Difficulty,
+  Assignment,
+} from "./types";
+import {
+  createSolverContext,
+  encodeConstraintCached,
+  SolverContext,
+} from "./solver";
+import { IncrementalSolver } from "./sat";
+import { renderClue } from "./clues/templates";
+import { classify } from "./difficulty";
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { name: 'Name', values: ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack', 'Karen', 'Leo', 'Mia', 'Nick', 'Olivia'] },
-  { name: 'Color', values: ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Orange', 'Purple', 'Pink', 'Brown', 'Gray', 'Teal', 'Maroon', 'Navy', 'Lime', 'Coral'] },
-  { name: 'Pet', values: ['Cat', 'Dog', 'Fish', 'Bird', 'Rabbit', 'Turtle', 'Hamster', 'Snake', 'Parrot', 'Lizard', 'Ferret', 'Frog', 'Horse', 'Goat', 'Duck'] },
-  { name: 'Drink', values: ['Tea', 'Coffee', 'Water', 'Milk', 'Juice', 'Soda', 'Wine', 'Beer', 'Cocoa', 'Lemonade', 'Cider', 'Smoothie', 'Espresso', 'Matcha', 'Kombucha'] },
-  { name: 'Food', values: ['Pizza', 'Pasta', 'Sushi', 'Tacos', 'Salad', 'Steak', 'Curry', 'Soup', 'Burger', 'Ramen', 'Falafel', 'Paella', 'Gnocchi', 'Kebab', 'Risotto'] },
-  { name: 'Hobby', values: ['Reading', 'Painting', 'Cooking', 'Running', 'Chess', 'Gardening', 'Hiking', 'Knitting', 'Singing', 'Fishing', 'Yoga', 'Dancing', 'Cycling', 'Writing', 'Gaming'] },
-  { name: 'Music', values: ['Jazz', 'Rock', 'Pop', 'Blues', 'Folk', 'Reggae', 'Metal', 'Punk', 'Soul', 'Funk', 'Techno', 'Opera', 'Country', 'Indie', 'Disco'] },
-  { name: 'Sport', values: ['Soccer', 'Tennis', 'Golf', 'Boxing', 'Rugby', 'Cricket', 'Hockey', 'Skiing', 'Fencing', 'Surfing', 'Rowing', 'Archery', 'Polo', 'Judo', 'Squash'] },
-  { name: 'Job', values: ['Doctor', 'Teacher', 'Chef', 'Pilot', 'Lawyer', 'Artist', 'Nurse', 'Farmer', 'Writer', 'Baker', 'Tailor', 'Mason', 'Clerk', 'Miner', 'Guard'] },
-  { name: 'Transport', values: ['Car', 'Bike', 'Bus', 'Train', 'Boat', 'Plane', 'Scooter', 'Tram', 'Ferry', 'Taxi', 'Van', 'Truck', 'Metro', 'Cable', 'Raft'] },
+  {
+    name: "Name",
+    values: [
+      "Alice",
+      "Bob",
+      "Carol",
+      "Dave",
+      "Eve",
+      "Frank",
+      "Grace",
+      "Hank",
+      "Ivy",
+      "Jack",
+      "Karen",
+      "Leo",
+      "Mia",
+      "Nick",
+      "Olivia",
+    ],
+  },
+  {
+    name: "Color",
+    values: [
+      "Red",
+      "Blue",
+      "Green",
+      "Yellow",
+      "White",
+      "Orange",
+      "Purple",
+      "Pink",
+      "Brown",
+      "Gray",
+      "Teal",
+      "Maroon",
+      "Navy",
+      "Lime",
+      "Coral",
+    ],
+  },
+  {
+    name: "Pet",
+    values: [
+      "Cat",
+      "Dog",
+      "Fish",
+      "Bird",
+      "Rabbit",
+      "Turtle",
+      "Hamster",
+      "Snake",
+      "Parrot",
+      "Lizard",
+      "Ferret",
+      "Frog",
+      "Horse",
+      "Goat",
+      "Duck",
+    ],
+  },
+  {
+    name: "Drink",
+    values: [
+      "Tea",
+      "Coffee",
+      "Water",
+      "Milk",
+      "Juice",
+      "Soda",
+      "Wine",
+      "Beer",
+      "Cocoa",
+      "Lemonade",
+      "Cider",
+      "Smoothie",
+      "Espresso",
+      "Matcha",
+      "Kombucha",
+    ],
+  },
+  {
+    name: "Food",
+    values: [
+      "Pizza",
+      "Pasta",
+      "Sushi",
+      "Tacos",
+      "Salad",
+      "Steak",
+      "Curry",
+      "Soup",
+      "Burger",
+      "Ramen",
+      "Falafel",
+      "Paella",
+      "Gnocchi",
+      "Kebab",
+      "Risotto",
+    ],
+  },
+  {
+    name: "Hobby",
+    values: [
+      "Reading",
+      "Painting",
+      "Cooking",
+      "Running",
+      "Chess",
+      "Gardening",
+      "Hiking",
+      "Knitting",
+      "Singing",
+      "Fishing",
+      "Yoga",
+      "Dancing",
+      "Cycling",
+      "Writing",
+      "Gaming",
+    ],
+  },
+  {
+    name: "Music",
+    values: [
+      "Jazz",
+      "Rock",
+      "Pop",
+      "Blues",
+      "Folk",
+      "Reggae",
+      "Metal",
+      "Punk",
+      "Soul",
+      "Funk",
+      "Techno",
+      "Opera",
+      "Country",
+      "Indie",
+      "Disco",
+    ],
+  },
+  {
+    name: "Sport",
+    values: [
+      "Soccer",
+      "Tennis",
+      "Golf",
+      "Boxing",
+      "Rugby",
+      "Cricket",
+      "Hockey",
+      "Skiing",
+      "Fencing",
+      "Surfing",
+      "Rowing",
+      "Archery",
+      "Polo",
+      "Judo",
+      "Squash",
+    ],
+  },
+  {
+    name: "Job",
+    values: [
+      "Doctor",
+      "Teacher",
+      "Chef",
+      "Pilot",
+      "Lawyer",
+      "Artist",
+      "Nurse",
+      "Farmer",
+      "Writer",
+      "Baker",
+      "Tailor",
+      "Mason",
+      "Clerk",
+      "Miner",
+      "Guard",
+    ],
+  },
+  {
+    name: "Transport",
+    values: [
+      "Car",
+      "Bike",
+      "Bus",
+      "Train",
+      "Boat",
+      "Plane",
+      "Scooter",
+      "Tram",
+      "Ferry",
+      "Taxi",
+      "Van",
+      "Truck",
+      "Metro",
+      "Cable",
+      "Raft",
+    ],
+  },
 ];
 
-const EASY_TYPES: Set<Constraint['type']> = new Set([
-  'same_house', 'not_same_house', 'at_position', 'not_at_position',
+const EASY_TYPES: Set<Constraint["type"]> = new Set([
+  "same_house",
+  "not_same_house",
+  "at_position",
+  "not_at_position",
 ]);
 
-const MEDIUM_TYPES: Set<Constraint['type']> = new Set([
-  ...EASY_TYPES, 'next_to', 'left_of',
+const MEDIUM_TYPES: Set<Constraint["type"]> = new Set([
+  ...EASY_TYPES,
+  "next_to",
+  "left_of",
 ]);
 
 const MAX_RETRIES = 100;
@@ -48,7 +256,9 @@ export function generate(options?: GenerateOptions): Puzzle {
     shuffle(filtered, rng);
 
     // Pre-encode all constraint clauses once
-    const clauseCache = filtered.map(c => encodeConstraintCached(c, solverCtx));
+    const clauseCache = filtered.map((c) =>
+      encodeConstraintCached(c, solverCtx),
+    );
 
     // Build ONE incremental solver with activation literals for all constraints
     const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
@@ -56,7 +266,15 @@ export function generate(options?: GenerateOptions): Puzzle {
 
     // Check if all constraints together produce a unique solution
     const allActive = new Array(filtered.length).fill(true);
-    if (!checkUnique(incSolver.solver, incSolver.actBase, filtered.length, allActive)) continue;
+    if (
+      !checkUnique(
+        incSolver.solver,
+        incSolver.actBase,
+        filtered.length,
+        allActive,
+      )
+    )
+      continue;
 
     const minimal = minimizeConstraints(filtered, incSolver, rng);
     const actualDifficulty = classify(minimal, grid);
@@ -64,7 +282,7 @@ export function generate(options?: GenerateOptions): Puzzle {
     // If specific difficulty requested and doesn't match, retry
     if (difficulty && actualDifficulty !== difficulty) continue;
 
-    const clues = minimal.map(c => renderClue(c, grid));
+    const clues = minimal.map((c) => renderClue(c, grid));
 
     return {
       grid,
@@ -77,20 +295,24 @@ export function generate(options?: GenerateOptions): Puzzle {
 
   throw new Error(
     `Failed to generate a puzzle after ${MAX_RETRIES} attempts. ` +
-    `Try different options (larger size or different difficulty).`
+      `Try different options (larger size or different difficulty).`,
   );
 }
 
-function buildGrid(size: number, numCategories: number, categoryNames?: Category[]): Grid {
+function buildGrid(
+  size: number,
+  numCategories: number,
+  categoryNames?: Category[],
+): Grid {
   let categories: Category[];
 
   if (categoryNames) {
-    categories = categoryNames.map(c => ({
+    categories = categoryNames.map((c) => ({
       name: c.name,
       values: padValues(c.values, size, c.name),
     }));
   } else {
-    categories = DEFAULT_CATEGORIES.slice(0, numCategories).map(c => ({
+    categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
       name: c.name,
       values: padValues(c.values, size, c.name),
     }));
@@ -110,7 +332,7 @@ function padValues(pool: string[], size: number, catName: string): string[] {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  return grid.categories.map(cat => {
+  return grid.categories.map((cat) => {
     const positions = Array.from({ length: grid.size }, (_, i) => i);
     shuffle(positions, rng);
     const assignment: Assignment = {};
@@ -157,24 +379,24 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       const posB = posArr[j];
 
       if (posA === posB) {
-        constraints.push({ type: 'same_house', a, b });
+        constraints.push({ type: "same_house", a, b });
       } else if (negativeCount < maxNegative) {
-        constraints.push({ type: 'not_same_house', a, b });
+        constraints.push({ type: "not_same_house", a, b });
         negativeCount++;
       }
 
       if (Math.abs(posA - posB) === 1) {
-        constraints.push({ type: 'next_to', a, b });
+        constraints.push({ type: "next_to", a, b });
       } else if (posA !== posB && negativeCount < maxNegative) {
-        constraints.push({ type: 'not_next_to', a, b });
+        constraints.push({ type: "not_next_to", a, b });
         negativeCount++;
       }
 
       if (posA === posB - 1) {
-        constraints.push({ type: 'left_of', a, b });
+        constraints.push({ type: "left_of", a, b });
       }
       if (posB === posA - 1) {
-        constraints.push({ type: 'left_of', a: b, b: a });
+        constraints.push({ type: "left_of", a: b, b: a });
       }
     }
   }
@@ -183,17 +405,28 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   // Cap at 50 to avoid slow minimization — stop enumeration early
   const maxBetween = 50;
   let betweenCount = 0;
-  outer:
-  for (let i = 0; i < allValues.length && betweenCount < maxBetween; i++) {
-    const ai = allValues[i], catAi = catArr[i], posAi = posArr[i];
-    for (let j = i + 1; j < allValues.length && betweenCount < maxBetween; j++) {
+  outer: for (
+    let i = 0;
+    i < allValues.length && betweenCount < maxBetween;
+    i++
+  ) {
+    const ai = allValues[i],
+      catAi = catArr[i],
+      posAi = posArr[i];
+    for (
+      let j = i + 1;
+      j < allValues.length && betweenCount < maxBetween;
+      j++
+    ) {
       const catAj = catArr[j];
       if (catAj === catAi) continue;
-      const aj = allValues[j], posAj = posArr[j];
+      const aj = allValues[j],
+        posAj = posArr[j];
       for (let k = j + 1; k < allValues.length; k++) {
         const catAk = catArr[k];
         if (catAk === catAi || catAk === catAj) continue;
-        const ak = allValues[k], posAk = posArr[k];
+        const ak = allValues[k],
+          posAk = posArr[k];
         // Check each of the 3 values as potential middle
         const vals = [ai, aj, ak];
         const positions = [posAi, posAj, posAk];
@@ -203,10 +436,13 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
           const lo = Math.min(positions[o0], positions[o1]);
           const hi = Math.max(positions[o0], positions[o1]);
           if (positions[m] > lo && positions[m] < hi) {
-            const [v1, v2] = vals[o0] < vals[o1]
-              ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
+            const [v1, v2] =
+              vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
             constraints.push({
-              type: 'between', outer1: v1, middle: vals[m], outer2: v2,
+              type: "between",
+              outer1: v1,
+              middle: vals[m],
+              outer2: v2,
             });
             if (++betweenCount >= maxBetween) continue outer;
           }
@@ -218,15 +454,24 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   // Position constraints
   const notAtPositionConstraints: Constraint[] = [];
   for (const [val, pos] of posOf) {
-    constraints.push({ type: 'at_position', value: val, position: pos });
+    constraints.push({ type: "at_position", value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
-        notAtPositionConstraints.push({ type: 'not_at_position', value: val, position: p });
+        notAtPositionConstraints.push({
+          type: "not_at_position",
+          value: val,
+          position: p,
+        });
       }
     }
   }
   // Cap not_at_position for larger grids
-  constraints.push(...notAtPositionConstraints.slice(0, n <= 4 ? notAtPositionConstraints.length : n * n));
+  constraints.push(
+    ...notAtPositionConstraints.slice(
+      0,
+      n <= 4 ? notAtPositionConstraints.length : n * n,
+    ),
+  );
 
   return deduplicateConstraints(constraints);
 }
@@ -248,38 +493,41 @@ function deduplicateConstraints(constraints: Constraint[]): Constraint[] {
 
 function constraintKey(c: Constraint): string {
   switch (c.type) {
-    case 'same_house':
-    case 'not_same_house':
-    case 'next_to':
-    case 'not_next_to': {
+    case "same_house":
+    case "not_same_house":
+    case "next_to":
+    case "not_next_to": {
       // Symmetric: sort pair
       const [a, b] = c.a < c.b ? [c.a, c.b] : [c.b, c.a];
       return `${c.type}:${a}:${b}`;
     }
-    case 'left_of':
+    case "left_of":
       return `left_of:${c.a}:${c.b}`;
-    case 'between': {
-      const [o1, o2] = c.outer1 < c.outer2
-        ? [c.outer1, c.outer2]
-        : [c.outer2, c.outer1];
+    case "between": {
+      const [o1, o2] =
+        c.outer1 < c.outer2 ? [c.outer1, c.outer2] : [c.outer2, c.outer1];
       return `between:${o1}:${c.middle}:${o2}`;
     }
-    case 'at_position':
+    case "at_position":
       return `at_position:${c.value}:${c.position}`;
-    case 'not_at_position':
+    case "not_at_position":
       return `not_at_position:${c.value}:${c.position}`;
   }
 }
 
-function filterByDifficulty(constraints: Constraint[], difficulty: Difficulty): Constraint[] {
-  const allowedTypes = difficulty === 'easy'
-    ? EASY_TYPES
-    : difficulty === 'medium'
-      ? MEDIUM_TYPES
-      : null; // hard allows all types
+function filterByDifficulty(
+  constraints: Constraint[],
+  difficulty: Difficulty,
+): Constraint[] {
+  const allowedTypes =
+    difficulty === "easy"
+      ? EASY_TYPES
+      : difficulty === "medium"
+        ? MEDIUM_TYPES
+        : null; // hard allows all types
 
   if (!allowedTypes) return constraints;
-  return constraints.filter(c => allowedTypes.has(c.type));
+  return constraints.filter((c) => allowedTypes.has(c.type));
 }
 
 // Higher = more informative, added first in constructive phase
@@ -344,7 +592,7 @@ function checkUnique(
 ): boolean {
   const assumptions: number[] = new Array(total);
   for (let i = 0; i < total; i++) {
-    assumptions[i] = active[i] ? (actBase + i) : -(actBase + i);
+    assumptions[i] = active[i] ? actBase + i : -(actBase + i);
   }
   return solver.isUniqueUnder(assumptions);
 }

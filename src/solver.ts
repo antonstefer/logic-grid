@@ -1,6 +1,12 @@
-import { Constraint, Grid, Solution, Assignment } from './types';
-import { createContext, encodeBase, encodeConstraint, encodePuzzle, EncodingContext } from './encoding';
-import { solveSAT, solveAllSAT, isUnique } from './sat';
+import { Constraint, Grid, Solution, Assignment } from "./types";
+import {
+  createContext,
+  encodeBase,
+  encodeConstraint,
+  encodePuzzle,
+  EncodingContext,
+} from "./encoding";
+import { solveSAT, solveAllSAT, isUnique } from "./sat";
 
 export function solve(constraints: Constraint[], grid: Grid): Solution | null {
   const ctx = createContext(grid);
@@ -11,7 +17,10 @@ export function solve(constraints: Constraint[], grid: Grid): Solution | null {
   return decodeSolution(ctx, result.assignment);
 }
 
-export function hasUniqueSolution(constraints: Constraint[], grid: Grid): boolean {
+export function hasUniqueSolution(
+  constraints: Constraint[],
+  grid: Grid,
+): boolean {
   const ctx = createContext(grid);
   const clauses = encodePuzzle(ctx, constraints);
   const solutions = solveAllSAT(clauses, 2);
@@ -37,18 +46,26 @@ export function createSolverContext(grid: Grid): SolverContext {
   return { ctx, baseClauses, allVars };
 }
 
-export function hasUniqueSolutionFast(constraints: Constraint[], solverCtx: SolverContext): boolean {
+export function hasUniqueSolutionFast(
+  constraints: Constraint[],
+  solverCtx: SolverContext,
+): boolean {
   const clauses = buildClauses(constraints, solverCtx);
   return isUnique(clauses, solverCtx.allVars);
 }
 
 /** Pre-encode a constraint's clauses for reuse. */
-export function encodeConstraintCached(constraint: Constraint, solverCtx: SolverContext): number[][] {
+export function encodeConstraintCached(
+  constraint: Constraint,
+  solverCtx: SolverContext,
+): number[][] {
   return encodeConstraint(solverCtx.ctx, constraint);
 }
 
-
-function buildClauses(constraints: Constraint[], solverCtx: SolverContext): number[][] {
+function buildClauses(
+  constraints: Constraint[],
+  solverCtx: SolverContext,
+): number[][] {
   const clauses = [...solverCtx.baseClauses];
   for (const c of constraints) {
     const encoded = encodeConstraint(solverCtx.ctx, c);
@@ -57,7 +74,10 @@ function buildClauses(constraints: Constraint[], solverCtx: SolverContext): numb
   return clauses;
 }
 
-function decodeSolution(ctx: EncodingContext, assignment: Map<number, boolean>): Solution {
+function decodeSolution(
+  ctx: EncodingContext,
+  assignment: Map<number, boolean>,
+): Solution {
   const solution: Solution = [];
 
   for (const cat of ctx.grid.categories) {

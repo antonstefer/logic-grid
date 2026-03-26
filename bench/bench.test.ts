@@ -1,6 +1,6 @@
-import { it } from 'vitest';
-import { runBench } from './profile';
+import { it } from "vitest";
+import { runBench } from "./profile";
 
-it('benchmark', () => {
+it("benchmark", () => {
   runBench();
 }, 120000);
