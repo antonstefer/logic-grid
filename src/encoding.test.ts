@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createContext, variable, encodeBase, encodeConstraint, encodePuzzle } from './encoding';
+import { createContext, variable, encodeBase, encodePuzzle } from './encoding';
 import { solveSAT, solveAllSAT } from './sat';
 import { Grid, Constraint } from './types';
 

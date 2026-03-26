@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   generate, solve, hasUniqueSolution, classify,
-  sameHouse, nextTo, leftOf, atPosition, renderClue,
+  sameHouse, nextTo, leftOf, atPosition,
 } from './index';
 
 describe('public API integration', () => {
