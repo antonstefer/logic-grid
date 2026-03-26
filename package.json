@@ -1,67 +1,23 @@
 {
-  "name": "logic-grid",
-  "version": "1.0.0",
-  "description": "Generate and solve logic grid puzzles (zebra puzzles / Einstein's riddles)",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
-    }
-  },
-  "files": [
-    "dist"
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
-    "build": "tsup",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ bench/",
-    "format": "prettier --write src/ bench/",
-    "format:check": "prettier --check src/ bench/",
-    "test:watch": "vitest",
-    "bench": "vitest run --config vitest.bench.ts",
-    "bench:profile": "tsup --entry.profile bench/profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
-    "check": "tsc --noEmit && eslint src/ bench/ && prettier --check src/ bench/ && vitest run",
-    "prepublishOnly": "npm run check && npm run build"
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "format:check": "npm run format:check --workspaces --if-present"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "keywords": [
-    "logic-grid",
-    "zebra-puzzle",
-    "einstein-riddle",
-    "constraint-satisfaction",
-    "puzzle-generator",
-    "puzzle-solver",
-    "sat-solver"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/antonstefer/logic-grid.git"
-  },
-  "bugs": "https://github.com/antonstefer/logic-grid/issues",
-  "homepage": "https://github.com/antonstefer/logic-grid#readme",
   "devDependencies": {
-    "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
-    "tsup": "^8.0.0",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.57.2",
-    "vitest": "^3.0.0"
+    "typescript-eslint": "^8.57.2"
   }
 }
