@@ -46,6 +46,12 @@
     "sat-solver"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonstefer/logic-grid.git"
+  },
+  "bugs": "https://github.com/antonstefer/logic-grid/issues",
+  "homepage": "https://github.com/antonstefer/logic-grid#readme",
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
