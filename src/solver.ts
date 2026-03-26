@@ -47,24 +47,6 @@ export function encodeConstraintCached(constraint: Constraint, solverCtx: Solver
   return encodeConstraint(solverCtx.ctx, constraint);
 }
 
-/** Check uniqueness using pre-encoded constraint clauses. */
-export function isUniqueFast(
-  baseClauses: number[][],
-  constraintClauseSets: number[][][],
-  allVars: Set<number>,
-): boolean {
-  let totalLen = baseClauses.length;
-  for (const set of constraintClauseSets) totalLen += set.length;
-
-  const clauses: number[][] = new Array(totalLen);
-  let idx = 0;
-  for (let i = 0; i < baseClauses.length; i++) clauses[idx++] = baseClauses[i];
-  for (const set of constraintClauseSets) {
-    for (let i = 0; i < set.length; i++) clauses[idx++] = set[i];
-  }
-
-  return isUnique(clauses, allVars);
-}
 
 function buildClauses(constraints: Constraint[], solverCtx: SolverContext): number[][] {
   const clauses = [...solverCtx.baseClauses];
