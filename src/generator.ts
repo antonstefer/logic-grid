@@ -4,12 +4,14 @@ import { renderClue } from './clues/templates';
 import { classify } from './difficulty';
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { name: 'Name', values: ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank'] },
-  { name: 'Color', values: ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Orange'] },
-  { name: 'Pet', values: ['Cat', 'Dog', 'Fish', 'Bird', 'Rabbit', 'Turtle'] },
-  { name: 'Drink', values: ['Tea', 'Coffee', 'Water', 'Milk', 'Juice', 'Soda'] },
-  { name: 'Food', values: ['Pizza', 'Pasta', 'Sushi', 'Tacos', 'Salad', 'Steak'] },
-  { name: 'Hobby', values: ['Reading', 'Painting', 'Cooking', 'Running', 'Chess', 'Gardening'] },
+  { name: 'Name', values: ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack', 'Karen', 'Leo', 'Mia', 'Nick', 'Olivia'] },
+  { name: 'Color', values: ['Red', 'Blue', 'Green', 'Yellow', 'White', 'Orange', 'Purple', 'Pink', 'Brown', 'Gray', 'Teal', 'Maroon', 'Navy', 'Lime', 'Coral'] },
+  { name: 'Pet', values: ['Cat', 'Dog', 'Fish', 'Bird', 'Rabbit', 'Turtle', 'Hamster', 'Snake', 'Parrot', 'Lizard', 'Ferret', 'Frog', 'Horse', 'Goat', 'Duck'] },
+  { name: 'Drink', values: ['Tea', 'Coffee', 'Water', 'Milk', 'Juice', 'Soda', 'Wine', 'Beer', 'Cocoa', 'Lemonade', 'Cider', 'Smoothie', 'Espresso', 'Matcha', 'Kombucha'] },
+  { name: 'Food', values: ['Pizza', 'Pasta', 'Sushi', 'Tacos', 'Salad', 'Steak', 'Curry', 'Soup', 'Burger', 'Ramen', 'Falafel', 'Paella', 'Gnocchi', 'Kebab', 'Risotto'] },
+  { name: 'Hobby', values: ['Reading', 'Painting', 'Cooking', 'Running', 'Chess', 'Gardening', 'Hiking', 'Knitting', 'Singing', 'Fishing', 'Yoga', 'Dancing', 'Cycling', 'Writing', 'Gaming'] },
+  { name: 'Music', values: ['Jazz', 'Rock', 'Pop', 'Blues', 'Folk', 'Reggae', 'Metal', 'Punk', 'Soul', 'Funk', 'Techno', 'Opera', 'Country', 'Indie', 'Disco'] },
+  { name: 'Sport', values: ['Soccer', 'Tennis', 'Golf', 'Boxing', 'Rugby', 'Cricket', 'Hockey', 'Skiing', 'Fencing', 'Surfing', 'Rowing', 'Archery', 'Polo', 'Judo', 'Squash'] },
 ];
 
 const EASY_TYPES: Set<Constraint['type']> = new Set([
