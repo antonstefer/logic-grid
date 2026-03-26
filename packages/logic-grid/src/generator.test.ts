@@ -213,4 +213,17 @@ describe("generate", () => {
     expect(puzzle.difficulty).toBe("hard");
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
+
+  it("throws when custom category has too few values", () => {
+    expect(() =>
+      generate({
+        size: 5,
+        categoryNames: [
+          { name: "Color", values: ["Red", "Blue"] },
+          { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird", "Rabbit"] },
+          { name: "Drink", values: ["Tea", "Coffee", "Water", "Milk", "Juice"] },
+        ],
+      }),
+    ).toThrow('Category "Color" has 2 values but size is 5');
+  });
 });
