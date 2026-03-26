@@ -7,7 +7,7 @@ export default tseslint.config(
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
-        project: "./packages/*/tsconfig.json",
+        project: "./packages/logic-grid/tsconfig.json",
       },
     },
     rules: {
