@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.ts",
     "bench:profile": "tsup --entry.profile bench/profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
@@ -39,6 +40,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "tsup": "^8.0.0",
     "typescript": "^5.5.3",
     "vitest": "^3.0.0"

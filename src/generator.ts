@@ -131,7 +131,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const catArr: number[] = [];
   for (let ci = 0; ci < solution.length; ci++) {
     for (const [val, pos] of Object.entries(solution[ci])) {
-      const idx = allValues.length;
       allValues.push(val);
       posArr.push(pos);
       catArr.push(ci);
@@ -409,9 +408,7 @@ function batchRemove(
     // Single constraint: try removing it
     const idx = toTry[0];
     active[idx] = false;
-    if (!checkUnique(solver, actBase, total, active)) {
-      active[idx] = true;
-    }
+    active[idx] = !checkUnique(solver, actBase, total, active);
     return;
   }
 

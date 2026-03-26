@@ -7,7 +7,7 @@
  *
  * Open .cpuprofile in Chrome DevTools or https://www.speedscope.app.
  */
-import { generate } from '../src/index';
+import { generate } from '../src';
 
 const sizes: [number, number][] = [
   [4, 4],
