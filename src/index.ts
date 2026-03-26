@@ -1,3 +1,20 @@
+export { generate } from './generator';
+export { solve, hasUniqueSolution } from './solver';
+export { classify } from './difficulty';
+
+export {
+  sameHouse,
+  notSameHouse,
+  nextTo,
+  notNextTo,
+  leftOf,
+  between,
+  atPosition,
+  notAtPosition,
+} from './clues/constraints';
+
+export { renderClue } from './clues/templates';
+
 export type {
   Category,
   Grid,
