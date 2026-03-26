@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { classify } from "./difficulty";
-import { Constraint, Grid } from "./types";
+import type { Constraint, Grid } from "./types";
 
 const grid3x3: Grid = {
   size: 3,

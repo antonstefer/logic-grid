@@ -1,4 +1,4 @@
-import {
+import type {
   Puzzle,
   GenerateOptions,
   Grid,
@@ -8,11 +8,8 @@ import {
   Difficulty,
   Assignment,
 } from "./types";
-import {
-  createSolverContext,
-  encodeConstraintCached,
-  SolverContext,
-} from "./solver";
+import type { SolverContext } from "./solver";
+import { createSolverContext, encodeConstraintCached } from "./solver";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify } from "./difficulty";
@@ -265,7 +262,7 @@ export function generate(options?: GenerateOptions): Puzzle {
     if (!incSolver) continue; // base clauses contradictory (shouldn't happen)
 
     // Check if all constraints together produce a unique solution
-    const allActive = new Array(filtered.length).fill(true);
+    const allActive = Array.from({ length: filtered.length }, () => true);
     if (
       !checkUnique(
         incSolver.solver,
@@ -590,7 +587,7 @@ function checkUnique(
   total: number,
   active: boolean[],
 ): boolean {
-  const assumptions: number[] = new Array(total);
+  const assumptions = new Array<number>(total);
   for (let i = 0; i < total; i++) {
     assumptions[i] = active[i] ? actBase + i : -(actBase + i);
   }
@@ -615,7 +612,7 @@ function minimizeConstraints(
   });
 
   // Phase 1: Binary search for minimum prefix that gives uniqueness
-  const active = new Array(total).fill(false);
+  const active = new Array<boolean>(total).fill(false);
   let lo = 1;
   let hi = indices.length;
   while (lo < hi) {

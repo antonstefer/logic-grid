@@ -1,4 +1,4 @@
-import { Constraint, Grid } from "./types";
+import type { Constraint, Grid } from "./types";
 
 export interface EncodingContext {
   grid: Grid;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
-import { Grid } from "../types";
+import type { Grid } from "../types";
 
 const grid: Grid = {
   size: 3,
