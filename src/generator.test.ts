@@ -153,6 +153,20 @@ describe('generate', () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   }, 10000);
 
+  it('generates 25x10 puzzles', () => {
+    const puzzle = generate({ size: 25, categories: 10, seed: 42 });
+    expect(puzzle.grid.size).toBe(25);
+    expect(puzzle.grid.categories.length).toBe(10);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  }, 10000);
+
+  it('generates 50x4 puzzles', () => {
+    const puzzle = generate({ size: 50, categories: 4, seed: 42 });
+    expect(puzzle.grid.size).toBe(50);
+    expect(puzzle.grid.categories.length).toBe(4);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  }, 10000);
+
   it('accepts custom categories', () => {
     const puzzle = generate({
       size: 3,
