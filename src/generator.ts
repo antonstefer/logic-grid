@@ -12,6 +12,8 @@ const DEFAULT_CATEGORIES: Category[] = [
   { name: 'Hobby', values: ['Reading', 'Painting', 'Cooking', 'Running', 'Chess', 'Gardening', 'Hiking', 'Knitting', 'Singing', 'Fishing', 'Yoga', 'Dancing', 'Cycling', 'Writing', 'Gaming'] },
   { name: 'Music', values: ['Jazz', 'Rock', 'Pop', 'Blues', 'Folk', 'Reggae', 'Metal', 'Punk', 'Soul', 'Funk', 'Techno', 'Opera', 'Country', 'Indie', 'Disco'] },
   { name: 'Sport', values: ['Soccer', 'Tennis', 'Golf', 'Boxing', 'Rugby', 'Cricket', 'Hockey', 'Skiing', 'Fencing', 'Surfing', 'Rowing', 'Archery', 'Polo', 'Judo', 'Squash'] },
+  { name: 'Job', values: ['Doctor', 'Teacher', 'Chef', 'Pilot', 'Lawyer', 'Artist', 'Nurse', 'Farmer', 'Writer', 'Baker', 'Tailor', 'Mason', 'Clerk', 'Miner', 'Guard'] },
+  { name: 'Transport', values: ['Car', 'Bike', 'Bus', 'Train', 'Boat', 'Plane', 'Scooter', 'Tram', 'Ferry', 'Taxi', 'Van', 'Truck', 'Metro', 'Cable', 'Raft'] },
 ];
 
 const EASY_TYPES: Set<Constraint['type']> = new Set([
