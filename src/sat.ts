@@ -12,6 +12,14 @@ export function solveSAT(clauses: number[][]): SATResult {
 }
 
 export function solveAllSAT(clauses: number[][], limit: number): Map<number, boolean>[] {
+  // Collect all variables that appear in the formula
+  const allVars = new Set<number>();
+  for (const clause of clauses) {
+    for (const lit of clause) {
+      allVars.add(Math.abs(lit));
+    }
+  }
+
   const solutions: Map<number, boolean>[] = [];
   const workingClauses = clauses.map(c => [...c]);
 
@@ -20,12 +28,19 @@ export function solveAllSAT(clauses: number[][], limit: number): Map<number, boo
     const result = dpll(workingClauses.map(c => [...c]), assignment);
     if (!result) break;
 
+    // Fill in unassigned variables with false (don't-care = false)
+    for (const v of allVars) {
+      if (!assignment.has(v)) {
+        assignment.set(v, false);
+      }
+    }
+
     solutions.push(assignment);
 
-    // Add blocking clause: negate this solution
+    // Add blocking clause: negate this complete assignment
     const blocking: number[] = [];
-    for (const [variable, value] of assignment) {
-      blocking.push(value ? -variable : variable);
+    for (const v of allVars) {
+      blocking.push(assignment.get(v) ? -v : v);
     }
     workingClauses.push(blocking);
   }
