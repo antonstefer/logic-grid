@@ -125,17 +125,21 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const constraints: Constraint[] = [];
   const n = grid.size;
 
-  // Build value→position map across all categories
-  const posOf = new Map<string, number>();
-  const catOf = new Map<string, number>();
+  // Build indexed arrays for fast access (avoid Map lookups in hot loops)
+  const allValues: string[] = [];
+  const posArr: number[] = [];
+  const catArr: number[] = [];
   for (let ci = 0; ci < solution.length; ci++) {
     for (const [val, pos] of Object.entries(solution[ci])) {
-      posOf.set(val, pos);
-      catOf.set(val, ci);
+      const idx = allValues.length;
+      allValues.push(val);
+      posArr.push(pos);
+      catArr.push(ci);
     }
   }
-
-  const allValues = [...posOf.keys()];
+  // Also keep a Map for position constraints below
+  const posOf = new Map<string, number>();
+  for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
   // Pairwise constraints between values of different categories
   // For larger grids, limit negative constraints (not_same_house, not_next_to)
@@ -145,14 +149,13 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
-    const posA = posOf.get(a)!;
-    const catA = catOf.get(a)!;
+    const posA = posArr[i];
+    const catA = catArr[i];
 
     for (let j = i + 1; j < allValues.length; j++) {
+      if (catArr[j] === catA) continue;
       const b = allValues[j];
-      if (catOf.get(b) === catA) continue;
-
-      const posB = posOf.get(b)!;
+      const posB = posArr[j];
 
       if (posA === posB) {
         constraints.push({ type: 'same_house', a, b });
@@ -178,39 +181,40 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   }
 
   // Between constraints (triples from different categories)
-  // Only enumerate triples where all 3 values are from different categories
-  // and positions are consecutive-ish (gap ≤ n-1, which is always true, but
-  // we cap the total to avoid combinatorial explosion on larger grids)
-  const betweenConstraints: Constraint[] = [];
-  for (let i = 0; i < allValues.length; i++) {
-    for (let j = i + 1; j < allValues.length; j++) {
+  // Cap at 50 to avoid slow minimization — stop enumeration early
+  const maxBetween = 50;
+  let betweenCount = 0;
+  outer:
+  for (let i = 0; i < allValues.length && betweenCount < maxBetween; i++) {
+    const ai = allValues[i], catAi = catArr[i], posAi = posArr[i];
+    for (let j = i + 1; j < allValues.length && betweenCount < maxBetween; j++) {
+      const catAj = catArr[j];
+      if (catAj === catAi) continue;
+      const aj = allValues[j], posAj = posArr[j];
       for (let k = j + 1; k < allValues.length; k++) {
-        const vals = [allValues[i], allValues[j], allValues[k]];
-        const cats = vals.map(v => catOf.get(v)!);
-        if (cats[0] === cats[1] || cats[0] === cats[2] || cats[1] === cats[2]) continue;
-
-        const positions = vals.map(v => posOf.get(v)!);
+        const catAk = catArr[k];
+        if (catAk === catAi || catAk === catAj) continue;
+        const ak = allValues[k], posAk = posArr[k];
+        // Check each of the 3 values as potential middle
+        const vals = [ai, aj, ak];
+        const positions = [posAi, posAj, posAk];
         for (let m = 0; m < 3; m++) {
-          const outers = [0, 1, 2].filter(x => x !== m);
-          const lo = Math.min(positions[outers[0]], positions[outers[1]]);
-          const hi = Math.max(positions[outers[0]], positions[outers[1]]);
+          const o0 = m === 0 ? 1 : 0;
+          const o1 = m === 2 ? 1 : 2;
+          const lo = Math.min(positions[o0], positions[o1]);
+          const hi = Math.max(positions[o0], positions[o1]);
           if (positions[m] > lo && positions[m] < hi) {
-            const [o1, o2] = vals[outers[0]] < vals[outers[1]]
-              ? [vals[outers[0]], vals[outers[1]]]
-              : [vals[outers[1]], vals[outers[0]]];
-            betweenConstraints.push({
-              type: 'between',
-              outer1: o1,
-              middle: vals[m],
-              outer2: o2,
+            const [v1, v2] = vals[o0] < vals[o1]
+              ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
+            constraints.push({
+              type: 'between', outer1: v1, middle: vals[m], outer2: v2,
             });
+            if (++betweenCount >= maxBetween) continue outer;
           }
         }
       }
     }
   }
-  // Cap between constraints to avoid slow minimization
-  constraints.push(...betweenConstraints.slice(0, 50));
 
   // Position constraints
   const notAtPositionConstraints: Constraint[] = [];
