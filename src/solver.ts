@@ -1,6 +1,6 @@
 import { Constraint, Grid, Solution, Assignment } from './types';
 import { createContext, encodeBase, encodeConstraint, encodePuzzle, EncodingContext } from './encoding';
-import { solveSAT, solveAllSAT } from './sat';
+import { solveSAT, solveAllSAT, isUnique } from './sat';
 
 export function solve(constraints: Constraint[], grid: Grid): Solution | null {
   const ctx = createContext(grid);
@@ -18,31 +18,61 @@ export function hasUniqueSolution(constraints: Constraint[], grid: Grid): boolea
   return solutions.length === 1;
 }
 
-/**
- * Pre-built encoding context for repeated uniqueness checks on the same grid.
- * Avoids re-encoding base clauses on every call.
- */
 export interface SolverContext {
   ctx: EncodingContext;
   baseClauses: number[][];
+  allVars: Set<number>;
 }
 
 export function createSolverContext(grid: Grid): SolverContext {
   const ctx = createContext(grid);
   const baseClauses = encodeBase(ctx);
-  return { ctx, baseClauses };
+
+  // Collect all variables from base clauses
+  const allVars = new Set<number>();
+  for (const clause of baseClauses) {
+    for (const lit of clause) allVars.add(Math.abs(lit));
+  }
+
+  return { ctx, baseClauses, allVars };
 }
 
 export function hasUniqueSolutionFast(constraints: Constraint[], solverCtx: SolverContext): boolean {
+  const clauses = buildClauses(constraints, solverCtx);
+  return isUnique(clauses, solverCtx.allVars);
+}
+
+/** Pre-encode a constraint's clauses for reuse. */
+export function encodeConstraintCached(constraint: Constraint, solverCtx: SolverContext): number[][] {
+  return encodeConstraint(solverCtx.ctx, constraint);
+}
+
+/** Check uniqueness using pre-encoded constraint clauses. */
+export function isUniqueFast(
+  baseClauses: number[][],
+  constraintClauseSets: number[][][],
+  allVars: Set<number>,
+): boolean {
+  let totalLen = baseClauses.length;
+  for (const set of constraintClauseSets) totalLen += set.length;
+
+  const clauses: number[][] = new Array(totalLen);
+  let idx = 0;
+  for (let i = 0; i < baseClauses.length; i++) clauses[idx++] = baseClauses[i];
+  for (const set of constraintClauseSets) {
+    for (let i = 0; i < set.length; i++) clauses[idx++] = set[i];
+  }
+
+  return isUnique(clauses, allVars);
+}
+
+function buildClauses(constraints: Constraint[], solverCtx: SolverContext): number[][] {
   const clauses = [...solverCtx.baseClauses];
   for (const c of constraints) {
     const encoded = encodeConstraint(solverCtx.ctx, c);
-    for (const clause of encoded) {
-      clauses.push(clause);
-    }
+    for (const clause of encoded) clauses.push(clause);
   }
-  const solutions = solveAllSAT(clauses, 2);
-  return solutions.length === 1;
+  return clauses;
 }
 
 function decodeSolution(ctx: EncodingContext, assignment: Map<number, boolean>): Solution {

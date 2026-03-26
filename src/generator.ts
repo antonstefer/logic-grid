@@ -1,5 +1,5 @@
 import { Puzzle, GenerateOptions, Grid, Solution, Constraint, Category, Difficulty, Assignment } from './types';
-import { hasUniqueSolution, createSolverContext, hasUniqueSolutionFast, SolverContext } from './solver';
+import { createSolverContext, encodeConstraintCached, isUniqueFast, SolverContext } from './solver';
 import { renderClue } from './clues/templates';
 import { classify } from './difficulty';
 
@@ -42,10 +42,13 @@ export function generate(options?: GenerateOptions): Puzzle {
 
     shuffle(filtered, rng);
 
-    // Check if filtered constraints can produce a unique solution
-    if (!hasUniqueSolutionFast(filtered, solverCtx)) continue;
+    // Pre-encode all constraint clauses once
+    const clauseCache = filtered.map(c => encodeConstraintCached(c, solverCtx));
 
-    const minimal = minimizeConstraints(filtered, solverCtx, rng);
+    // Check if filtered constraints can produce a unique solution
+    if (!isUniqueFast(solverCtx.baseClauses, clauseCache, solverCtx.allVars)) continue;
+
+    const minimal = minimizeConstraints(filtered, clauseCache, solverCtx, rng);
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -256,40 +259,65 @@ function filterByDifficulty(constraints: Constraint[], difficulty: Difficulty): 
   return constraints.filter(c => allowedTypes.has(c.type));
 }
 
-// Priority: lower = try removing first (less informative constraints)
-const REMOVAL_PRIORITY: Record<string, number> = {
-  not_at_position: 0,
-  not_same_house: 1,
-  not_next_to: 2,
-  between: 3,
-  next_to: 4,
-  left_of: 5,
-  same_house: 6,
+// Higher = more informative, added first in constructive phase
+const INFORMATIVENESS: Record<string, number> = {
   at_position: 7,
+  same_house: 6,
+  left_of: 5,
+  next_to: 4,
+  between: 3,
+  not_next_to: 2,
+  not_same_house: 1,
+  not_at_position: 0,
 };
 
 function minimizeConstraints(
   constraints: Constraint[],
+  clauseCache: number[][][],
   solverCtx: SolverContext,
   rng: () => number,
 ): Constraint[] {
-  // Sort by removal priority (try removing least informative first)
-  const current = [...constraints];
-  current.sort((a, b) => {
-    const pa = REMOVAL_PRIORITY[a.type] ?? 5;
-    const pb = REMOVAL_PRIORITY[b.type] ?? 5;
-    if (pa !== pb) return pa - pb;
-    return rng() - 0.5; // shuffle within same priority
+  const { baseClauses, allVars } = solverCtx;
+
+  // Build index mapping: track which constraints and their cached clauses
+  const indices = Array.from({ length: constraints.length }, (_, i) => i);
+
+  // Sort by informativeness (most informative first) with randomness within tiers
+  indices.sort((a, b) => {
+    const ia = INFORMATIVENESS[constraints[a].type] ?? 3;
+    const ib = INFORMATIVENESS[constraints[b].type] ?? 3;
+    if (ia !== ib) return ib - ia;
+    return rng() - 0.5;
   });
 
-  for (let i = current.length - 1; i >= 0; i--) {
-    const candidate = [...current.slice(0, i), ...current.slice(i + 1)];
-    if (hasUniqueSolutionFast(candidate, solverCtx)) {
-      current.splice(i, 1);
+  // Phase 1: Constructive — add constraints until puzzle has unique solution
+  const selected = new Set<number>();
+  for (const idx of indices) {
+    selected.add(idx);
+    const activeClauses = [...selected].map(i => clauseCache[i]);
+    if (isUniqueFast(baseClauses, activeClauses, allVars)) {
+      break;
     }
   }
 
-  return current;
+  // Phase 2: Destructive — remove redundant constraints from selected set
+  const selectedArr = [...selected];
+  // Try removing least informative first
+  selectedArr.sort((a, b) => {
+    const ia = INFORMATIVENESS[constraints[a].type] ?? 3;
+    const ib = INFORMATIVENESS[constraints[b].type] ?? 3;
+    return ia - ib;
+  });
+
+  for (const idx of selectedArr) {
+    selected.delete(idx);
+    const activeClauses = [...selected].map(i => clauseCache[i]);
+    if (!isUniqueFast(baseClauses, activeClauses, allVars)) {
+      selected.add(idx); // needed, keep it
+    }
+  }
+
+  return [...selected].map(i => constraints[i]);
 }
 
 // Seeded PRNG (xorshift32)
