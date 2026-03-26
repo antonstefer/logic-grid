@@ -3,151 +3,294 @@ export type SATResult =
   | { satisfiable: false };
 
 export function solveSAT(clauses: number[][]): SATResult {
-  const assignment = new Map<number, boolean>();
-  const result = dpll(clauses.map(c => [...c]), assignment);
-  if (result) {
-    return { satisfiable: true, assignment };
-  }
-  return { satisfiable: false };
+  const solver = new Solver(clauses);
+  const sat = solver.solve();
+  if (!sat) return { satisfiable: false };
+  return { satisfiable: true, assignment: solver.getAssignment() };
 }
 
 export function solveAllSAT(clauses: number[][], limit: number): Map<number, boolean>[] {
-  // Collect all variables that appear in the formula
   const allVars = new Set<number>();
   for (const clause of clauses) {
-    for (const lit of clause) {
-      allVars.add(Math.abs(lit));
-    }
+    for (const lit of clause) allVars.add(Math.abs(lit));
   }
 
   const solutions: Map<number, boolean>[] = [];
-  const workingClauses = clauses.map(c => [...c]);
+  const working = clauses.map(c => [...c]);
 
   while (solutions.length < limit) {
-    const assignment = new Map<number, boolean>();
-    const result = dpll(workingClauses.map(c => [...c]), assignment);
-    if (!result) break;
+    const solver = new Solver(working);
+    if (!solver.solve()) break;
 
-    // Fill in unassigned variables with false (don't-care = false)
+    const assignment = solver.getAssignment();
     for (const v of allVars) {
-      if (!assignment.has(v)) {
-        assignment.set(v, false);
-      }
+      if (!assignment.has(v)) assignment.set(v, false);
     }
-
     solutions.push(assignment);
 
-    // Add blocking clause: negate this complete assignment
+    // Block this solution
     const blocking: number[] = [];
     for (const v of allVars) {
       blocking.push(assignment.get(v) ? -v : v);
     }
-    workingClauses.push(blocking);
+    working.push(blocking);
   }
 
   return solutions;
 }
 
-function dpll(clauses: number[][], assignment: Map<number, boolean>): boolean {
-  // Unit propagation
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let i = 0; i < clauses.length; i++) {
-      const clause = clauses[i];
-      if (clause.length === 0) return false;
-      if (clause.length === 1) {
-        const lit = clause[0];
-        const variable = Math.abs(lit);
-        const value = lit > 0;
-        if (assignment.has(variable)) {
-          if (assignment.get(variable) !== value) return false;
+const UNDEF = 0;
+const TRUE = 1;
+const FALSE = 2;
+
+class Solver {
+  private numVars: number;
+  private values: Uint8Array;           // var -> UNDEF | TRUE | FALSE
+  private clauses: Int32Array[];        // clause literals
+  private watches: Int32Array[];        // watches[lit_index] -> clause indices watching this lit
+  private watchCount: Int32Array;       // number of entries in each watches array
+  private trail: number[];              // assigned variables in order
+  private trailLimits: number[];        // trail size at each decision level
+  private reason: Int32Array;           // reason[var] = clause index that forced it, or -1
+
+  constructor(inputClauses: number[][]) {
+    // Find max variable
+    let maxVar = 0;
+    for (const clause of inputClauses) {
+      for (const lit of clause) {
+        const v = Math.abs(lit);
+        if (v > maxVar) maxVar = v;
+      }
+    }
+    this.numVars = maxVar;
+
+    this.values = new Uint8Array(maxVar + 1);
+    this.trail = [];
+    this.trailLimits = [];
+    this.reason = new Int32Array(maxVar + 1).fill(-1);
+
+    // Copy clauses into typed arrays for cache efficiency
+    this.clauses = [];
+    // lit_index: positive lit l -> 2*l, negative lit -l -> 2*l+1
+    // total possible lit indices: 2*(maxVar+1)
+    const litCount = 2 * (maxVar + 1);
+    const watchBuckets: number[][] = Array.from({ length: litCount }, () => []);
+    this.watches = new Array(litCount);
+    this.watchCount = new Int32Array(litCount);
+
+    for (const rawClause of inputClauses) {
+      if (rawClause.length === 0) {
+        // Empty clause — immediately unsatisfiable, store it and let solve() catch it
+        this.clauses.push(new Int32Array(0));
+        continue;
+      }
+      const ci = this.clauses.length;
+      const arr = new Int32Array(rawClause.length);
+      for (let i = 0; i < rawClause.length; i++) arr[i] = rawClause[i];
+      this.clauses.push(arr);
+
+      if (rawClause.length >= 2) {
+        // Watch first two literals
+        watchBuckets[litIndex(arr[0])].push(ci);
+        watchBuckets[litIndex(arr[1])].push(ci);
+      }
+      // Unit clauses handled during propagation
+    }
+
+    // Convert watch buckets to typed arrays
+    for (let i = 0; i < litCount; i++) {
+      this.watches[i] = new Int32Array(watchBuckets[i].length + 16); // extra space for growth
+      for (let j = 0; j < watchBuckets[i].length; j++) {
+        this.watches[i][j] = watchBuckets[i][j];
+      }
+      this.watchCount[i] = watchBuckets[i].length;
+    }
+  }
+
+  solve(): boolean {
+    // Enqueue all unit clauses
+    for (let ci = 0; ci < this.clauses.length; ci++) {
+      const c = this.clauses[ci];
+      if (c.length === 0) return false;
+      if (c.length === 1) {
+        const lit = c[0];
+        const v = Math.abs(lit);
+        const val = lit > 0 ? TRUE : FALSE;
+        if (this.values[v] === UNDEF) {
+          this.assignLit(lit, ci);
+        } else if (this.values[v] !== val) {
+          return false;
+        }
+      }
+    }
+
+    if (!this.propagate()) return false;
+    return this.search();
+  }
+
+  getAssignment(): Map<number, boolean> {
+    const result = new Map<number, boolean>();
+    for (let v = 1; v <= this.numVars; v++) {
+      if (this.values[v] !== UNDEF) {
+        result.set(v, this.values[v] === TRUE);
+      }
+    }
+    return result;
+  }
+
+  private assignLit(lit: number, reasonClause: number): void {
+    const v = Math.abs(lit);
+    this.values[v] = lit > 0 ? TRUE : FALSE;
+    this.reason[v] = reasonClause;
+    this.trail.push(v);
+  }
+
+  private propagate(): boolean {
+    // BCP: process newly assigned literals
+    let qhead = 0;
+    // We process from the current trail position
+    // On first call, qhead should start from 0; on subsequent calls from where we left off
+    // Actually let's track propagation pointer
+    qhead = this.trail.length - 1;
+    if (qhead < 0) return true;
+
+    // Process all recently assigned variables
+    // We need to go through the trail from the last processed position
+    let i = 0;
+    while (i < this.trail.length) {
+      const v = this.trail[i];
+      i++;
+      // The false literal for this assignment
+      const falseLit = this.values[v] === TRUE ? -v : v;
+      const fli = litIndex(falseLit);
+
+      // Process all clauses watching falseLit
+      const wcount = this.watchCount[fli];
+      let j = 0;
+      let newCount = 0;
+
+      while (j < wcount) {
+        const ci = this.watches[fli][j];
+        const clause = this.clauses[ci];
+
+        // Make sure the false literal is at position 1 (not 0)
+        if (clause[0] === falseLit) {
+          clause[0] = clause[1];
+          clause[1] = falseLit;
+        }
+
+        // Check if the other watched literal (clause[0]) is already true
+        const otherLit = clause[0];
+        const otherVar = Math.abs(otherLit);
+        const otherVal = this.values[otherVar];
+        if (otherVal === (otherLit > 0 ? TRUE : FALSE)) {
+          // Clause already satisfied, keep watching
+          this.watches[fli][newCount++] = ci;
+          j++;
           continue;
         }
-        assignment.set(variable, value);
-        clauses = simplify(clauses, lit);
-        changed = true;
+
+        // Try to find a new literal to watch (from position 2 onward)
+        let found = false;
+        for (let k = 2; k < clause.length; k++) {
+          const lit = clause[k];
+          const litVar = Math.abs(lit);
+          const litVal = this.values[litVar];
+          // If this literal is not false, we can watch it
+          if (litVal !== (lit > 0 ? FALSE : TRUE)) {
+            // Swap clause[1] and clause[k]
+            clause[1] = lit;
+            clause[k] = falseLit;
+            // Add this clause to the new literal's watch list
+            this.addWatch(litIndex(lit), ci);
+            found = true;
+            break;
+          }
+        }
+
+        if (found) {
+          // Don't copy this clause to the compacted watch list
+          j++;
+          continue;
+        }
+
+        // No replacement found. clause[0] is the only potentially non-false literal.
+        this.watches[fli][newCount++] = ci;
+        j++;
+
+        if (otherVal === UNDEF) {
+          // Unit propagation: clause[0] must be true
+          this.assignLit(otherLit, ci);
+        } else {
+          // Conflict: clause[0] is also false
+          // Copy remaining watches
+          while (j < wcount) {
+            this.watches[fli][newCount++] = this.watches[fli][j++];
+          }
+          this.watchCount[fli] = newCount;
+          return false;
+        }
+      }
+
+      this.watchCount[fli] = newCount;
+    }
+
+    return true;
+  }
+
+  private search(): boolean {
+    // Pick an unassigned variable
+    let chosen = 0;
+    for (let v = 1; v <= this.numVars; v++) {
+      if (this.values[v] === UNDEF) {
+        chosen = v;
         break;
       }
     }
-  }
 
-  // Check if all clauses satisfied
-  if (clauses.length === 0) return true;
+    if (chosen === 0) return true; // All assigned, SAT
 
-  // Check for empty clause
-  for (const clause of clauses) {
-    if (clause.length === 0) return false;
-  }
+    // Decision: try true, then false
+    for (const polarity of [TRUE, FALSE]) {
+      const trailPos = this.trail.length;
+      this.trailLimits.push(trailPos);
 
-  // Pure literal elimination
-  const literalCounts = new Map<number, number>();
-  for (const clause of clauses) {
-    for (const lit of clause) {
-      literalCounts.set(lit, (literalCounts.get(lit) ?? 0) + 1);
-    }
-  }
-  for (const [lit] of literalCounts) {
-    const variable = Math.abs(lit);
-    if (!assignment.has(variable) && !literalCounts.has(-lit)) {
-      assignment.set(variable, lit > 0);
-      clauses = simplify(clauses, lit);
-      return dpll(clauses, assignment);
-    }
-  }
+      const lit = polarity === TRUE ? chosen : -chosen;
+      this.assignLit(lit, -1);
 
-  // Choose an unassigned variable (first literal in first clause)
-  let chosenVar = 0;
-  for (const clause of clauses) {
-    for (const lit of clause) {
-      const v = Math.abs(lit);
-      if (!assignment.has(v)) {
-        chosenVar = v;
-        break;
+      if (this.propagate() && this.search()) {
+        return true;
       }
+
+      // Backtrack
+      this.backtrackTo(trailPos);
+      this.trailLimits.pop();
     }
-    if (chosenVar !== 0) break;
+
+    return false;
   }
 
-  if (chosenVar === 0) return true;
+  private backtrackTo(trailPos: number): void {
+    while (this.trail.length > trailPos) {
+      const v = this.trail.pop()!;
+      this.values[v] = UNDEF;
+      this.reason[v] = -1;
+    }
+  }
 
-  // Try true
-  const savedAssignment = new Map(assignment);
-  assignment.set(chosenVar, true);
-  if (dpll(simplify(clauses, chosenVar), assignment)) return true;
-
-  // Backtrack, try false
-  assignment.clear();
-  for (const [k, v] of savedAssignment) assignment.set(k, v);
-  assignment.set(chosenVar, false);
-  if (dpll(simplify(clauses, -chosenVar), assignment)) return true;
-
-  // Restore assignment on failure
-  assignment.clear();
-  for (const [k, v] of savedAssignment) assignment.set(k, v);
-  return false;
+  private addWatch(li: number, ci: number): void {
+    const count = this.watchCount[li];
+    if (count >= this.watches[li].length) {
+      // Grow the array
+      const newArr = new Int32Array(this.watches[li].length * 2);
+      newArr.set(this.watches[li]);
+      this.watches[li] = newArr;
+    }
+    this.watches[li][count] = ci;
+    this.watchCount[li] = count + 1;
+  }
 }
 
-function simplify(clauses: number[][], lit: number): number[][] {
-  const neg = -lit;
-  const result: number[][] = [];
-  for (const clause of clauses) {
-    let satisfied = false;
-    let hasNeg = false;
-    for (let i = 0; i < clause.length; i++) {
-      if (clause[i] === lit) { satisfied = true; break; }
-      if (clause[i] === neg) { hasNeg = true; }
-    }
-    if (satisfied) continue;
-    if (hasNeg) {
-      const filtered: number[] = [];
-      for (let i = 0; i < clause.length; i++) {
-        if (clause[i] !== neg) filtered.push(clause[i]);
-      }
-      result.push(filtered);
-    } else {
-      result.push(clause);
-    }
-  }
-  return result;
+function litIndex(lit: number): number {
+  return lit > 0 ? lit * 2 : (-lit) * 2 + 1;
 }
