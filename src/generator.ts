@@ -1,5 +1,6 @@
 import { Puzzle, GenerateOptions, Grid, Solution, Constraint, Category, Difficulty, Assignment } from './types';
-import { createSolverContext, encodeConstraintCached, isUniqueFast, SolverContext } from './solver';
+import { createSolverContext, encodeConstraintCached, SolverContext } from './solver';
+import { IncrementalSolver } from './sat';
 import { renderClue } from './clues/templates';
 import { classify } from './difficulty';
 
@@ -49,10 +50,15 @@ export function generate(options?: GenerateOptions): Puzzle {
     // Pre-encode all constraint clauses once
     const clauseCache = filtered.map(c => encodeConstraintCached(c, solverCtx));
 
-    // Check if filtered constraints can produce a unique solution
-    if (!isUniqueFast(solverCtx.baseClauses, clauseCache, solverCtx.allVars)) continue;
+    // Build ONE incremental solver with activation literals for all constraints
+    const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
+    if (!incSolver) continue; // base clauses contradictory (shouldn't happen)
 
-    const minimal = minimizeConstraints(filtered, clauseCache, solverCtx, rng);
+    // Check if all constraints together produce a unique solution
+    const allActive = new Array(filtered.length).fill(true);
+    if (!checkUnique(incSolver.solver, incSolver.actBase, filtered.length, allActive)) continue;
+
+    const minimal = minimizeConstraints(filtered, incSolver, rng);
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -275,15 +281,70 @@ const INFORMATIVENESS: Record<string, number> = {
   not_at_position: 0,
 };
 
+interface IncSolverCtx {
+  solver: IncrementalSolver;
+  actBase: number;
+  total: number;
+}
+
+function buildIncrementalSolver(
+  solverCtx: SolverContext,
+  clauseCache: number[][][],
+): IncSolverCtx | null {
+  // Activation variable for each constraint, starting after puzzle variables
+  let maxVar = 0;
+  for (const clause of solverCtx.baseClauses) {
+    for (const lit of clause) {
+      const v = lit > 0 ? lit : -lit;
+      if (v > maxVar) maxVar = v;
+    }
+  }
+  for (const clauses of clauseCache) {
+    for (const clause of clauses) {
+      for (const lit of clause) {
+        const v = lit > 0 ? lit : -lit;
+        if (v > maxVar) maxVar = v;
+      }
+    }
+  }
+  const actBase = maxVar + 1;
+  const total = clauseCache.length;
+
+  // Build all clauses: base + guarded constraint clauses
+  const allClauses: number[][] = [...solverCtx.baseClauses];
+  for (let i = 0; i < total; i++) {
+    const actVar = actBase + i;
+    for (const clause of clauseCache[i]) {
+      allClauses.push([-actVar, ...clause]);
+    }
+  }
+
+  const solver = new IncrementalSolver(allClauses);
+  if (!solver.init()) return null;
+
+  return { solver, actBase, total };
+}
+
+function checkUnique(
+  solver: IncrementalSolver,
+  actBase: number,
+  total: number,
+  active: boolean[],
+): boolean {
+  const assumptions: number[] = new Array(total);
+  for (let i = 0; i < total; i++) {
+    assumptions[i] = active[i] ? (actBase + i) : -(actBase + i);
+  }
+  return solver.isUniqueUnder(assumptions);
+}
+
 function minimizeConstraints(
   constraints: Constraint[],
-  clauseCache: number[][][],
-  solverCtx: SolverContext,
+  incSolver: IncSolverCtx,
   rng: () => number,
 ): Constraint[] {
-  const { baseClauses, allVars } = solverCtx;
+  const { solver, actBase, total } = incSolver;
 
-  // Build index mapping: track which constraints and their cached clauses
   const indices = Array.from({ length: constraints.length }, (_, i) => i);
 
   // Sort by informativeness (most informative first) with randomness within tiers
@@ -294,34 +355,25 @@ function minimizeConstraints(
     return rng() - 0.5;
   });
 
-  // Phase 1: Constructive — add constraints until puzzle has unique solution
-  const selected = new Set<number>();
+  // Phase 1: Constructive — add constraints until unique
+  const active = new Array(total).fill(false);
   for (const idx of indices) {
-    selected.add(idx);
-    const activeClauses = [...selected].map(i => clauseCache[i]);
-    if (isUniqueFast(baseClauses, activeClauses, allVars)) {
-      break;
-    }
+    active[idx] = true;
+    if (checkUnique(solver, actBase, total, active)) break;
   }
 
-  // Phase 2: Destructive — remove redundant constraints from selected set
-  const selectedArr = [...selected];
-  // Try removing least informative first
-  selectedArr.sort((a, b) => {
-    const ia = INFORMATIVENESS[constraints[a].type] ?? 3;
-    const ib = INFORMATIVENESS[constraints[b].type] ?? 3;
-    return ia - ib;
-  });
+  // Phase 2: Destructive — remove redundant (least informative first)
+  const selectedArr = indices.filter(i => active[i]);
+  selectedArr.reverse(); // least informative first (indices were sorted most-first)
 
   for (const idx of selectedArr) {
-    selected.delete(idx);
-    const activeClauses = [...selected].map(i => clauseCache[i]);
-    if (!isUniqueFast(baseClauses, activeClauses, allVars)) {
-      selected.add(idx); // needed, keep it
+    active[idx] = false;
+    if (!checkUnique(solver, actBase, total, active)) {
+      active[idx] = true;
     }
   }
 
-  return [...selected].map(i => constraints[i]);
+  return constraints.filter((_, i) => active[i]);
 }
 
 // Seeded PRNG (xorshift32)
