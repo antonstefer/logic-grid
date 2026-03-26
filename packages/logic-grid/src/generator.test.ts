@@ -125,47 +125,12 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it("generates 10x6 puzzles", () => {
-    const puzzle = generate({ size: 10, categories: 6, seed: 42 });
-    expect(puzzle.grid.size).toBe(10);
-    expect(puzzle.grid.categories.length).toBe(6);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  it("rejects sizes outside 3-8", () => {
+    expect(() => generate({ size: 2 })).toThrow(RangeError);
+    expect(() => generate({ size: 9 })).toThrow(RangeError);
+    expect(() => generate({ categories: 2 })).toThrow(RangeError);
+    expect(() => generate({ categories: 9 })).toThrow(RangeError);
   });
-
-  it("generates 15x4 puzzles", () => {
-    const puzzle = generate({ size: 15, categories: 4, seed: 42 });
-    expect(puzzle.grid.size).toBe(15);
-    expect(puzzle.grid.categories.length).toBe(4);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
-  });
-
-  it("generates 10x10 puzzles", () => {
-    const puzzle = generate({ size: 10, categories: 10, seed: 42 });
-    expect(puzzle.grid.size).toBe(10);
-    expect(puzzle.grid.categories.length).toBe(10);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
-  });
-
-  it("generates 15x10 puzzles (matches Python benchmark)", () => {
-    const puzzle = generate({ size: 15, categories: 10, seed: 42 });
-    expect(puzzle.grid.size).toBe(15);
-    expect(puzzle.grid.categories.length).toBe(10);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
-  }, 10000);
-
-  it("generates 25x10 puzzles", () => {
-    const puzzle = generate({ size: 25, categories: 10, seed: 42 });
-    expect(puzzle.grid.size).toBe(25);
-    expect(puzzle.grid.categories.length).toBe(10);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
-  }, 10000);
-
-  it("generates 50x4 puzzles", () => {
-    const puzzle = generate({ size: 50, categories: 4, seed: 42 });
-    expect(puzzle.grid.size).toBe(50);
-    expect(puzzle.grid.categories.length).toBe(4);
-    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
-  }, 10000);
 
   it("accepts custom categories", () => {
     const puzzle = generate({
@@ -181,6 +146,25 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
+  it("prefers relational clues over at_position", () => {
+    const puzzle = generate({ size: 4, categories: 4, seed: 42 });
+    const types: Record<string, number> = {};
+    for (const c of puzzle.constraints) {
+      types[c.type] = (types[c.type] || 0) + 1;
+    }
+    const atPos = types["at_position"] ?? 0;
+    const relational =
+      (types["same_house"] ?? 0) +
+      (types["next_to"] ?? 0) +
+      (types["left_of"] ?? 0) +
+      (types["between"] ?? 0);
+
+    // Relational clues should outnumber at_position
+    expect(relational).toBeGreaterThan(atPos);
+    // at_position should be a minority (less than half of total)
+    expect(atPos).toBeLessThan(puzzle.constraints.length / 2);
+  });
+
   it("respects difficulty easy", () => {
     const puzzle = generate({
       size: 3,
@@ -189,7 +173,6 @@ describe("generate", () => {
       seed: 1,
     });
     expect(puzzle.difficulty).toBe("easy");
-    // Only easy constraint types
     for (const c of puzzle.constraints) {
       expect([
         "same_house",
@@ -198,5 +181,36 @@ describe("generate", () => {
         "not_at_position",
       ]).toContain(c.type);
     }
+  });
+
+  it("respects difficulty medium", () => {
+    const puzzle = generate({
+      size: 4,
+      categories: 4,
+      difficulty: "medium",
+      seed: 42,
+    });
+    expect(puzzle.difficulty).toBe("medium");
+    for (const c of puzzle.constraints) {
+      expect([
+        "same_house",
+        "not_same_house",
+        "at_position",
+        "not_at_position",
+        "next_to",
+        "left_of",
+      ]).toContain(c.type);
+    }
+  });
+
+  it("respects difficulty hard", () => {
+    const puzzle = generate({
+      size: 4,
+      categories: 4,
+      difficulty: "hard",
+      seed: 42,
+    });
+    expect(puzzle.difficulty).toBe("hard");
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 });

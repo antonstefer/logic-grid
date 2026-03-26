@@ -15,212 +15,19 @@ import { renderClue } from "./clues/templates";
 import { classify } from "./difficulty";
 
 const DEFAULT_CATEGORIES: Category[] = [
-  {
-    name: "Name",
-    values: [
-      "Alice",
-      "Bob",
-      "Carol",
-      "Dave",
-      "Eve",
-      "Frank",
-      "Grace",
-      "Hank",
-      "Ivy",
-      "Jack",
-      "Karen",
-      "Leo",
-      "Mia",
-      "Nick",
-      "Olivia",
-    ],
-  },
-  {
-    name: "Color",
-    values: [
-      "Red",
-      "Blue",
-      "Green",
-      "Yellow",
-      "White",
-      "Orange",
-      "Purple",
-      "Pink",
-      "Brown",
-      "Gray",
-      "Teal",
-      "Maroon",
-      "Navy",
-      "Lime",
-      "Coral",
-    ],
-  },
-  {
-    name: "Pet",
-    values: [
-      "Cat",
-      "Dog",
-      "Fish",
-      "Bird",
-      "Rabbit",
-      "Turtle",
-      "Hamster",
-      "Snake",
-      "Parrot",
-      "Lizard",
-      "Ferret",
-      "Frog",
-      "Horse",
-      "Goat",
-      "Duck",
-    ],
-  },
-  {
-    name: "Drink",
-    values: [
-      "Tea",
-      "Coffee",
-      "Water",
-      "Milk",
-      "Juice",
-      "Soda",
-      "Wine",
-      "Beer",
-      "Cocoa",
-      "Lemonade",
-      "Cider",
-      "Smoothie",
-      "Espresso",
-      "Matcha",
-      "Kombucha",
-    ],
-  },
-  {
-    name: "Food",
-    values: [
-      "Pizza",
-      "Pasta",
-      "Sushi",
-      "Tacos",
-      "Salad",
-      "Steak",
-      "Curry",
-      "Soup",
-      "Burger",
-      "Ramen",
-      "Falafel",
-      "Paella",
-      "Gnocchi",
-      "Kebab",
-      "Risotto",
-    ],
-  },
-  {
-    name: "Hobby",
-    values: [
-      "Reading",
-      "Painting",
-      "Cooking",
-      "Running",
-      "Chess",
-      "Gardening",
-      "Hiking",
-      "Knitting",
-      "Singing",
-      "Fishing",
-      "Yoga",
-      "Dancing",
-      "Cycling",
-      "Writing",
-      "Gaming",
-    ],
-  },
-  {
-    name: "Music",
-    values: [
-      "Jazz",
-      "Rock",
-      "Pop",
-      "Blues",
-      "Folk",
-      "Reggae",
-      "Metal",
-      "Punk",
-      "Soul",
-      "Funk",
-      "Techno",
-      "Opera",
-      "Country",
-      "Indie",
-      "Disco",
-    ],
-  },
-  {
-    name: "Sport",
-    values: [
-      "Soccer",
-      "Tennis",
-      "Golf",
-      "Boxing",
-      "Rugby",
-      "Cricket",
-      "Hockey",
-      "Skiing",
-      "Fencing",
-      "Surfing",
-      "Rowing",
-      "Archery",
-      "Polo",
-      "Judo",
-      "Squash",
-    ],
-  },
-  {
-    name: "Job",
-    values: [
-      "Doctor",
-      "Teacher",
-      "Chef",
-      "Pilot",
-      "Lawyer",
-      "Artist",
-      "Nurse",
-      "Farmer",
-      "Writer",
-      "Baker",
-      "Tailor",
-      "Mason",
-      "Clerk",
-      "Miner",
-      "Guard",
-    ],
-  },
-  {
-    name: "Transport",
-    values: [
-      "Car",
-      "Bike",
-      "Bus",
-      "Train",
-      "Boat",
-      "Plane",
-      "Scooter",
-      "Tram",
-      "Ferry",
-      "Taxi",
-      "Van",
-      "Truck",
-      "Metro",
-      "Cable",
-      "Raft",
-    ],
-  },
+  { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"] },
+  { name: "Color", values: ["Red", "Blue", "Green", "Yellow", "White", "Orange", "Purple", "Pink"] },
+  { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird", "Rabbit", "Turtle", "Hamster", "Snake"] },
+  { name: "Drink", values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"] },
+  { name: "Food", values: ["Pizza", "Pasta", "Sushi", "Tacos", "Salad", "Steak", "Curry", "Soup"] },
+  { name: "Hobby", values: ["Reading", "Painting", "Cooking", "Running", "Chess", "Gardening", "Hiking", "Knitting"] },
+  { name: "Music", values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"] },
+  { name: "Sport", values: ["Soccer", "Tennis", "Golf", "Boxing", "Rugby", "Cricket", "Hockey", "Skiing"] },
 ];
 
 const EASY_TYPES: Set<Constraint["type"]> = new Set([
   "same_house",
   "not_same_house",
-  "at_position",
   "not_at_position",
 ]);
 
@@ -239,6 +46,8 @@ const MAX_RETRIES = 100;
 export function generate(options?: GenerateOptions): Puzzle {
   const size = options?.size ?? 4;
   const numCategories = options?.categories ?? 4;
+  if (size < 3 || size > 8) throw new RangeError("size must be 3-8");
+  if (numCategories < 3 || numCategories > 8) throw new RangeError("categories must be 3-8");
   const difficulty = options?.difficulty;
   const rng = createRng(options?.seed);
 
@@ -365,7 +174,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
   // Negative constraints (not_same_house, not_next_to) grow O(n²) and are rarely
   // essential for uniqueness — cap them to keep the minimization set tractable.
-  const maxNegative = n <= 4 ? Infinity : n * n * 2;
+  const maxNegative = n * n * 2;
   let negativeCount = 0;
 
   for (let i = 0; i < allValues.length; i++) {
@@ -451,27 +260,19 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // Position constraints
-  const notAtPositionConstraints: Constraint[] = [];
+  // Position constraints.
+  // All at_position are enumerated but have high REMOVAL_WEIGHT, so the
+  // minimizer strips them first — keeping only what's truly needed.
   for (const [val, pos] of posOf) {
     constraints.push({ type: "at_position", value: val, position: pos });
+  }
+  for (const [val, pos] of posOf) {
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
-        notAtPositionConstraints.push({
-          type: "not_at_position",
-          value: val,
-          position: p,
-        });
+        constraints.push({ type: "not_at_position", value: val, position: p });
       }
     }
   }
-  // Cap not_at_position for larger grids
-  constraints.push(
-    ...notAtPositionConstraints.slice(
-      0,
-      n <= 4 ? notAtPositionConstraints.length : n * n,
-    ),
-  );
 
   return deduplicateConstraints(constraints);
 }
@@ -530,18 +331,18 @@ function filterByDifficulty(
   return constraints.filter((c) => allowedTypes.has(c.type));
 }
 
-// Constraint types ranked by how much they narrow the solution space.
-// Constructive phase adds high-informativeness constraints first to reach
-// uniqueness in fewer SAT calls; destructive phase removes low ones first.
-const INFORMATIVENESS: Record<string, number> = {
-  at_position: 7,
-  same_house: 6,
-  left_of: 5,
-  next_to: 4,
-  between: 3,
-  not_next_to: 2,
-  not_same_house: 1,
-  not_at_position: 0,
+// Removal weight: higher = more likely to be removed during minimization.
+// Matches tuchandra/zebra's approach: found_at (at_position) is most expendable,
+// relational clues (same_house, between) are kept preferentially.
+const REMOVAL_WEIGHT: Record<string, number> = {
+  at_position: 5,
+  not_at_position: 5,
+  not_same_house: 4,
+  not_next_to: 3,
+  left_of: 2,
+  next_to: 2,
+  between: 2,
+  same_house: 1, // least likely to be removed — most interesting for puzzles
 };
 
 interface IncSolverCtx {
@@ -612,73 +413,60 @@ function minimizeConstraints(
 ): Constraint[] {
   const { solver, actBase, total } = incSolver;
 
-  const indices = Array.from({ length: constraints.length }, (_, i) => i);
+  // tuchandra/zebra approach: start with ALL constraints, batch-remove down.
+  // Starting heavily-constrained means SAT checks are fast (early conflicts).
+  const active = new Array<boolean>(total).fill(true);
 
-  // Sort by informativeness (most informative first) with randomness within tiers
+  // Build a removal-ordered index: constraints most worth removing first.
+  // Shuffle first for variety, then stable-sort by removal weight.
+  const indices = Array.from({ length: total }, (_, i) => i);
+  shuffle(indices, rng);
   indices.sort((a, b) => {
-    const ia = INFORMATIVENESS[constraints[a].type] ?? 3;
-    const ib = INFORMATIVENESS[constraints[b].type] ?? 3;
-    if (ia !== ib) return ib - ia;
-    return rng() - 0.5;
+    const wa = REMOVAL_WEIGHT[constraints[a].type] ?? 2;
+    const wb = REMOVAL_WEIGHT[constraints[b].type] ?? 2;
+    return wb - wa; // highest removal weight first
   });
 
-  // Phase 1: Binary search for the smallest prefix (in informativeness order)
-  // that yields a unique solution. O(log n) SAT calls instead of O(n).
-  const active = new Array<boolean>(total).fill(false);
-  let lo = 1;
-  let hi = indices.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    // Activate first `mid` constraints in sorted order
-    active.fill(false);
-    for (let i = 0; i < mid; i++) active[indices[i]] = true;
-    if (checkUnique(solver, actBase, total, active)) {
-      hi = mid;
-    } else {
-      lo = mid + 1;
+  // Phase 1: Batch removal — try removing chunks at a time.
+  for (const fraction of [0.1, 0.05]) {
+    let offset = 0;
+    while (offset < indices.length) {
+      const count = Math.max(
+        1,
+        Math.floor(activeCount(active) * fraction),
+      );
+      const batch: number[] = [];
+      let scan = offset;
+      while (batch.length < count && scan < indices.length) {
+        if (active[indices[scan]]) batch.push(indices[scan]);
+        scan++;
+      }
+      offset = scan;
+      if (batch.length === 0) break;
+
+      for (const idx of batch) active[idx] = false;
+      if (!checkUnique(solver, actBase, total, active)) {
+        for (const idx of batch) active[idx] = true;
+      }
     }
   }
-  // Activate the found prefix
-  active.fill(false);
-  for (let i = 0; i < lo; i++) active[indices[i]] = true;
 
-  // Phase 2: Remove redundant constraints from the prefix. Tries removing
-  // groups at once (least informative first) to reduce SAT calls.
-  const selected = indices.slice(0, lo);
-  selected.reverse();
-
-  batchRemove(selected, solver, actBase, total, active);
+  // Phase 2: Individual pass — try each remaining constraint once.
+  for (const idx of indices) {
+    if (!active[idx]) continue;
+    active[idx] = false;
+    if (!checkUnique(solver, actBase, total, active)) {
+      active[idx] = true;
+    }
+  }
 
   return constraints.filter((_, i) => active[i]);
 }
 
-/** Recursively try removing groups of constraints. */
-function batchRemove(
-  toTry: number[],
-  solver: IncrementalSolver,
-  actBase: number,
-  total: number,
-  active: boolean[],
-): void {
-  if (toTry.length === 0) return;
-
-  if (toTry.length === 1) {
-    // Single constraint: try removing it
-    const idx = toTry[0];
-    active[idx] = false;
-    active[idx] = !checkUnique(solver, actBase, total, active);
-    return;
-  }
-
-  // Try removing all at once
-  for (const idx of toTry) active[idx] = false;
-  if (checkUnique(solver, actBase, total, active)) return; // all redundant
-  for (const idx of toTry) active[idx] = true; // restore
-
-  // Split and recurse
-  const mid = toTry.length >> 1;
-  batchRemove(toTry.slice(0, mid), solver, actBase, total, active);
-  batchRemove(toTry.slice(mid), solver, actBase, total, active);
+function activeCount(active: boolean[]): number {
+  let n = 0;
+  for (const a of active) if (a) n++;
+  return n;
 }
 
 // Seeded PRNG (xorshift32)

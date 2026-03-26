@@ -66,6 +66,24 @@ describe("classify with grid (deduction depth)", () => {
     expect(classify(constraints, grid3x3)).toBe("easy");
   });
 
+  it("uses not_same_house elimination in deduction depth", () => {
+    // Fully pinned via at_position + same_house + not_same_house elimination
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Red", position: 0 },
+      { type: "at_position", value: "Blue", position: 1 },
+      { type: "at_position", value: "Green", position: 2 },
+      { type: "same_house", a: "Red", b: "Cat" },
+      { type: "same_house", a: "Blue", b: "Coffee" },
+      { type: "same_house", a: "Red", b: "Tea" },
+      // not_same_house: Dog is not with Red (pos 0) → eliminates pos 0 for Dog
+      { type: "not_same_house", a: "Red", b: "Dog" },
+      // not_same_house: Dog is not with Green (pos 2) → forces Dog to pos 1
+      { type: "not_same_house", a: "Green", b: "Dog" },
+      { type: "same_house", a: "Green", b: "Water" },
+    ];
+    expect(classify(constraints, grid3x3)).toBe("easy");
+  });
+
   it("returns medium for easy types that require deeper reasoning", () => {
     // Only easy-type constraints, but not enough for direct elimination
     const constraints: Constraint[] = [
