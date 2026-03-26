@@ -14,3 +14,4 @@ yarn-error.log*
 *.cpuprofile
 coverage
 .svelte-kit
+build

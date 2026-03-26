@@ -25,13 +25,13 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --config ../../eslint.config.mjs src/ bench/",
+    "lint": "eslint src/ bench/",
     "format": "prettier --write src/ bench/",
     "format:check": "prettier --check src/ bench/",
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.ts",
     "bench:profile": "tsup --entry.profile bench/profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
-    "check": "tsc --noEmit && eslint src/ bench/ && prettier --check src/ bench/ && vitest run",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
     "prepublishOnly": "npm run check && npm run build"
   },
   "engines": {
@@ -54,9 +54,5 @@
   },
   "bugs": "https://github.com/antonstefer/logic-grid/issues",
   "homepage": "https://github.com/antonstefer/logic-grid#readme",
-  "devDependencies": {
-    "@types/node": "^25.5.0",
-    "tsup": "^8.0.0",
-    "vitest": "^3.0.0"
-  }
+  "devDependencies": {}
 }

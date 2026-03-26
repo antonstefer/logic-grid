@@ -10,19 +10,16 @@
 import { generate } from "../src";
 
 const sizes: [number, number][] = [
+  [3, 3],
   [4, 4],
+  [5, 5],
   [6, 6],
-  [10, 10],
-  [15, 10],
-  [20, 10],
-  [25, 10],
-  [30, 6],
-  [50, 4],
+  [8, 8],
 ];
 
 export function runBench(): void {
   // Warm up JIT
-  generate({ size: 10, categories: 6, seed: 1 });
+  generate({ size: 4, categories: 4, seed: 1 });
 
   console.log("size        time");
   console.log("----        ----");
