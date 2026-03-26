@@ -187,29 +187,27 @@ function buildGrid(
   let categories: Category[];
 
   if (categoryNames) {
+    for (const c of categoryNames) {
+      if (c.values.length < size) {
+        throw new RangeError(
+          `Category "${c.name}" has ${c.values.length} values but size is ${size}`,
+        );
+      }
+    }
     categories = categoryNames.map((c) => ({
       name: c.name,
-      values: padValues(c.values, size, c.name),
+      values: c.values.slice(0, size),
     }));
   } else {
     categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
       name: c.name,
-      values: padValues(c.values, size, c.name),
+      values: c.values.slice(0, size),
     }));
   }
 
   return { size, categories };
 }
 
-/** Extend a value pool to the requested size with generated names if needed. */
-function padValues(pool: string[], size: number, catName: string): string[] {
-  if (pool.length >= size) return pool.slice(0, size);
-  const values = [...pool];
-  for (let i = pool.length; i < size; i++) {
-    values.push(`${catName}${i + 1}`);
-  }
-  return values;
-}
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
   return grid.categories.map((cat) => {
