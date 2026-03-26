@@ -1,0 +1,44 @@
+{
+  "name": "logic-grid",
+  "version": "1.0.0",
+  "description": "Generate and solve logic grid puzzles (zebra puzzles / Einstein's riddles)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "logic-grid",
+    "zebra-puzzle",
+    "einstein-riddle",
+    "constraint-satisfaction",
+    "puzzle-generator",
+    "puzzle-solver",
+    "sat-solver"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.3",
+    "vitest": "^3.0.0"
+  }
+}
