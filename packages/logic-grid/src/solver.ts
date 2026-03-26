@@ -6,7 +6,7 @@ import {
   encodeConstraint,
   encodePuzzle,
 } from "./encoding";
-import { solveSAT, solveAllSAT, isUnique } from "./sat";
+import { solveSAT, solveAllSAT } from "./sat";
 
 /** Solve a puzzle. Returns the solution, or `null` if the constraints are unsatisfiable. */
 export function solve(constraints: Constraint[], grid: Grid): Solution | null {
@@ -49,33 +49,12 @@ export function createSolverContext(grid: Grid): SolverContext {
   return { ctx, baseClauses, allVars };
 }
 
-/** Like {@link hasUniqueSolution} but reuses a pre-built {@link SolverContext}. */
-export function hasUniqueSolutionFast(
-  constraints: Constraint[],
-  solverCtx: SolverContext,
-): boolean {
-  const clauses = buildClauses(constraints, solverCtx);
-  return isUnique(clauses, solverCtx.allVars);
-}
-
 /** Pre-encode a constraint's clauses for reuse. */
 export function encodeConstraintCached(
   constraint: Constraint,
   solverCtx: SolverContext,
 ): number[][] {
   return encodeConstraint(solverCtx.ctx, constraint);
-}
-
-function buildClauses(
-  constraints: Constraint[],
-  solverCtx: SolverContext,
-): number[][] {
-  const clauses = [...solverCtx.baseClauses];
-  for (const c of constraints) {
-    const encoded = encodeConstraint(solverCtx.ctx, c);
-    for (const clause of encoded) clauses.push(clause);
-  }
-  return clauses;
 }
 
 function decodeSolution(

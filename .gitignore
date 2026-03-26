@@ -12,4 +12,5 @@ yarn-error.log*
 .vscode/*
 .idea/*
 *.cpuprofile
+coverage
 .svelte-kit

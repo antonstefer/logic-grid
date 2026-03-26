@@ -40,20 +40,6 @@ export function solveAllSAT(
   return solutions;
 }
 
-export function isUnique(clauses: number[][], allVars: Set<number>): boolean {
-  const solver = new Solver(clauses);
-  if (!solver.solve()) return false;
-
-  const assignment = solver.getAssignment();
-  const blocking: number[] = [];
-  for (const v of allVars) {
-    blocking.push(assignment.get(v) ? -v : v);
-  }
-
-  const solver2 = new Solver(clauses.concat([blocking]));
-  return !solver2.solve();
-}
-
 // --- Shared SAT infrastructure ---
 
 const UNDEF = 0;
@@ -216,7 +202,7 @@ class SATBase {
   }
 }
 
-// --- One-shot solver (used by solveSAT / solveAllSAT / isUnique) ---
+// --- One-shot solver (used by solveSAT / solveAllSAT) ---
 
 class Solver extends SATBase {
   solve(): boolean {
