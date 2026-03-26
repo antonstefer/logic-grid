@@ -111,6 +111,13 @@ describe('generate', () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
+  it('generates 6x6 puzzles', () => {
+    const puzzle = generate({ size: 6, categories: 6, seed: 42 });
+    expect(puzzle.grid.size).toBe(6);
+    expect(puzzle.grid.categories.length).toBe(6);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  }, 10000);
+
   it('accepts custom categories', () => {
     const puzzle = generate({
       size: 3,

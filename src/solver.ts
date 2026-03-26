@@ -1,5 +1,5 @@
 import { Constraint, Grid, Solution, Assignment } from './types';
-import { createContext, encodePuzzle, EncodingContext } from './encoding';
+import { createContext, encodeBase, encodeConstraint, encodePuzzle, EncodingContext } from './encoding';
 import { solveSAT, solveAllSAT } from './sat';
 
 export function solve(constraints: Constraint[], grid: Grid): Solution | null {
@@ -14,6 +14,33 @@ export function solve(constraints: Constraint[], grid: Grid): Solution | null {
 export function hasUniqueSolution(constraints: Constraint[], grid: Grid): boolean {
   const ctx = createContext(grid);
   const clauses = encodePuzzle(ctx, constraints);
+  const solutions = solveAllSAT(clauses, 2);
+  return solutions.length === 1;
+}
+
+/**
+ * Pre-built encoding context for repeated uniqueness checks on the same grid.
+ * Avoids re-encoding base clauses on every call.
+ */
+export interface SolverContext {
+  ctx: EncodingContext;
+  baseClauses: number[][];
+}
+
+export function createSolverContext(grid: Grid): SolverContext {
+  const ctx = createContext(grid);
+  const baseClauses = encodeBase(ctx);
+  return { ctx, baseClauses };
+}
+
+export function hasUniqueSolutionFast(constraints: Constraint[], solverCtx: SolverContext): boolean {
+  const clauses = [...solverCtx.baseClauses];
+  for (const c of constraints) {
+    const encoded = encodeConstraint(solverCtx.ctx, c);
+    for (const clause of encoded) {
+      clauses.push(clause);
+    }
+  }
   const solutions = solveAllSAT(clauses, 2);
   return solutions.length === 1;
 }

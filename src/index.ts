@@ -1,5 +1,6 @@
 export { generate } from './generator';
-export { solve, hasUniqueSolution } from './solver';
+export { solve, hasUniqueSolution, createSolverContext, hasUniqueSolutionFast } from './solver';
+export type { SolverContext } from './solver';
 export { classify } from './difficulty';
 
 export {

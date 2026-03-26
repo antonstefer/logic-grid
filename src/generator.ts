@@ -1,5 +1,5 @@
 import { Puzzle, GenerateOptions, Grid, Solution, Constraint, Category, Difficulty, Assignment } from './types';
-import { hasUniqueSolution } from './solver';
+import { hasUniqueSolution, createSolverContext, hasUniqueSolutionFast, SolverContext } from './solver';
 import { renderClue } from './clues/templates';
 import { classify } from './difficulty';
 
@@ -29,6 +29,7 @@ export function generate(options?: GenerateOptions): Puzzle {
   const rng = createRng(options?.seed);
 
   const grid = buildGrid(size, numCategories, options?.categoryNames);
+  const solverCtx = createSolverContext(grid);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const solution = randomSolution(grid, rng);
@@ -42,9 +43,9 @@ export function generate(options?: GenerateOptions): Puzzle {
     shuffle(filtered, rng);
 
     // Check if filtered constraints can produce a unique solution
-    if (!hasUniqueSolution(filtered, grid)) continue;
+    if (!hasUniqueSolutionFast(filtered, solverCtx)) continue;
 
-    const minimal = minimizeConstraints(filtered, grid, rng);
+    const minimal = minimizeConstraints(filtered, solverCtx, rng);
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -114,6 +115,11 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const allValues = [...posOf.keys()];
 
   // Pairwise constraints between values of different categories
+  // For larger grids, limit negative constraints (not_same_house, not_next_to)
+  // to keep the constraint set manageable for minimization
+  const maxNegative = n <= 4 ? Infinity : n * n * 2;
+  let negativeCount = 0;
+
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
     const posA = posOf.get(a)!;
@@ -127,14 +133,16 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
       if (posA === posB) {
         constraints.push({ type: 'same_house', a, b });
-      } else {
+      } else if (negativeCount < maxNegative) {
         constraints.push({ type: 'not_same_house', a, b });
+        negativeCount++;
       }
 
       if (Math.abs(posA - posB) === 1) {
         constraints.push({ type: 'next_to', a, b });
-      } else if (posA !== posB) {
+      } else if (posA !== posB && negativeCount < maxNegative) {
         constraints.push({ type: 'not_next_to', a, b });
+        negativeCount++;
       }
 
       if (posA === posB - 1) {
@@ -182,14 +190,17 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   constraints.push(...betweenConstraints.slice(0, 50));
 
   // Position constraints
+  const notAtPositionConstraints: Constraint[] = [];
   for (const [val, pos] of posOf) {
     constraints.push({ type: 'at_position', value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
-        constraints.push({ type: 'not_at_position', value: val, position: p });
+        notAtPositionConstraints.push({ type: 'not_at_position', value: val, position: p });
       }
     }
   }
+  // Cap not_at_position for larger grids
+  constraints.push(...notAtPositionConstraints.slice(0, n <= 4 ? notAtPositionConstraints.length : n * n));
 
   return deduplicateConstraints(constraints);
 }
@@ -259,7 +270,7 @@ const REMOVAL_PRIORITY: Record<string, number> = {
 
 function minimizeConstraints(
   constraints: Constraint[],
-  grid: Grid,
+  solverCtx: SolverContext,
   rng: () => number,
 ): Constraint[] {
   // Sort by removal priority (try removing least informative first)
@@ -273,7 +284,7 @@ function minimizeConstraints(
 
   for (let i = current.length - 1; i >= 0; i--) {
     const candidate = [...current.slice(0, i), ...current.slice(i + 1)];
-    if (hasUniqueSolution(candidate, grid)) {
+    if (hasUniqueSolutionFast(candidate, solverCtx)) {
       current.splice(i, 1);
     }
   }
