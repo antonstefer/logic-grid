@@ -87,16 +87,26 @@ function buildGrid(size: number, numCategories: number, categoryNames?: Category
   if (categoryNames) {
     categories = categoryNames.map(c => ({
       name: c.name,
-      values: c.values.slice(0, size),
+      values: padValues(c.values, size, c.name),
     }));
   } else {
     categories = DEFAULT_CATEGORIES.slice(0, numCategories).map(c => ({
       name: c.name,
-      values: c.values.slice(0, size),
+      values: padValues(c.values, size, c.name),
     }));
   }
 
   return { size, categories };
+}
+
+/** Extend a value pool to the requested size with generated names if needed. */
+function padValues(pool: string[], size: number, catName: string): string[] {
+  if (pool.length >= size) return pool.slice(0, size);
+  const values = [...pool];
+  for (let i = pool.length; i < size; i++) {
+    values.push(`${catName}${i + 1}`);
+  }
+  return values;
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
@@ -291,7 +301,6 @@ function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
 ): IncSolverCtx | null {
-  // Activation variable for each constraint, starting after puzzle variables
   let maxVar = 0;
   for (const clause of solverCtx.baseClauses) {
     for (const lit of clause) {
@@ -310,7 +319,6 @@ function buildIncrementalSolver(
   const actBase = maxVar + 1;
   const total = clauseCache.length;
 
-  // Build all clauses: base + guarded constraint clauses
   const allClauses: number[][] = [...solverCtx.baseClauses];
   for (let i = 0; i < total; i++) {
     const actVar = actBase + i;
