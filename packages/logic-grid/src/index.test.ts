@@ -75,7 +75,7 @@ describe("public API integration", () => {
       size: 4,
       seed: 42,
       categoryNames: [
-        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        { name: "Name", values: ["Luna", "Kai", "Nora", "Theo"] },
         {
           name: "Instrument",
           values: ["Piano", "Guitar", "Drums", "Violin"],
