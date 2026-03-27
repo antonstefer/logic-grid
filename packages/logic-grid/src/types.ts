@@ -73,7 +73,11 @@ export type DeductionTechnique =
   | "exact_distance"
   | "naked_single"
   | "hidden_single"
-  | "naked_pair";
+  | "naked_pair"
+  | "naked_triple"
+  | "hidden_pair"
+  | "same_house_chain"
+  | "contradiction";
 
 /** A single logical deduction step. */
 export interface DeductionStep {
