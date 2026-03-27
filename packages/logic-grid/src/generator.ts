@@ -175,7 +175,7 @@ export function generate(options?: GenerateOptions): Puzzle {
 
   throw new Error(
     `Failed to generate a puzzle after ${MAX_RETRIES} attempts. ` +
-      `Try different options (larger size or different difficulty).`,
+      `Try a smaller size or easier difficulty.`,
   );
 }
 

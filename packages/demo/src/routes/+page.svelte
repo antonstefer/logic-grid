@@ -55,7 +55,9 @@
       </select>
     </label>
 
-    <button class="btn primary" onclick={handleNewPuzzle}>New Puzzle</button>
+    <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
+      {puzzleState.loading ? "Generating…" : "New Puzzle"}
+    </button>
   </div>
 
   {#if puzzleState.puzzle}
