@@ -87,7 +87,8 @@
     <p class="meta">
       {puzzleState.puzzle.constraints.length} clues &middot;
       {puzzleState.puzzle.grid.size}&times;{puzzleState.puzzle.grid.categories.length} grid &middot;
-      {puzzleState.puzzle.difficulty}
+      {puzzleState.puzzle.difficulty} &middot;
+      {puzzleState.genTime}ms
     </p>
   {/if}
 </main>
