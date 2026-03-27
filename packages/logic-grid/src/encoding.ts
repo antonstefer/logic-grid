@@ -1,5 +1,6 @@
 import type { Constraint, Grid } from "./types";
 
+/** Holds grid metadata needed to map values/positions to SAT variables. */
 export interface EncodingContext {
   grid: Grid;
   valueIndex: Map<string, number>;
@@ -7,6 +8,7 @@ export interface EncodingContext {
   numValues: number;
 }
 
+/** Build an encoding context for a grid, mapping values to sequential indices. */
 export function createContext(grid: Grid): EncodingContext {
   const valueIndex = new Map<string, number>();
   let idx = 0;

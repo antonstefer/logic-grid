@@ -1,13 +1,16 @@
+/** Result of a SAT solve: satisfiable with an assignment, or unsatisfiable. */
 export type SATResult =
   | { satisfiable: true; assignment: Map<number, boolean> }
   | { satisfiable: false };
 
+/** Solve a CNF formula. Returns the first satisfying assignment or UNSAT. */
 export function solveSAT(clauses: number[][]): SATResult {
   const solver = new Solver(clauses);
   if (!solver.solve()) return { satisfiable: false };
   return { satisfiable: true, assignment: solver.getAssignment() };
 }
 
+/** Find up to `limit` satisfying assignments for a CNF formula. */
 export function solveAllSAT(
   clauses: number[][],
   limit: number,

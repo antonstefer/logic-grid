@@ -16,6 +16,7 @@ export type Assignment = Record<string, number>;
 /** Complete puzzle solution — one {@link Assignment} per category. */
 export type Solution = Assignment[];
 
+/** Union of all constraint type string literals. */
 export type ConstraintType = Constraint["type"];
 
 /**
@@ -32,6 +33,7 @@ export type Constraint =
   | { type: "at_position"; value: string; position: number }
   | { type: "not_at_position"; value: string; position: number };
 
+/** Puzzle difficulty level, determined by constraint types and deduction depth. */
 export type Difficulty = "easy" | "medium" | "hard";
 
 /** A human-readable clue derived from a constraint. */
