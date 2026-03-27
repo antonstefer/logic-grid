@@ -56,12 +56,19 @@ Custom categories:
 const puzzle = generate({
   size: 3,
   categoryNames: [
-    { name: "House", values: ["A", "B", "C"] },
-    { name: "Owner", values: ["Alice", "Bob", "Carol"] },
+    { name: "Name", values: ["Alice", "Bob", "Carol"] },
+    {
+      name: "Vehicle",
+      values: ["Toyota", "BMW", "Honda"],
+      noun: "driver", // → "the toyota driver"
+      verb: ["drives the", "does not drive the"], // → "Alice drives the toyota."
+    },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
   ],
 });
 ```
+
+The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-house phrasing as `[positive, negative]`. Both are optional — built-in defaults exist for Name, Color, Pet, Drink, Food, Hobby, Music, and Sport.
 
 ### `solve(constraints, grid)`
 
@@ -157,6 +164,8 @@ interface Grid {
 interface Category {
   name: string;
   values: string[];
+  noun?: string; // label noun for clues
+  verb?: [string, string]; // [positive, negative] verb phrases
 }
 
 type Solution = Assignment[]; // one per category
