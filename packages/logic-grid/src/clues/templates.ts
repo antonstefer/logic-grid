@@ -159,6 +159,31 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const v = livesVerb(constraint.middle, grid);
       return `${capitalize(lm)} ${v} between ${lo1} and ${lo2}.`;
     }
+    case "not_between": {
+      const lm = label(constraint.middle, grid);
+      const lo1 = label(constraint.outer1, grid);
+      const lo2 = label(constraint.outer2, grid);
+      const neg =
+        nounOf(constraint.middle, grid) === "house"
+          ? "is not"
+          : "does not live";
+      return `${capitalize(lm)} ${neg} between ${lo1} and ${lo2}.`;
+    }
+    case "before": {
+      if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
+        const v = livesVerb(constraint.a, grid);
+        return `${capitalize(label(constraint.a, grid))} ${v} somewhere left of ${label(constraint.b, grid)}.`;
+      }
+      const v = livesVerb(constraint.b, grid);
+      return `${capitalize(label(constraint.b, grid))} ${v} somewhere right of ${label(constraint.a, grid)}.`;
+    }
+    case "exact_distance": {
+      const la = label(constraint.a, grid);
+      const lb = label(constraint.b, grid);
+      const v = livesVerb(constraint.a, grid);
+      const houses = constraint.distance === 1 ? "house" : "houses";
+      return `${capitalize(la)} ${v} exactly ${constraint.distance} ${houses} from ${lb}.`;
+    }
     case "at_position": {
       const v = livesVerb(constraint.value, grid);
       return `${capitalize(label(constraint.value, grid))} ${v} in house ${constraint.position + 1}.`;

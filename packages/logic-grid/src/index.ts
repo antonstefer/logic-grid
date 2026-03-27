@@ -10,6 +10,9 @@ export {
   notNextTo,
   leftOf,
   between,
+  notBetween,
+  before,
+  exactDistance,
   atPosition,
   notAtPosition,
 } from "./clues/constraints";

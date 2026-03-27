@@ -34,6 +34,29 @@ export function between(
   return { type: "between", outer1, middle, outer2 };
 }
 
+/** `middle` is NOT between `outer1` and `outer2`. */
+export function notBetween(
+  outer1: string,
+  middle: string,
+  outer2: string,
+): Constraint {
+  return { type: "not_between", outer1, middle, outer2 };
+}
+
+/** `a` is somewhere to the left of `b` (not necessarily adjacent). */
+export function before(a: string, b: string): Constraint {
+  return { type: "before", a, b };
+}
+
+/** `a` and `b` are exactly `distance` positions apart. */
+export function exactDistance(
+  a: string,
+  b: string,
+  distance: number,
+): Constraint {
+  return { type: "exact_distance", a, b, distance };
+}
+
 /** `value` is at the given 0-indexed position. */
 export function atPosition(value: string, position: number): Constraint {
   return { type: "at_position", value, position };

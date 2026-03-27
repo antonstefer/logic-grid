@@ -139,6 +139,42 @@ describe("renderClue", () => {
     expect(clue.text).toBe("The red house is not in house 3.");
   });
 
+  it("not_between", () => {
+    const clue = renderClue(
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+      },
+      grid,
+    );
+    expect(clue.text).toBe(
+      "The cat owner does not live between the red house and the blue house.",
+    );
+  });
+
+  it("before", () => {
+    const clue = renderClue({ type: "before", a: "Alice", b: "Cat" }, grid);
+    expect(clue.text).toMatch(/somewhere (left|right) of/);
+  });
+
+  it("exact_distance", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives exactly 2 houses from the cat owner.");
+  });
+
+  it("exact_distance singular", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives exactly 1 house from the cat owner.");
+  });
+
   it("preserves constraint in returned clue", () => {
     const constraint = { type: "same_house" as const, a: "Red", b: "Cat" };
     const clue = renderClue(constraint, grid);

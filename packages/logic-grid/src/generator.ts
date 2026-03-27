@@ -105,6 +105,7 @@ const MEDIUM_TYPES: Set<Constraint["type"]> = new Set([
   ...EASY_TYPES,
   "next_to",
   "left_of",
+  "before",
 ]);
 
 const MAX_RETRIES = 100;
@@ -275,6 +276,19 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       if (posB === posA - 1) {
         constraints.push({ type: "left_of", a: b, b: a });
       }
+
+      // before: a is somewhere left of b (not necessarily adjacent)
+      if (posA < posB) {
+        constraints.push({ type: "before", a, b });
+      } else if (posB < posA) {
+        constraints.push({ type: "before", a: b, b: a });
+      }
+
+      // exact_distance: for distances 2+ (distance 1 is next_to)
+      const dist = Math.abs(posA - posB);
+      if (dist >= 2) {
+        constraints.push({ type: "exact_distance", a, b, distance: dist });
+      }
     }
   }
 
@@ -312,9 +326,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
           const o1 = m === 2 ? 1 : 2;
           const lo = Math.min(positions[o0], positions[o1]);
           const hi = Math.max(positions[o0], positions[o1]);
+          const [v1, v2] =
+            vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
           if (positions[m] > lo && positions[m] < hi) {
-            const [v1, v2] =
-              vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
             constraints.push({
               type: "between",
               outer1: v1,
@@ -322,6 +336,14 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
               outer2: v2,
             });
             if (++betweenCount >= maxBetween) continue outer;
+          } else if (negativeCount < maxNegative) {
+            constraints.push({
+              type: "not_between",
+              outer1: v1,
+              middle: vals[m],
+              outer2: v2,
+            });
+            negativeCount++;
           }
         }
       }
@@ -371,11 +393,17 @@ function constraintKey(c: Constraint): string {
       return `${c.type}:${a}:${b}`;
     }
     case "left_of":
-      return `left_of:${c.a}:${c.b}`;
-    case "between": {
+    case "before":
+      return `${c.type}:${c.a}:${c.b}`;
+    case "between":
+    case "not_between": {
       const [o1, o2] =
         c.outer1 < c.outer2 ? [c.outer1, c.outer2] : [c.outer2, c.outer1];
-      return `between:${o1}:${c.middle}:${o2}`;
+      return `${c.type}:${o1}:${c.middle}:${o2}`;
+    }
+    case "exact_distance": {
+      const [a, b] = c.a < c.b ? [c.a, c.b] : [c.b, c.a];
+      return `exact_distance:${a}:${b}:${c.distance}`;
     }
     case "at_position":
       return `at_position:${c.value}:${c.position}`;
@@ -407,10 +435,13 @@ const REMOVAL_WEIGHT: Record<string, number> = {
   not_at_position: 5,
   not_same_house: 4,
   not_next_to: 3,
+  not_between: 3,
   left_of: 2,
   next_to: 2,
   between: 2,
-  same_house: 1, // least likely to be removed — most interesting for puzzles
+  before: 2,
+  exact_distance: 2,
+  same_house: 1,
 };
 
 interface IncSolverCtx {

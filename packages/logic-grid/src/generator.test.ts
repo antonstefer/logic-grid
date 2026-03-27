@@ -199,6 +199,7 @@ describe("generate", () => {
         "not_at_position",
         "next_to",
         "left_of",
+        "before",
       ]).toContain(c.type);
     }
   });
