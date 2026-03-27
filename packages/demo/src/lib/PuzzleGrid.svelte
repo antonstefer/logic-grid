@@ -63,7 +63,7 @@
         <th class="category-header"></th>
         <th class="value-header"></th>
         {#each Array(grid.size) as _, p}
-          <th class="position-header">{p + 1}</th>
+          <th class="position-header">{p + 1}<br/><span class="house-emoji">🏠</span></th>
         {/each}
       </tr>
     </thead>
@@ -122,6 +122,11 @@
     text-align: center;
     font-weight: 600;
     color: #475569;
+  }
+
+  .house-emoji {
+    font-size: 1.5rem;
+    line-height: 1;
   }
 
   .category-label {
