@@ -72,7 +72,8 @@ export type DeductionTechnique =
   | "not_between"
   | "exact_distance"
   | "naked_single"
-  | "hidden_single";
+  | "hidden_single"
+  | "naked_pair";
 
 /** A single logical deduction step. */
 export interface DeductionStep {

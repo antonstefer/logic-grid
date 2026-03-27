@@ -632,6 +632,61 @@ function tryHiddenSingles(state: DeduceState): DeductionStep | null {
   return null;
 }
 
+function tryNakedPairs(state: DeduceState): DeductionStep | null {
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    // Find all values with exactly 2 possible positions
+    const pairs: [number, Set<number>][] = [];
+    for (let vi = 0; vi < cat.values.length; vi++) {
+      if (state.possible[ci][vi].size === 2) {
+        pairs.push([vi, state.possible[ci][vi]]);
+      }
+    }
+
+    // Check each pair of values that share the same 2 positions
+    for (let i = 0; i < pairs.length; i++) {
+      for (let j = i + 1; j < pairs.length; j++) {
+        const [vi1, ps1] = pairs[i];
+        const [vi2, ps2] = pairs[j];
+        // Same two positions?
+        if (ps1.size !== ps2.size) continue;
+        let match = true;
+        for (const p of ps1) {
+          if (!ps2.has(p)) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) continue;
+
+        // Found a naked pair — eliminate these positions from all other values in category
+        const elims: { value: string; position: number }[] = [];
+        for (let ovi = 0; ovi < cat.values.length; ovi++) {
+          if (ovi === vi1 || ovi === vi2) continue;
+          for (const p of ps1) {
+            if (state.possible[ci][ovi].has(p)) {
+              state.possible[ci][ovi].delete(p);
+              elims.push({ value: cat.values[ovi], position: p });
+            }
+          }
+        }
+        if (elims.length === 0) continue;
+
+        const assigns = collectAssigns(state, elims);
+        const positions = [...ps1].map((p) => ordinal(p)).join(" and ");
+        return step(
+          "naked_pair",
+          [],
+          elims,
+          assigns,
+          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} houses, so no other ${cat.name} can be there.`,
+        );
+      }
+    }
+  }
+  return null;
+}
+
 // --- Helpers ---
 
 function dedup(
@@ -696,6 +751,13 @@ export function deduce(constraints: Constraint[], grid: Grid): DeductionResult {
     const hidden = tryHiddenSingles(state);
     if (hidden) {
       steps.push(hidden);
+      progress = true;
+      continue;
+    }
+
+    const pair = tryNakedPairs(state);
+    if (pair) {
+      steps.push(pair);
       progress = true;
     }
   }
