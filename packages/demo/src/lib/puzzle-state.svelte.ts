@@ -84,17 +84,29 @@ export function createPuzzleState() {
     if (!puzzle) return;
     const [catStart, catEnd] = categoryRange(confirmedValueIdx);
 
-    // Eliminate same value from other positions
+    // Eliminate same value from other positions (flip existing ✓ to ✗, cascading)
     for (let p = 0; p < puzzle.grid.size; p++) {
-      if (p !== confirmedPosition && grid[confirmedValueIdx][p] === "empty") {
-        grid[confirmedValueIdx][p] = "eliminated";
+      if (p !== confirmedPosition) {
+        if (grid[confirmedValueIdx][p] === "confirmed") {
+          grid[confirmedValueIdx][p] = "empty";
+          autoRestore(confirmedValueIdx, p);
+          grid[confirmedValueIdx][p] = "eliminated";
+        } else if (grid[confirmedValueIdx][p] === "empty") {
+          grid[confirmedValueIdx][p] = "eliminated";
+        }
       }
     }
 
     // Eliminate other values in same category from this position
     for (let v = catStart; v < catEnd; v++) {
-      if (v !== confirmedValueIdx && grid[v][confirmedPosition] === "empty") {
-        grid[v][confirmedPosition] = "eliminated";
+      if (v !== confirmedValueIdx) {
+        if (grid[v][confirmedPosition] === "confirmed") {
+          grid[v][confirmedPosition] = "empty";
+          autoRestore(v, confirmedPosition);
+          grid[v][confirmedPosition] = "eliminated";
+        } else if (grid[v][confirmedPosition] === "empty") {
+          grid[v][confirmedPosition] = "eliminated";
+        }
       }
     }
   }
@@ -103,21 +115,27 @@ export function createPuzzleState() {
     if (!puzzle) return;
     const [catStart, catEnd] = categoryRange(valueIdx);
 
-    // Restore same value's other positions (if no other confirm forces them)
+    // Restore same value's other positions — only if NO confirm forces the cross
+    // (check both: another confirm in the same row, OR a confirm in that column)
     for (let p = 0; p < puzzle.grid.size; p++) {
       if (p !== position && grid[valueIdx][p] === "eliminated") {
-        // Only restore if no other confirmed value in this row forces elimination
-        if (!hasConfirmInRow(valueIdx)) {
+        if (
+          !hasConfirmInRow(valueIdx) &&
+          !hasConfirmInColumn(valueIdx, p, catStart, catEnd)
+        ) {
           grid[valueIdx][p] = "empty";
         }
       }
     }
 
-    // Restore other values in same category at this position
+    // Restore other values in same category at this position — only if NO confirm forces it
+    // (check both: a confirm in that column, OR a confirm in that value's row)
     for (let v = catStart; v < catEnd; v++) {
       if (v !== valueIdx && grid[v][position] === "eliminated") {
-        // Only restore if no other confirmed value in this column forces elimination
-        if (!hasConfirmInColumn(v, position, catStart, catEnd)) {
+        if (
+          !hasConfirmInColumn(v, position, catStart, catEnd) &&
+          !hasConfirmInRow(v)
+        ) {
           grid[v][position] = "empty";
         }
       }
