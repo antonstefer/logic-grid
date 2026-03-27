@@ -68,7 +68,7 @@ function findCategory(value: string, grid: Grid): string {
   for (const cat of grid.categories) {
     if (cat.values.includes(value)) return cat.name;
   }
-  return "unknown";
+  throw new Error(`Unknown value: ${value}`);
 }
 
 function nounOf(value: string, grid: Grid): string {
