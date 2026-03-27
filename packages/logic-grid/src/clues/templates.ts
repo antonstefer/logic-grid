@@ -1,5 +1,20 @@
 import type { Constraint, Clue, Grid } from "../types";
 
+const ORDINALS = [
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+  "sixth",
+  "seventh",
+  "eighth",
+];
+
+function ordinalHouse(position: number): string {
+  return `the ${ORDINALS[position]} house`;
+}
+
 /** Convert a constraint into a human-readable English clue. */
 export function renderClue(constraint: Constraint, grid: Grid): Clue {
   const text = renderText(constraint, grid);
@@ -186,15 +201,15 @@ function renderText(constraint: Constraint, grid: Grid): string {
     }
     case "at_position": {
       if (nounOf(constraint.value, grid) === "house") {
-        return `House ${constraint.position + 1} is ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(ordinalHouse(constraint.position))} is ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} lives in house ${constraint.position + 1}.`;
+      return `${capitalize(label(constraint.value, grid))} lives in ${ordinalHouse(constraint.position)}.`;
     }
     case "not_at_position": {
       if (nounOf(constraint.value, grid) === "house") {
-        return `House ${constraint.position + 1} is not ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(ordinalHouse(constraint.position))} is not ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} does not live in house ${constraint.position + 1}.`;
+      return `${capitalize(label(constraint.value, grid))} does not live in ${ordinalHouse(constraint.position)}.`;
     }
   }
 }

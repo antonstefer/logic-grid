@@ -123,12 +123,12 @@ describe("renderClue", () => {
     );
   });
 
-  it("at_position (1-indexed)", () => {
+  it("at_position", () => {
     const clue = renderClue(
       { type: "at_position", value: "Tea", position: 0 },
       grid,
     );
-    expect(clue.text).toBe("The tea drinker lives in house 1.");
+    expect(clue.text).toBe("The tea drinker lives in the first house.");
   });
 
   it("not_at_position", () => {
@@ -136,7 +136,7 @@ describe("renderClue", () => {
       { type: "not_at_position", value: "Red", position: 2 },
       grid,
     );
-    expect(clue.text).toBe("House 3 is not red.");
+    expect(clue.text).toBe("The third house is not red.");
   });
 
   it("not_between", () => {
