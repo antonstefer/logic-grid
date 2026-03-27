@@ -21,6 +21,29 @@ function ordinal(position: number): string {
   return ORDINALS[position];
 }
 
+function describeResult(
+  assigns: { value: string; position: number }[],
+  elims: { value: string; position: number }[],
+): string {
+  const parts: string[] = [];
+  for (const a of assigns) {
+    parts.push(`${a.value} is in the ${ordinal(a.position)} house`);
+  }
+  // Group eliminations by value
+  const byValue = new Map<string, number[]>();
+  for (const e of elims) {
+    // Skip eliminated positions for values that were also assigned
+    if (assigns.some((a) => a.value === e.value)) continue;
+    if (!byValue.has(e.value)) byValue.set(e.value, []);
+    byValue.get(e.value)!.push(e.position);
+  }
+  for (const [value, positions] of byValue) {
+    const posStr = positions.map((p) => ordinal(p)).join(" or ");
+    parts.push(`${value} is not in the ${posStr} house`);
+  }
+  return parts.join("; ");
+}
+
 // --- State management ---
 
 interface DeduceState {
@@ -128,7 +151,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `${c.value} is in the ${ordinal(c.position)} house.`,
+    `${c.value} must be in the ${ordinal(c.position)} house.`,
   );
 }
 
@@ -142,12 +165,16 @@ function tryNotAtPosition(
   ps.delete(c.position);
   const assigns =
     ps.size === 1 ? [{ value: c.value, position: [...ps][0] }] : [];
+  const suffix =
+    assigns.length > 0
+      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} house.`
+      : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `${c.value} is not in the ${ordinal(c.position)} house.`,
+    `${c.value} is not in the ${ordinal(c.position)} house${suffix}`,
   );
 }
 
@@ -179,13 +206,13 @@ function trySameHouse(
     assigns.push({ value: c.a, position: p });
     assigns.push({ value: c.b, position: p });
   }
-  return step(
-    "same_house",
-    [ci],
-    elims,
-    assigns,
-    `${c.a} and ${c.b} are in the same house${assigns.length > 0 ? `: the ${ordinal(assigns[0].position)} house` : ""}.`,
-  );
+  let explanation: string;
+  if (assigns.length > 0) {
+    explanation = `${c.a} and ${c.b} are in the same house, so both are in the ${ordinal(assigns[0].position)} house.`;
+  } else {
+    explanation = `${c.a} and ${c.b} are in the same house: ${describeResult(assigns, elims)}.`;
+  }
+  return step("same_house", [ci], elims, assigns, explanation);
 }
 
 function tryNotSameHouse(
@@ -296,7 +323,13 @@ function tryAdjacency(
     if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
   }
   const verb = mustBeAdjacent ? "next to" : "not next to";
-  return step(technique, [ci], elims, assigns, `${a} is ${verb} ${b}.`);
+  return step(
+    technique,
+    [ci],
+    elims,
+    assigns,
+    `${a} is ${verb} ${b}, so ${describeResult(assigns, elims)}.`,
+  );
 }
 
 function tryLeftOf(
@@ -347,7 +380,7 @@ function tryLeftOf(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is directly left of ${c.b}.`,
+    `${c.a} is directly left of ${c.b}, so ${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -379,7 +412,7 @@ function tryBefore(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is somewhere left of ${c.b}.`,
+    `${c.a} is somewhere left of ${c.b}, so ${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -429,7 +462,7 @@ function tryBetween(
     [ci],
     uniqueElims,
     assigns,
-    `${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.`,
+    `${c.middle} is somewhere between ${c.outer1} and ${c.outer2}, so ${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -458,7 +491,7 @@ function tryNotBetween(
     [ci],
     elims,
     assigns,
-    `${c.middle} is not between ${c.outer1} and ${c.outer2}.`,
+    `${c.middle} is not between ${c.outer1} and ${c.outer2}, so ${describeResult(assigns, elims)}.`,
   );
 }
 
@@ -495,7 +528,7 @@ function tryExactDistance(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} and ${c.b} are exactly ${c.distance} houses apart.`,
+    `${c.a} and ${c.b} are exactly ${c.distance} houses apart, so ${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
