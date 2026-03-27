@@ -27,7 +27,7 @@ function describeResult(
 ): string {
   const parts: string[] = [];
   for (const a of assigns) {
-    parts.push(`${a.value} is in the ${ordinal(a.position)} house`);
+    parts.push(`${a.value} must be in the ${ordinal(a.position)} house`);
   }
   // Group eliminations by value
   const byValue = new Map<string, number[]>();
@@ -39,9 +39,21 @@ function describeResult(
   }
   for (const [value, positions] of byValue) {
     const posStr = positions.map((p) => ordinal(p)).join(" or ");
-    parts.push(`${value} is not in the ${posStr} house`);
+    parts.push(`${value} can't be in the ${posStr} house`);
   }
   return parts.join("; ");
+}
+
+/** Describe what we know about a value's position — used for "because" context. */
+function describeKnown(state: DeduceState, value: string): string {
+  const pos = getAssigned(state, value);
+  if (pos !== null) return `${value} is in the ${ordinal(pos)} house`;
+  const possible = getPossible(state, value);
+  if (possible.size <= 3) {
+    const posStr = [...possible].map((p) => ordinal(p)).join(" or ");
+    return `${value} can only be in the ${posStr} house`;
+  }
+  return "";
 }
 
 // --- State management ---
@@ -206,11 +218,16 @@ function trySameHouse(
     assigns.push({ value: c.a, position: p });
     assigns.push({ value: c.b, position: p });
   }
+  // Build "because" context from whichever value is more constrained
+  const knownA = describeKnown(state, c.a);
+  const knownB = describeKnown(state, c.b);
+  const because = knownA || knownB ? `. ${knownA || knownB}, so ` : ", so ";
+
   let explanation: string;
   if (assigns.length > 0) {
-    explanation = `${c.a} and ${c.b} are in the same house, so both are in the ${ordinal(assigns[0].position)} house.`;
+    explanation = `${c.a} and ${c.b} are in the same house${because}both are in the ${ordinal(assigns[0].position)} house.`;
   } else {
-    explanation = `${c.a} and ${c.b} are in the same house: ${describeResult(assigns, elims)}.`;
+    explanation = `${c.a} and ${c.b} are in the same house${because}${describeResult(assigns, elims)}.`;
   }
   return step("same_house", [ci], elims, assigns, explanation);
 }
@@ -238,13 +255,18 @@ function tryNotSameHouse(
     if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
   }
   const pinned = posA !== null ? c.a : c.b;
+  const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
+  const assignSuffix =
+    assigns.length > 0
+      ? ` ${assigns.map((a) => `${a.value} must be in the ${ordinal(a.position)} house`).join("; ")}.`
+      : "";
   return step(
     "not_same_house",
     [ci],
     elims,
     assigns,
-    `${pinned} and ${other} are in different houses, so ${other} is not in the ${ordinal(posA ?? posB!)} house.`,
+    `${pinned} and ${other} are in different houses. ${pinned} is in the ${ordinal(pinnedPos)} house, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -323,12 +345,15 @@ function tryAdjacency(
     if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
   }
   const verb = mustBeAdjacent ? "next to" : "not next to";
+  const knownA = describeKnown(state, a);
+  const knownB = describeKnown(state, b);
+  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
   return step(
     technique,
     [ci],
     elims,
     assigns,
-    `${a} is ${verb} ${b}, so ${describeResult(assigns, elims)}.`,
+    `${a} is ${verb} ${b}.${because}${describeResult(assigns, elims)}.`,
   );
 }
 
@@ -375,12 +400,15 @@ function tryLeftOf(
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
+  const knownA = describeKnown(state, c.a);
+  const knownB = describeKnown(state, c.b);
+  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
   return step(
     "left_of",
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is directly left of ${c.b}, so ${describeResult(assigns, uniqueElims)}.`,
+    `${c.a} is directly left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -407,12 +435,15 @@ function tryBefore(
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
+  const knownA = describeKnown(state, c.a);
+  const knownB = describeKnown(state, c.b);
+  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
   return step(
     "before",
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is somewhere left of ${c.b}, so ${describeResult(assigns, uniqueElims)}.`,
+    `${c.a} is somewhere left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -457,12 +488,16 @@ function tryBetween(
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
+  const parts: string[] = [];
+  if (a1 !== null) parts.push(`${c.outer1} is in the ${ordinal(a1)} house`);
+  if (a2 !== null) parts.push(`${c.outer2} is in the ${ordinal(a2)} house`);
+  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so ` : " ";
   return step(
     "between",
     [ci],
     uniqueElims,
     assigns,
-    `${c.middle} is somewhere between ${c.outer1} and ${c.outer2}, so ${describeResult(assigns, uniqueElims)}.`,
+    `${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -491,7 +526,7 @@ function tryNotBetween(
     [ci],
     elims,
     assigns,
-    `${c.middle} is not between ${c.outer1} and ${c.outer2}, so ${describeResult(assigns, elims)}.`,
+    `${c.middle} is not between ${c.outer1} and ${c.outer2}. ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so ${describeResult(assigns, elims)}.`,
   );
 }
 
@@ -523,12 +558,15 @@ function tryExactDistance(
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
+  const knownA = describeKnown(state, c.a);
+  const knownB = describeKnown(state, c.b);
+  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
   return step(
     "exact_distance",
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} and ${c.b} are exactly ${c.distance} houses apart, so ${describeResult(assigns, uniqueElims)}.`,
+    `${c.a} and ${c.b} are exactly ${c.distance} houses apart.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
