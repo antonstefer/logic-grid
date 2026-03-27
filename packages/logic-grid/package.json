@@ -47,13 +47,15 @@
     "puzzle-solver",
     "sat-solver"
   ],
+  "author": "Anton Stefer (https://github.com/antonstefer)",
   "license": "MIT",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/antonstefer/logic-grid.git",
     "directory": "packages/logic-grid"
   },
   "bugs": "https://github.com/antonstefer/logic-grid/issues",
-  "homepage": "https://github.com/antonstefer/logic-grid#readme",
+  "homepage": "https://github.com/antonstefer/logic-grid/tree/main/packages/logic-grid#readme",
   "devDependencies": {}
 }
