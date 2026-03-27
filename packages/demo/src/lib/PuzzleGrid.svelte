@@ -34,13 +34,34 @@
   // Desktop: left-click = confirm, right-click = eliminate.
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressed = false;
+  let touchMoved = false;
+  let startX = 0;
+  let startY = 0;
+  const MOVE_THRESHOLD = 10; // px — cancel tap if finger moves further
 
-  function handleTouchStart(valueIdx: number, p: number) {
+  function handleTouchStart(e: TouchEvent, valueIdx: number, p: number) {
     longPressed = false;
+    touchMoved = false;
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
     pressTimer = setTimeout(() => {
-      longPressed = true;
-      onEliminate(valueIdx, p);
+      if (!touchMoved) {
+        longPressed = true;
+        onEliminate(valueIdx, p);
+      }
     }, 400);
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    if (touchMoved) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (dx * dx + dy * dy > MOVE_THRESHOLD * MOVE_THRESHOLD) {
+      touchMoved = true;
+      if (pressTimer) clearTimeout(pressTimer);
+    }
   }
 
   function handleTouchEnd() {
@@ -52,6 +73,7 @@
       longPressed = false;
       return; // Already handled by long-press
     }
+    if (touchMoved) return; // Was a scroll, not a tap
     onConfirm(valueIdx, p);
   }
 </script>
@@ -83,7 +105,8 @@
                 class:eliminated={state === "eliminated"}
                 class:confirmed={state === "confirmed"}
                 onclick={() => handleClick(valueIdx, p)}
-                ontouchstart={() => handleTouchStart(valueIdx, p)}
+                ontouchstart={(e) => handleTouchStart(e, valueIdx, p)}
+                ontouchmove={handleTouchMove}
                 ontouchend={handleTouchEnd}
                 oncontextmenu={(e) => e.preventDefault()}
                 onmouseup={(e) => { if (e.button === 2) onEliminate(valueIdx, p); }}
