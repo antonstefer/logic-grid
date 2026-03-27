@@ -84,8 +84,12 @@ export function createPuzzleState() {
   function checkSolution(): boolean {
     if (!puzzle) return false;
 
-    let allCorrect = true;
-    let anyConfirmed = false;
+    let correctCount = 0;
+    let wrongCount = 0;
+    const totalValues = puzzle.grid.categories.reduce(
+      (sum, c) => sum + c.values.length,
+      0,
+    );
 
     for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
       const cat = puzzle.grid.categories[ci];
@@ -95,24 +99,30 @@ export function createPuzzleState() {
 
         for (let p = 0; p < puzzle.grid.size; p++) {
           if (grid[valueIdx][p] === "confirmed") {
-            anyConfirmed = true;
-            if (p !== expectedPos) allCorrect = false;
+            if (p === expectedPos) correctCount++;
+            else wrongCount++;
           }
         }
       }
     }
 
-    if (!anyConfirmed) {
+    if (correctCount === 0 && wrongCount === 0) {
       message = { text: "No cells confirmed yet. Click cells to mark your answers.", type: "info" };
       return false;
     }
 
-    if (allCorrect) {
-      message = { text: "Correct! Puzzle solved!", type: "success" };
-    } else {
+    if (wrongCount > 0) {
       message = { text: "Not quite right. Some confirmed cells are incorrect.", type: "error" };
+      return false;
     }
-    return allCorrect;
+
+    if (correctCount < totalValues) {
+      message = { text: `Looking good so far! ${totalValues - correctCount} values left to place.`, type: "info" };
+      return false;
+    }
+
+    message = { text: "Correct! Puzzle solved!", type: "success" };
+    return true;
   }
 
   function showSolution() {
