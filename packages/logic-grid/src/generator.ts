@@ -97,6 +97,7 @@ const DEFAULT_CATEGORIES: Category[] = [
 const EASY_TYPES: Set<Constraint["type"]> = new Set([
   "same_house",
   "not_same_house",
+  "at_position",
   "not_at_position",
 ]);
 
@@ -398,9 +399,9 @@ function filterByDifficulty(
   return constraints.filter((c) => allowedTypes.has(c.type));
 }
 
-// Removal weight: higher = more likely to be removed during minimization.
-// Matches tuchandra/zebra's approach: found_at (at_position) is most expendable,
-// relational clues (same_house, between) are kept preferentially.
+// Removal weight: higher = removed first during minimization.
+// Positional clues (at_position) are most expendable; relational clues
+// (same_house, between) are kept preferentially for interesting puzzles.
 const REMOVAL_WEIGHT: Record<string, number> = {
   at_position: 5,
   not_at_position: 5,
@@ -480,7 +481,7 @@ function minimizeConstraints(
 ): Constraint[] {
   const { solver, actBase, total } = incSolver;
 
-  // tuchandra/zebra approach: start with ALL constraints, batch-remove down.
+  // Start with ALL constraints active, then batch-remove down.
   // Starting heavily-constrained means SAT checks are fast (early conflicts).
   const active = new Array<boolean>(total).fill(true);
 

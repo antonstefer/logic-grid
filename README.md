@@ -17,7 +17,7 @@ import { generate, solve } from "logic-grid";
 const puzzle = generate({ size: 4, categories: 4, difficulty: "medium" });
 
 console.log(puzzle.clues.map((c) => c.text));
-// ["The Red color is in the same house as the Cat pet.", ...]
+// ["Alice owns the dog.", "The red house has a cat.", ...]
 
 // Solve it
 const solution = solve(puzzle.constraints, puzzle.grid);
@@ -31,8 +31,8 @@ Generate a puzzle with a unique solution and minimal constraint set.
 
 ```typescript
 const puzzle = generate({
-  size: 5, // grid size (default: 4)
-  categories: 4, // number of categories (default: 4)
+  size: 5, // 3-8 (default: 4)
+  categories: 4, // 3-8 (default: 4)
   difficulty: "hard", // "easy" | "medium" | "hard" (optional)
   seed: 42, // random seed for reproducibility (optional)
 });
@@ -116,27 +116,27 @@ const constraints = [
 
 ### `renderClue(constraint, grid)`
 
-Convert a constraint to a human-readable clue.
+Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names (e.g. "Alice owns the dog" for Name+Pet, "The red house has a cat" for Color+Pet).
 
 ```typescript
-import { renderClue } from "logic-grid";
+import { renderClue, sameHouse } from "logic-grid";
 
 const clue = renderClue(sameHouse("Red", "Cat"), grid);
-// { constraint: ..., text: "The Red color is in the same house as the Cat pet." }
+// { constraint: ..., text: "The red house has a cat." }
 ```
 
 ## Constraint Types
 
-| Type               | Meaning                                        |
-| ------------------ | ---------------------------------------------- |
-| `same_house`       | Two values are at the same position             |
-| `not_same_house`   | Two values are at different positions            |
-| `next_to`          | Two values are at adjacent positions             |
-| `not_next_to`      | Two values are not adjacent                      |
-| `left_of`          | First value is directly left of second           |
-| `between`          | Middle value is between the two outer values     |
-| `at_position`      | Value is at a specific position (0-indexed)      |
-| `not_at_position`  | Value is not at a specific position              |
+| Type              | Meaning                                      |
+|-------------------|----------------------------------------------|
+| `same_house`      | Two values are at the same position          |
+| `not_same_house`  | Two values are at different positions        |
+| `next_to`         | Two values are at adjacent positions         |
+| `not_next_to`     | Two values are not adjacent                  |
+| `left_of`         | First value is directly left of second       |
+| `between`         | Middle value is between the two outer values |
+| `at_position`     | Value is at a specific position (0-indexed)  |
+| `not_at_position` | Value is not at a specific position          |
 
 ## Types
 
@@ -168,7 +168,7 @@ interface Clue {
 
 2. **DPLL solver** — a minimal DPLL SAT solver with watched literals and flat `Int32Array` storage. No external dependencies.
 
-3. **Generation** — a random valid solution is generated, all true constraints are enumerated, then a minimal subset is selected through constructive minimization (binary search for a sufficient set) followed by destructive minimization (batch removal of redundant constraints). An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
+3. **Generation** — a random valid solution is generated, all true constraints are enumerated, then a minimal subset is selected through destructive minimization: batch removal at decreasing fractions followed by individual removal. An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
 
 4. **Difficulty** — classified by constraint type complexity and whether the puzzle is solvable by direct elimination alone.
 
@@ -176,15 +176,15 @@ interface Clue {
 
 Generation time by grid size (Node 24, Apple Silicon):
 
-| Size  | Time   |
-| ----- | ------ |
-| 4x4   | 1ms    |
-| 6x6   | 4ms    |
-| 10x10 | 43ms   |
-| 15x10 | 128ms  |
-| 20x10 | 251ms  |
-| 25x10 | 441ms  |
-| 50x4  | 540ms  |
+| Size | Time  |
+|------|-------|
+| 3×3  | <1ms  |
+| 4×4  | ~5ms  |
+| 5×5  | ~10ms |
+| 6×6  | ~15ms |
+| 8×8  | ~80ms |
+
+Supported sizes: 3-8 entities, 3-8 categories.
 
 Run `npm run bench` to reproduce.
 
