@@ -11,6 +11,17 @@ const ORDINALS = [
   "eighth",
 ];
 
+const CARDINALS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+];
+
 function ordinalHouse(position: number): string {
   return `the ${ORDINALS[position]} house`;
 }
@@ -196,8 +207,10 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const la = label(constraint.a, grid);
       const lb = label(constraint.b, grid);
       const v = livesVerb(constraint.a, grid);
+      const dist =
+        CARDINALS[constraint.distance] ?? String(constraint.distance);
       const houses = constraint.distance === 1 ? "house" : "houses";
-      return `${capitalize(la)} ${v} exactly ${constraint.distance} ${houses} from ${lb}.`;
+      return `${capitalize(la)} ${v} exactly ${dist} ${houses} from ${lb}.`;
     }
     case "at_position": {
       if (nounOf(constraint.value, grid) === "house") {
