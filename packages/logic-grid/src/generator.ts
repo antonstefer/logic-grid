@@ -208,7 +208,6 @@ function buildGrid(
   return { size, categories };
 }
 
-
 function randomSolution(grid: Grid, rng: () => number): Solution {
   return grid.categories.map((cat) => {
     const positions = Array.from({ length: grid.size }, (_, i) => i);
@@ -516,7 +515,7 @@ function minimizeConstraints(
     }
   }
 
-  // Phase 2: Individual pass — try each remaining constraint once.
+  // Phase 2: Individual removal pass.
   for (const idx of indices) {
     if (!active[idx]) continue;
     active[idx] = false;

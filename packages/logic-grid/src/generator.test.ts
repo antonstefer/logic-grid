@@ -221,7 +221,10 @@ describe("generate", () => {
         categoryNames: [
           { name: "Color", values: ["Red", "Blue"] },
           { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird", "Rabbit"] },
-          { name: "Drink", values: ["Tea", "Coffee", "Water", "Milk", "Juice"] },
+          {
+            name: "Drink",
+            values: ["Tea", "Coffee", "Water", "Milk", "Juice"],
+          },
         ],
       }),
     ).toThrow('Category "Color" has 2 values but size is 5');
