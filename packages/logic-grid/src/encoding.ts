@@ -227,12 +227,7 @@ export function encodeConstraint(
         for (let q = p + 1; q < n; q++) {
           clause.push(variable(ctx, b, q));
         }
-        if (clause.length === 1) {
-          // a at last position with no valid b position → forbidden
-          clauses.push(clause);
-        } else {
-          clauses.push(clause);
-        }
+        clauses.push(clause);
       }
       // Symmetric: if b at p, then a must be at some position < p
       for (let p = 0; p < n; p++) {
@@ -240,12 +235,7 @@ export function encodeConstraint(
         for (let q = 0; q < p; q++) {
           clause.push(variable(ctx, a, q));
         }
-        if (clause.length === 1) {
-          // b at first position with no valid a position → forbidden
-          clauses.push(clause);
-        } else {
-          clauses.push(clause);
-        }
+        clauses.push(clause);
       }
       return clauses;
     }
