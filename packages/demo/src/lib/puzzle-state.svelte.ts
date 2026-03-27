@@ -1,4 +1,10 @@
-import { generate, type Puzzle, type Difficulty } from "logic-grid";
+import {
+  generate,
+  deduce,
+  type Puzzle,
+  type Difficulty,
+  type DeductionStep,
+} from "logic-grid";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
 
@@ -11,6 +17,8 @@ export function createPuzzleState() {
     text: string;
     type: "success" | "error" | "info";
   } | null>(null);
+  let hintSteps = $state<DeductionStep[]>([]);
+  let hintIndex = $state(0);
 
   function newPuzzle(
     size: number,
@@ -39,6 +47,8 @@ export function createPuzzleState() {
       grid = Array.from({ length: totalValues }, () =>
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
+      hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
+      hintIndex = 0;
       loading = false;
     }, 0);
   }
@@ -52,6 +62,15 @@ export function createPuzzleState() {
       offset += puzzle!.grid.categories[i].values.length;
     }
     return offset + valueIndexInCategory;
+  }
+
+  function findValueIdx(value: string): number {
+    if (!puzzle) return -1;
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const vi = puzzle.grid.categories[ci].values.indexOf(value);
+      if (vi !== -1) return getValueIndex(ci, vi);
+    }
+    return -1;
   }
 
   /** Click: toggle confirmed (empty ↔ ✓). Auto-eliminates/restores. */
@@ -247,29 +266,29 @@ export function createPuzzleState() {
   function hint() {
     if (!puzzle) return;
 
-    // Find all unconfirmed correct cells
-    const candidates: [number, number][] = [];
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        if (grid[valueIdx][correctPos] !== "confirmed") {
-          candidates.push([valueIdx, correctPos]);
-        }
-      }
-    }
-
-    if (candidates.length === 0) {
-      message = { text: "All cells are already confirmed!", type: "info" };
+    if (hintIndex >= hintSteps.length) {
+      message = { text: "No more hints available.", type: "info" };
       return;
     }
 
-    const [valueIdx, pos] =
-      candidates[Math.floor(Math.random() * candidates.length)];
-    grid[valueIdx][pos] = "confirmed";
-    autoEliminate(valueIdx, pos);
-    message = { text: "Hint: one cell revealed.", type: "info" };
+    const step = hintSteps[hintIndex++];
+
+    // Apply the hint's eliminations and assignments to the grid
+    for (const e of step.eliminations) {
+      const valueIdx = findValueIdx(e.value);
+      if (valueIdx !== -1 && grid[valueIdx][e.position] === "empty") {
+        grid[valueIdx][e.position] = "eliminated";
+      }
+    }
+    for (const a of step.assignments) {
+      const valueIdx = findValueIdx(a.value);
+      if (valueIdx !== -1) {
+        grid[valueIdx][a.position] = "confirmed";
+        autoEliminate(valueIdx, a.position);
+      }
+    }
+
+    message = { text: step.explanation, type: "info" };
   }
 
   function clear() {
