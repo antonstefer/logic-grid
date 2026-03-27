@@ -126,7 +126,7 @@ const constraints = [
 
 ### `deduce(constraints, grid)`
 
-Solve a puzzle step-by-step using human-style deduction. Returns each logical step with technique, clue references, and a human-readable explanation. Returns partial results if deduction stalls (e.g. on hard puzzles that require guessing).
+Solve a puzzle step-by-step using human-style deduction. Returns each logical step with technique, clue references, and a human-readable explanation. Returns partial results if deduction stalls (e.g. on custom puzzles that require guessing).
 
 ```typescript
 import { deduce } from "logic-grid";
@@ -144,11 +144,34 @@ for (const step of result.steps) {
 ```
 
 Each step includes:
-- `technique` — which deduction technique was used
+- `technique` — which deduction technique was used (see below)
 - `clueIndices` — which constraints were involved
 - `eliminations` — positions ruled out
 - `assignments` — values pinned to positions
 - `explanation` — human-readable string
+
+Techniques:
+
+| Technique | Description |
+|---|---|
+| `direct` | Value forced to a specific position by `at_position` |
+| `elimination` | Position ruled out by `not_at_position` |
+| `same_house` | Two values share possible positions — intersect them |
+| `not_same_house` | Pinned value excludes its position from the other |
+| `next_to` | Positions incompatible with adjacency are removed |
+| `not_next_to` | Pinned value excludes its neighbors from the other |
+| `left_of` | Value directly left of another — constrain both |
+| `before` | Value somewhere left of another — constrain range |
+| `between` | Middle must lie strictly between two outers |
+| `not_between` | Middle cannot lie between two pinned outers |
+| `exact_distance` | Two values must be exactly N positions apart |
+| `naked_single` | One value is the only candidate for a position in its category |
+| `hidden_single` | One position is the only candidate for a value in its category |
+| `naked_pair` | Two values share the same two positions — exclude others |
+| `naked_triple` | Three values share three positions — exclude others |
+| `hidden_pair` | Two positions are exclusively reachable by two values |
+| `same_house_chain` | Transitivity: if A=M and B=M then A and B are co-located |
+| `contradiction` | Placing a value at a position leads to an impossible state |
 
 ### `hint(constraints, grid, known?)`
 
