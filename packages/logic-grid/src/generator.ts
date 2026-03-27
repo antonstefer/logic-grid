@@ -188,6 +188,8 @@ function buildGrid(
     categories = categoryNames.map((c) => ({
       name: c.name,
       values: c.values.slice(0, size),
+      noun: c.noun,
+      verb: c.verb,
     }));
   } else {
     categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
