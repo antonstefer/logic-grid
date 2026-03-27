@@ -183,3 +183,81 @@ describe("renderClue", () => {
     expect(clue.constraint).toBe(constraint);
   });
 });
+
+describe("custom category noun/verb", () => {
+  const customGrid: Grid = {
+    size: 3,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol"] },
+      {
+        name: "Vehicle",
+        values: ["Toyota", "BMW", "Honda"],
+        noun: "driver",
+        verb: ["drives the", "does not drive the"],
+      },
+      {
+        name: "Fruit",
+        values: ["Apple", "Banana", "Cherry"],
+        noun: "lover",
+      },
+    ],
+  };
+
+  it("same_house with custom verb", () => {
+    const clue = renderClue(
+      { type: "same_house", a: "Alice", b: "Toyota" },
+      customGrid,
+    );
+    expect(clue.text).toBe("Alice drives the toyota.");
+  });
+
+  it("not_same_house with custom verb", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Alice", b: "BMW" },
+      customGrid,
+    );
+    expect(clue.text).toBe("Alice does not drive the bmw.");
+  });
+
+  it("custom noun in label", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Toyota", b: "Apple" },
+      customGrid,
+    );
+    expect(clue.text).toBe("The toyota driver lives next to the apple lover.");
+  });
+
+  it("custom noun falls back to built-in verb when no custom verb", () => {
+    const clue = renderClue(
+      { type: "same_house", a: "Alice", b: "Apple" },
+      customGrid,
+    );
+    // "lover" maps to NOUN_VERB["lover"] = ["eats", "does not eat"]
+    expect(clue.text).toBe("Alice eats apple.");
+  });
+
+  it("empty-string noun renders bare value", () => {
+    const bareGrid: Grid = {
+      size: 3,
+      categories: [
+        {
+          name: "Player",
+          values: ["Alice", "Bob", "Carol"],
+          noun: "",
+        },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+      ],
+    };
+    const clue = renderClue(
+      { type: "same_house", a: "Alice", b: "Red" },
+      bareGrid,
+    );
+    expect(clue.text).toBe("Alice lives in the red house.");
+  });
+
+  it("falls back to defaults when no custom noun/verb", () => {
+    // Standard grid with no custom fields — should work as before
+    const clue = renderClue({ type: "same_house", a: "Alice", b: "Red" }, grid);
+    expect(clue.text).toBe("Alice lives in the red house.");
+  });
+});

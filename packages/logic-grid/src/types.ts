@@ -2,6 +2,10 @@
 export interface Category {
   name: string;
   values: string[];
+  /** Noun for clue phrases. `"owner"` → "the cat owner". Empty string = bare value ("Alice"). */
+  noun?: string;
+  /** Verb phrases for same-house clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
+  verb?: [string, string];
 }
 
 /** The puzzle board: `size` positions and one or more categories. */
