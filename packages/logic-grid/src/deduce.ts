@@ -44,6 +44,10 @@ function describeResult(
   return parts.join("; ");
 }
 
+function clueRef(ci: number): string {
+  return `Clue ${ci + 1}: `;
+}
+
 /** Describe what we know about a value's position — used for "because" context. */
 function describeKnown(state: DeduceState, value: string): string {
   const pos = getAssigned(state, value);
@@ -163,7 +167,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `${c.value} must be in the ${ordinal(c.position)} house.`,
+    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} house.`,
   );
 }
 
@@ -186,7 +190,7 @@ function tryNotAtPosition(
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `${c.value} is not in the ${ordinal(c.position)} house${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} house${suffix}`,
   );
 }
 
@@ -225,9 +229,9 @@ function trySameHouse(
 
   let explanation: string;
   if (assigns.length > 0) {
-    explanation = `${c.a} and ${c.b} are in the same house${because}both are in the ${ordinal(assigns[0].position)} house.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same house${because}both are in the ${ordinal(assigns[0].position)} house.`;
   } else {
-    explanation = `${c.a} and ${c.b} are in the same house${because}${describeResult(assigns, elims)}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same house${because}${describeResult(assigns, elims)}.`;
   }
   return step("same_house", [ci], elims, assigns, explanation);
 }
@@ -266,7 +270,7 @@ function tryNotSameHouse(
     [ci],
     elims,
     assigns,
-    `${pinned} and ${other} are in different houses. ${pinned} is in the ${ordinal(pinnedPos)} house, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are in different houses. ${pinned} is in the ${ordinal(pinnedPos)} house, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -353,7 +357,7 @@ function tryAdjacency(
     [ci],
     elims,
     assigns,
-    `${a} is ${verb} ${b}.${because}${describeResult(assigns, elims)}.`,
+    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(assigns, elims)}.`,
   );
 }
 
@@ -408,7 +412,7 @@ function tryLeftOf(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is directly left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} is directly left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -443,7 +447,7 @@ function tryBefore(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} is somewhere left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} is somewhere left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -497,7 +501,7 @@ function tryBetween(
     [ci],
     uniqueElims,
     assigns,
-    `${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -526,7 +530,7 @@ function tryNotBetween(
     [ci],
     elims,
     assigns,
-    `${c.middle} is not between ${c.outer1} and ${c.outer2}. ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so ${describeResult(assigns, elims)}.`,
+    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}. ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so ${describeResult(assigns, elims)}.`,
   );
 }
 
@@ -566,7 +570,7 @@ function tryExactDistance(
     [ci],
     uniqueElims,
     assigns,
-    `${c.a} and ${c.b} are exactly ${c.distance} houses apart.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} houses apart.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -592,7 +596,7 @@ function tryNakedSingles(state: DeduceState): DeductionStep | null {
         [],
         elims,
         assigns,
-        `${cat.values[vi]} must be in the ${ordinal(pos)} house, so no other ${cat.name} can be there.`,
+        `${cat.values[vi]} has no other possible position — it must be in the ${ordinal(pos)} house. So no other ${cat.name} can be there.`,
       );
     }
   }
