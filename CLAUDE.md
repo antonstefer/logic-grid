@@ -16,6 +16,7 @@ Monorepo for logic grid puzzle generation and solving.
 ## Rules
 
 - Never use `npx` — use `node_modules/.bin/` or npm scripts
+- Commit often — after each logical change, not batched at the end
 - Always run `npm run check` before committing
 - Keep the library zero-dependency
 - Supported grid sizes: 3–8
