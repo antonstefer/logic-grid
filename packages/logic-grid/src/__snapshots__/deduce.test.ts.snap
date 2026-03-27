@@ -1,0 +1,20 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`deduce > snapshots explanation strings 1`] = `
+[
+  "Red is in the first house.",
+  "Red and Cat are in the same house: the first house.",
+  "Blue is directly left of Green.",
+  "Blue and Dog are in the same house.",
+  "Dog and Coffee are in the same house.",
+  "Tea is in the first house.",
+  "Red must be in the first house, so no other Color can be there.",
+  "Blue is directly left of Green.",
+  "Blue and Dog are in the same house: the second house.",
+  "Dog and Coffee are in the same house: the second house.",
+  "Cat must be in the first house, so no other Pet can be there.",
+  "Dog must be in the second house, so no other Pet can be there.",
+  "Tea must be in the first house, so no other Drink can be there.",
+  "Coffee must be in the second house, so no other Drink can be there.",
+]
+`;
