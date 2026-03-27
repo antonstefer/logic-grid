@@ -6,12 +6,14 @@
     grid,
     puzzleGrid,
     cellStates,
-    onCellClick,
+    onConfirm,
+    onEliminate,
   }: {
     grid: Grid;
     puzzleGrid: Grid;
     cellStates: CellState[][];
-    onCellClick: (valueIdx: number, position: number) => void;
+    onConfirm: (valueIdx: number, position: number) => void;
+    onEliminate: (valueIdx: number, position: number) => void;
   } = $props();
 
   function getValueIndex(catIdx: number, valIdx: number): number {
@@ -26,6 +28,31 @@
     if (state === "eliminated") return "\u2717";
     if (state === "confirmed") return "\u2713";
     return "";
+  }
+
+  // Touch long-press detection: long-press = eliminate, tap = confirm.
+  // Desktop: left-click = confirm, right-click = eliminate.
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+  let longPressed = false;
+
+  function handleTouchStart(valueIdx: number, p: number) {
+    longPressed = false;
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      onEliminate(valueIdx, p);
+    }, 400);
+  }
+
+  function handleTouchEnd() {
+    if (pressTimer) clearTimeout(pressTimer);
+  }
+
+  function handleClick(valueIdx: number, p: number) {
+    if (longPressed) {
+      longPressed = false;
+      return; // Already handled by long-press
+    }
+    onConfirm(valueIdx, p);
   }
 </script>
 
@@ -53,10 +80,16 @@
               {@const state = cellStates[valueIdx]?.[p] ?? "empty"}
               <td
                 class="cell {state}"
-                onclick={() => onCellClick(valueIdx, p)}
+                onclick={() => handleClick(valueIdx, p)}
+                ontouchstart={() => handleTouchStart(valueIdx, p)}
+                ontouchend={handleTouchEnd}
+                oncontextmenu={(e) => { e.preventDefault(); onEliminate(valueIdx, p); }}
                 role="button"
                 tabindex="0"
-                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCellClick(valueIdx, p); }}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') onConfirm(valueIdx, p);
+                  if (e.key === 'Delete' || e.key === 'Backspace') onEliminate(valueIdx, p);
+                }}
               >
                 {cellSymbol(state)}
               </td>
@@ -76,6 +109,9 @@
   .puzzle-grid {
     border-collapse: collapse;
     font-size: 0.875rem;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   .category-header, .value-header, .position-header {

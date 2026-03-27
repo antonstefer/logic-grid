@@ -69,7 +69,8 @@
           grid={puzzleState.puzzle.grid}
           puzzleGrid={puzzleState.puzzle.grid}
           cellStates={puzzleState.grid}
-          onCellClick={(v, p) => puzzleState.cycleCell(v, p)}
+          onConfirm={(v, p) => puzzleState.toggleConfirm(v, p)}
+          onEliminate={(v, p) => puzzleState.toggleEliminate(v, p)}
         />
 
         <div class="actions">
