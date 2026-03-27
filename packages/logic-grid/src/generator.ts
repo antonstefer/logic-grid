@@ -335,7 +335,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
               middle: vals[m],
               outer2: v2,
             });
-            if (++betweenCount >= maxBetween) continue outer;
           } else if (negativeCount < maxNegative) {
             constraints.push({
               type: "not_between",
@@ -345,6 +344,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
             });
             negativeCount++;
           }
+          if (++betweenCount >= maxBetween) continue outer;
         }
       }
     }
