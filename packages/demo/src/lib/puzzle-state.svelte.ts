@@ -41,30 +41,48 @@ export function createPuzzleState() {
     return offset + valueIndexInCategory;
   }
 
-  function cycleCell(valueIdx: number, position: number) {
-    const current = grid[valueIdx][position];
-    if (current === "empty") {
-      grid[valueIdx][position] = "eliminated";
-    } else if (current === "eliminated") {
+  /** Click: toggle confirmed (empty ↔ ✓). Auto-eliminates/restores. */
+  function toggleConfirm(valueIdx: number, position: number) {
+    if (grid[valueIdx][position] === "confirmed") {
+      // Un-confirm: restore auto-eliminated cells
+      grid[valueIdx][position] = "empty";
+      autoRestore(valueIdx, position);
+    } else {
+      // Confirm: set ✓ and auto-eliminate row/category
       grid[valueIdx][position] = "confirmed";
       autoEliminate(valueIdx, position);
-    } else {
-      grid[valueIdx][position] = "empty";
     }
     message = null;
   }
 
+  /** Right-click: toggle eliminated. Confirmed → eliminated (un-confirms first). */
+  function toggleEliminate(valueIdx: number, position: number) {
+    if (grid[valueIdx][position] === "eliminated") {
+      grid[valueIdx][position] = "empty";
+    } else {
+      if (grid[valueIdx][position] === "confirmed") {
+        grid[valueIdx][position] = "empty"; // un-confirm before restore
+        autoRestore(valueIdx, position);
+      }
+      grid[valueIdx][position] = "eliminated";
+    }
+    message = null;
+  }
+
+  function categoryRange(valueIdx: number): [number, number] {
+    if (!puzzle) return [0, 0];
+    let start = 0;
+    for (const cat of puzzle.grid.categories) {
+      const end = start + cat.values.length;
+      if (valueIdx >= start && valueIdx < end) return [start, end];
+      start = end;
+    }
+    return [0, 0];
+  }
+
   function autoEliminate(confirmedValueIdx: number, confirmedPosition: number) {
     if (!puzzle) return;
-
-    // Find which category this value belongs to
-    let catStart = 0;
-    let catEnd = 0;
-    for (const cat of puzzle.grid.categories) {
-      catEnd = catStart + cat.values.length;
-      if (confirmedValueIdx >= catStart && confirmedValueIdx < catEnd) break;
-      catStart = catEnd;
-    }
+    const [catStart, catEnd] = categoryRange(confirmedValueIdx);
 
     // Eliminate same value from other positions
     for (let p = 0; p < puzzle.grid.size; p++) {
@@ -79,6 +97,51 @@ export function createPuzzleState() {
         grid[v][confirmedPosition] = "eliminated";
       }
     }
+  }
+
+  function autoRestore(valueIdx: number, position: number) {
+    if (!puzzle) return;
+    const [catStart, catEnd] = categoryRange(valueIdx);
+
+    // Restore same value's other positions (if no other confirm forces them)
+    for (let p = 0; p < puzzle.grid.size; p++) {
+      if (p !== position && grid[valueIdx][p] === "eliminated") {
+        // Only restore if no other confirmed value in this row forces elimination
+        if (!hasConfirmInRow(valueIdx)) {
+          grid[valueIdx][p] = "empty";
+        }
+      }
+    }
+
+    // Restore other values in same category at this position
+    for (let v = catStart; v < catEnd; v++) {
+      if (v !== valueIdx && grid[v][position] === "eliminated") {
+        // Only restore if no other confirmed value in this column forces elimination
+        if (!hasConfirmInColumn(v, position, catStart, catEnd)) {
+          grid[v][position] = "empty";
+        }
+      }
+    }
+  }
+
+  function hasConfirmInRow(valueIdx: number): boolean {
+    if (!puzzle) return false;
+    for (let p = 0; p < puzzle.grid.size; p++) {
+      if (grid[valueIdx][p] === "confirmed") return true;
+    }
+    return false;
+  }
+
+  function hasConfirmInColumn(
+    valueIdx: number,
+    position: number,
+    catStart: number,
+    catEnd: number,
+  ): boolean {
+    for (let v = catStart; v < catEnd; v++) {
+      if (v !== valueIdx && grid[v][position] === "confirmed") return true;
+    }
+    return false;
   }
 
   function checkSolution(): boolean {
@@ -186,7 +249,8 @@ export function createPuzzleState() {
     get message() { return message; },
     newPuzzle,
     getValueIndex,
-    cycleCell,
+    toggleConfirm,
+    toggleEliminate,
     clear,
     checkSolution,
     showSolution,
