@@ -21,7 +21,7 @@ export function solveAllSAT(
   }
 
   const solutions: Map<number, boolean>[] = [];
-  const working = clauses.map((c) => [...c]);
+  const working = [...clauses];
 
   while (solutions.length < limit) {
     const solver = new Solver(working);
