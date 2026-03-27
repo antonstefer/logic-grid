@@ -5,11 +5,14 @@ export type CellState = "empty" | "eliminated" | "confirmed";
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
   let grid = $state<CellState[][]>([]);
+  let genTime = $state(0);
   let message = $state<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   function newPuzzle(size: number, categories: number, difficulty?: Difficulty) {
     try {
+      const t0 = performance.now();
       puzzle = generate({ size, categories, difficulty, seed: Date.now() });
+      genTime = Math.round(performance.now() - t0);
     } catch (e) {
       message = { text: e instanceof Error ? e.message : String(e), type: "error" };
       return;
@@ -150,6 +153,7 @@ export function createPuzzleState() {
   return {
     get puzzle() { return puzzle; },
     get grid() { return grid; },
+    get genTime() { return genTime; },
     get message() { return message; },
     newPuzzle,
     getValueIndex,
