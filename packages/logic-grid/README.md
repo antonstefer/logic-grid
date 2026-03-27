@@ -124,6 +124,47 @@ const constraints = [
 ];
 ```
 
+### `deduce(constraints, grid)`
+
+Solve a puzzle step-by-step using human-style deduction. Returns each logical step with technique, clue references, and a human-readable explanation. Returns partial results if deduction stalls (e.g. on hard puzzles that require guessing).
+
+```typescript
+import { deduce } from "logic-grid";
+
+const result = deduce(puzzle.constraints, puzzle.grid);
+// result.complete — whether the puzzle was fully solved
+// result.steps — ordered deduction steps
+
+for (const step of result.steps) {
+  console.log(step.explanation);
+  // "Red is in the first house."
+  // "Red and Cat are in the same house: the first house."
+  // "Blue must be in the second house, so no other Color can be there."
+}
+```
+
+Each step includes:
+- `technique` — which deduction technique was used
+- `clueIndices` — which constraints were involved
+- `eliminations` — positions ruled out
+- `assignments` — values pinned to positions
+- `explanation` — human-readable string
+
+### `hint(constraints, grid, known?)`
+
+Get the next logical deduction from a partial state. Pass `known` as a map of value names to assigned positions to represent what the user has figured out so far.
+
+```typescript
+import { hint } from "logic-grid";
+
+const h = hint(puzzle.constraints, puzzle.grid, { Red: 0, Cat: 0 });
+// h.explanation — "Blue is directly left of Green."
+// h.technique — "left_of"
+// h.clueIndices — [2]
+```
+
+Returns `null` when no more deductions can be made.
+
 ### `renderClue(constraint, grid)`
 
 Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names (e.g. "Alice owns the dog" for Name+Pet, "The red house has a cat" for Color+Pet).
