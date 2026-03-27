@@ -33,7 +33,7 @@ export function createPuzzleState() {
       }
       // grid[valueIndex][position] — one row per value across all categories
       const totalValues = puzzle.grid.categories.reduce(
-        (sum, c) => sum + c.values.length,
+        (sum: number, c) => sum + c.values.length,
         0,
       );
       grid = Array.from({ length: totalValues }, () =>
@@ -181,7 +181,7 @@ export function createPuzzleState() {
     let correctCount = 0;
     let wrongCount = 0;
     const totalValues = puzzle.grid.categories.reduce(
-      (sum, c) => sum + c.values.length,
+      (sum: number, c) => sum + c.values.length,
       0,
     );
 

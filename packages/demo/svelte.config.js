@@ -7,6 +7,9 @@ export default {
       assets: "build",
       fallback: "200.html",
     }),
+    alias: {
+      "logic-grid": "../logic-grid/src",
+    },
     paths: {
       base: process.env.BASE_PATH || "",
     },
