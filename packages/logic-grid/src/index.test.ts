@@ -69,4 +69,43 @@ describe("public API integration", () => {
     expect(typeof leftOf).toBe("function");
     expect(typeof atPosition).toBe("function");
   });
+
+  it("generate with custom noun/verb produces correct clues", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 42,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Instrument",
+          values: ["Piano", "Guitar", "Drums", "Violin"],
+          noun: "player",
+          verb: ["plays the", "does not play the"],
+        },
+        {
+          name: "Flower",
+          values: ["Rose", "Lily", "Daisy", "Tulip"],
+          noun: "grower",
+          verb: ["grows the", "does not grow the"],
+        },
+        {
+          name: "Language",
+          values: ["French", "Spanish", "German", "Italian"],
+          noun: "speaker",
+          verb: ["speaks", "does not speak"],
+        },
+      ],
+    });
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+
+    for (const clue of puzzle.clues) {
+      expect(clue.text.length).toBeGreaterThan(0);
+      expect(clue.text.endsWith(".")).toBe(true);
+      // Custom nouns should appear instead of category names
+      expect(clue.text).not.toContain("instrument");
+      expect(clue.text).not.toContain("flower");
+      expect(clue.text).not.toContain("language");
+    }
+  });
 });
