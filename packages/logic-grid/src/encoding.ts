@@ -277,7 +277,7 @@ export function encodePuzzle(
 ): number[][] {
   const clauses = encodeBase(ctx);
   for (const c of constraints) {
-    clauses.push(...encodeConstraint(ctx, c));
+    for (const clause of encodeConstraint(ctx, c)) clauses.push(clause);
   }
   return clauses;
 }
