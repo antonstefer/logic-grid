@@ -81,7 +81,12 @@
         </div>
 
         {#if puzzleState.message}
-          <div class="message {puzzleState.message.type}">
+          <div
+            class="message"
+            class:success={puzzleState.message.type === "success"}
+            class:error={puzzleState.message.type === "error"}
+            class:info={puzzleState.message.type === "info"}
+          >
             {puzzleState.message.text}
           </div>
         {/if}

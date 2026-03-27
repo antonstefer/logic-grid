@@ -79,7 +79,9 @@
             {#each Array(grid.size) as _, p}
               {@const state = cellStates[valueIdx]?.[p] ?? "empty"}
               <td
-                class="cell {state}"
+                class="cell"
+                class:eliminated={state === "eliminated"}
+                class:confirmed={state === "confirmed"}
                 onclick={() => handleClick(valueIdx, p)}
                 ontouchstart={() => handleTouchStart(valueIdx, p)}
                 ontouchend={handleTouchEnd}
