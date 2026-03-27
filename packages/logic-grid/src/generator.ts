@@ -12,7 +12,7 @@ import type { SolverContext } from "./solver";
 import { createSolverContext, encodeConstraintCached } from "./solver";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
-import { classify } from "./difficulty";
+import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 
 const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -93,20 +93,6 @@ const DEFAULT_CATEGORIES: Category[] = [
     ],
   },
 ];
-
-const EASY_TYPES: Set<Constraint["type"]> = new Set([
-  "same_house",
-  "not_same_house",
-  "at_position",
-  "not_at_position",
-]);
-
-const MEDIUM_TYPES: Set<Constraint["type"]> = new Set([
-  ...EASY_TYPES,
-  "next_to",
-  "left_of",
-  "before",
-]);
 
 const MAX_RETRIES = 100;
 
@@ -362,52 +348,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  return deduplicateConstraints(constraints);
-}
-
-function deduplicateConstraints(constraints: Constraint[]): Constraint[] {
-  const seen = new Set<string>();
-  const result: Constraint[] = [];
-
-  for (const c of constraints) {
-    const key = constraintKey(c);
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(c);
-    }
-  }
-
-  return result;
-}
-
-function constraintKey(c: Constraint): string {
-  switch (c.type) {
-    case "same_house":
-    case "not_same_house":
-    case "next_to":
-    case "not_next_to": {
-      // Symmetric: sort pair
-      const [a, b] = c.a < c.b ? [c.a, c.b] : [c.b, c.a];
-      return `${c.type}:${a}:${b}`;
-    }
-    case "left_of":
-    case "before":
-      return `${c.type}:${c.a}:${c.b}`;
-    case "between":
-    case "not_between": {
-      const [o1, o2] =
-        c.outer1 < c.outer2 ? [c.outer1, c.outer2] : [c.outer2, c.outer1];
-      return `${c.type}:${o1}:${c.middle}:${o2}`;
-    }
-    case "exact_distance": {
-      const [a, b] = c.a < c.b ? [c.a, c.b] : [c.b, c.a];
-      return `exact_distance:${a}:${b}:${c.distance}`;
-    }
-    case "at_position":
-      return `at_position:${c.value}:${c.position}`;
-    case "not_at_position":
-      return `not_at_position:${c.value}:${c.position}`;
-  }
+  return constraints;
 }
 
 function filterByDifficulty(
