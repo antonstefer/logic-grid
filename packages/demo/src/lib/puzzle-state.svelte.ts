@@ -267,7 +267,7 @@ export function createPuzzleState() {
     if (!puzzle) return;
 
     if (hintIndex >= hintSteps.length) {
-      message = { text: "No more hints available.", type: "info" };
+      message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
 
