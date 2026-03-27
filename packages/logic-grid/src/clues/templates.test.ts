@@ -136,7 +136,7 @@ describe("renderClue", () => {
       { type: "not_at_position", value: "Red", position: 2 },
       grid,
     );
-    expect(clue.text).toBe("The red house is not in house 3.");
+    expect(clue.text).toBe("House 3 is not red.");
   });
 
   it("not_between", () => {
