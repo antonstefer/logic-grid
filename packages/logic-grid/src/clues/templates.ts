@@ -7,9 +7,8 @@ export function renderClue(constraint: Constraint, grid: Grid): Clue {
 }
 
 /**
- * Maps category names to label nouns and same-house template keys.
- * Empty string = person category (value used bare: "Alice").
- * Non-empty = noun appended: "the red house", "the cat owner".
+ * Maps category names to label nouns and verb phrases.
+ * Empty string noun = person category (value used bare: "Alice").
  * Unlisted categories fall through to using the category name itself.
  */
 const CATEGORY_NOUN: Record<string, string> = {
@@ -17,6 +16,26 @@ const CATEGORY_NOUN: Record<string, string> = {
   color: "house",
   pet: "owner",
   drink: "drinker",
+  food: "lover",
+  hobby: "enthusiast",
+  music: "fan",
+  sport: "player",
+};
+
+/**
+ * Verb phrases for same-house clues, keyed by noun.
+ * Used when this noun is the OBJECT: "{subject} {verb} {raw value}".
+ * [positive, negative]
+ */
+const NOUN_VERB: Record<string, [string, string]> = {
+  "": ["lives with", "does not live with"],
+  owner: ["owns the", "does not own the"],
+  drinker: ["drinks", "does not drink"],
+  house: ["lives in the", "does not live in the"],
+  lover: ["eats", "does not eat"],
+  enthusiast: ["enjoys", "does not enjoy"],
+  fan: ["listens to", "does not listen to"],
+  player: ["plays", "does not play"],
 };
 
 function findCategory(value: string, grid: Grid): string {
@@ -26,51 +45,26 @@ function findCategory(value: string, grid: Grid): string {
   return "unknown";
 }
 
+function nounOf(value: string, grid: Grid): string {
+  const cat = findCategory(value, grid).toLowerCase();
+  return CATEGORY_NOUN[cat] ?? cat;
+}
+
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
   const cat = findCategory(value, grid).toLowerCase();
   const noun = CATEGORY_NOUN[cat];
-  if (noun === "") return value; // person — bare name
+  if (noun === "") return value;
   return `the ${value.toLowerCase()} ${noun ?? cat}`;
 }
 
-// --- Same-house templates keyed by noun pair ---
-// Keyed as "nounA+nounB" where "" = person category.
-// Each entry: [positive template, negative template].
-// Templates receive (labelA, labelB, rawA, rawB).
+// --- Same-house rendering ---
 
-type Template = (la: string, lb: string, ra: string, rb: string) => string;
-
-const SAME_HOUSE: Record<string, [Template, Template]> = {
-  "+owner": [
-    (la, _lb, _ra, rb) => `${la} owns the ${rb}.`,
-    (la, _lb, _ra, rb) => `${la} does not own the ${rb}.`,
-  ],
-  "+drinker": [
-    (la, _lb, _ra, rb) => `${la} drinks ${rb}.`,
-    (la, _lb, _ra, rb) => `${la} does not drink ${rb}.`,
-  ],
-  "+house": [
-    (la, _lb, _ra, rb) => `${la} lives in the ${rb} house.`,
-    (la, _lb, _ra, rb) => `${la} does not live in the ${rb} house.`,
-  ],
-  "house+owner": [
-    (_la, _lb, ra, rb) => `The ${ra} house has a ${rb}.`,
-    (_la, _lb, ra, rb) => `The ${ra} house does not have a ${rb}.`,
-  ],
-  "house+drinker": [
-    (la, _lb, _ra, rb) => `${la}'s resident drinks ${rb}.`,
-    (la, _lb, _ra, rb) => `${la}'s resident does not drink ${rb}.`,
-  ],
-  "owner+drinker": [
-    (la, _lb, _ra, rb) => `${la} drinks ${rb}.`,
-    (la, _lb, _ra, rb) => `${la} does not drink ${rb}.`,
-  ],
-};
-
-function nounOf(value: string, grid: Grid): string {
-  const cat = findCategory(value, grid).toLowerCase();
-  return CATEGORY_NOUN[cat] ?? cat;
+/** Subject priority: person > house > everything else. */
+function subjectPriority(noun: string): number {
+  if (noun === "") return 2; // person
+  if (noun === "house") return 1; // color
+  return 0;
 }
 
 function renderSameHouse(
@@ -80,24 +74,40 @@ function renderSameHouse(
 ): string {
   const nounA = nounOf(constraint.a, grid);
   const nounB = nounOf(constraint.b, grid);
+
+  // Pick subject (higher priority) and object
+  let subj = constraint.a;
+  let obj = constraint.b;
+  let objNoun = nounB;
+  if (subjectPriority(nounB) > subjectPriority(nounA)) {
+    subj = constraint.b;
+    obj = constraint.a;
+    objNoun = nounA;
+  }
+
   const idx = negative ? 1 : 0;
 
-  // Try both orderings
-  const tmpl =
-    SAME_HOUSE[`${nounA}+${nounB}`] ?? SAME_HOUSE[`${nounB}+${nounA}`];
+  // Special: color + pet → "The red house has a cat"
+  if (nounOf(subj, grid) === "house" && objNoun === "owner") {
+    const verb = negative ? "does not have a" : "has a";
+    return `The ${subj.toLowerCase()} house ${verb} ${obj.toLowerCase()}.`;
+  }
 
-  if (tmpl) {
-    const swap = !SAME_HOUSE[`${nounA}+${nounB}`];
-    const a = swap ? constraint.b : constraint.a;
-    const b = swap ? constraint.a : constraint.b;
-    return capitalize(
-      tmpl[idx](
-        label(a, grid),
-        label(b, grid),
-        a.toLowerCase(),
-        b.toLowerCase(),
-      ),
-    );
+  // Look up verb for the object noun
+  const verb = NOUN_VERB[objNoun];
+  if (verb) {
+    const subjNoun = nounOf(subj, grid);
+    // "house" subject + non-house object: insert "'s resident"
+    const subjLabel =
+      subjNoun === "house"
+        ? `The ${subj.toLowerCase()} house's resident`
+        : capitalize(label(subj, grid));
+    // "house" object needs "house" suffix: "lives in the red house"
+    const suffix =
+      objNoun === "house"
+        ? ` ${obj.toLowerCase()} house`
+        : ` ${obj.toLowerCase()}`;
+    return `${subjLabel} ${verb[idx]}${suffix}.`;
   }
 
   // Generic fallback
@@ -127,7 +137,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} is not next to ${lb}.`;
     }
     case "left_of": {
-      // Alternate "left of" / "right of" based on value names
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
         return `${capitalize(label(constraint.a, grid))} is directly to the left of ${label(constraint.b, grid)}.`;
       }
