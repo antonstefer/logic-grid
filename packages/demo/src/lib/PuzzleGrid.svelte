@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Grid } from "logic-grid";
-  import type { CellState } from "./puzzle-state.svelte.ts";
+  import type { CellState } from "./puzzle-state.svelte";
 
   let {
     grid,
