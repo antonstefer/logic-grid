@@ -6,6 +6,9 @@ import {
   notNextTo,
   leftOf,
   between,
+  notBetween,
+  before,
+  exactDistance,
   atPosition,
   notAtPosition,
 } from "./constraints";
@@ -65,6 +68,32 @@ describe("constraint factories", () => {
       type: "at_position",
       value: "Red",
       position: 0,
+    });
+  });
+
+  it("notBetween", () => {
+    expect(notBetween("Red", "Cat", "Blue")).toEqual({
+      type: "not_between",
+      outer1: "Red",
+      middle: "Cat",
+      outer2: "Blue",
+    });
+  });
+
+  it("before", () => {
+    expect(before("Blue", "Green")).toEqual({
+      type: "before",
+      a: "Blue",
+      b: "Green",
+    });
+  });
+
+  it("exactDistance", () => {
+    expect(exactDistance("Red", "Cat", 2)).toEqual({
+      type: "exact_distance",
+      a: "Red",
+      b: "Cat",
+      distance: 2,
     });
   });
 

@@ -11,9 +11,10 @@ const MEDIUM_TYPES: Set<ConstraintType> = new Set([
   ...EASY_TYPES,
   "next_to",
   "left_of",
+  "before",
 ]);
 
-// Hard types: between, not_next_to (plus everything else)
+// Hard types: between, not_between, not_next_to, exact_distance (plus everything else)
 
 /**
  * Classify puzzle difficulty. Uses constraint types as a floor, then (if grid

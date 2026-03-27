@@ -30,6 +30,9 @@ export type Constraint =
   | { type: "not_next_to"; a: string; b: string }
   | { type: "left_of"; a: string; b: string }
   | { type: "between"; outer1: string; middle: string; outer2: string }
+  | { type: "not_between"; outer1: string; middle: string; outer2: string }
+  | { type: "before"; a: string; b: string }
+  | { type: "exact_distance"; a: string; b: string; distance: number }
   | { type: "at_position"; value: string; position: number }
   | { type: "not_at_position"; value: string; position: number };
 

@@ -201,6 +201,46 @@ describe("encodeConstraint", () => {
     }
   });
 
+  it("not_between forbids middle between outers", () => {
+    const ctx = createContext(grid3x3);
+    const clauses = encodePuzzle(ctx, [
+      { type: "not_between", outer1: "Red", middle: "Cat", outer2: "Blue" },
+    ]);
+    const solutions = solveAllSAT(clauses, 100);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const lo = Math.min(decoded["Red"], decoded["Blue"]);
+      const hi = Math.max(decoded["Red"], decoded["Blue"]);
+      // Cat must NOT be strictly between Red and Blue
+      const catBetween = decoded["Cat"] > lo && decoded["Cat"] < hi;
+      expect(catBetween).toBe(false);
+    }
+  });
+
+  it("before forces a to be left of b", () => {
+    const ctx = createContext(grid3x3);
+    const clauses = encodePuzzle(ctx, [{ type: "before", a: "Red", b: "Cat" }]);
+    const solutions = solveAllSAT(clauses, 100);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      expect(decoded["Red"]).toBeLessThan(decoded["Cat"]);
+    }
+  });
+
+  it("exact_distance forces exact position difference", () => {
+    const ctx = createContext(grid3x3);
+    const clauses = encodePuzzle(ctx, [
+      { type: "exact_distance", a: "Red", b: "Cat", distance: 2 },
+    ]);
+    const solutions = solveAllSAT(clauses, 100);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      expect(Math.abs(decoded["Red"] - decoded["Cat"])).toBe(2);
+    }
+  });
+
   it("combined constraints produce unique solution", () => {
     // Pin everything for a 3x3
     const ctx = createContext(grid3x3);
