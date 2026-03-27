@@ -2,7 +2,7 @@
   import type { Difficulty } from "logic-grid";
   import PuzzleGrid from "$lib/PuzzleGrid.svelte";
   import ClueList from "$lib/ClueList.svelte";
-  import { createPuzzleState } from "$lib/puzzle-state.svelte.ts";
+  import { createPuzzleState } from "$lib/puzzle-state.svelte";
 
   const puzzleState = createPuzzleState();
 

@@ -7,9 +7,16 @@ export function createPuzzleState() {
   let grid = $state<CellState[][]>([]);
   let genTime = $state(0);
   let loading = $state(false);
-  let message = $state<{ text: string; type: "success" | "error" | "info" } | null>(null);
+  let message = $state<{
+    text: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
-  function newPuzzle(size: number, categories: number, difficulty?: Difficulty) {
+  function newPuzzle(
+    size: number,
+    categories: number,
+    difficulty?: Difficulty,
+  ) {
     loading = true;
     message = null;
 
@@ -25,7 +32,10 @@ export function createPuzzleState() {
         return;
       }
       // grid[valueIndex][position] — one row per value across all categories
-      const totalValues = puzzle.grid.categories.reduce((sum, c) => sum + c.values.length, 0);
+      const totalValues = puzzle.grid.categories.reduce(
+        (sum, c) => sum + c.values.length,
+        0,
+      );
       grid = Array.from({ length: totalValues }, () =>
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
@@ -33,7 +43,10 @@ export function createPuzzleState() {
     }, 0);
   }
 
-  function getValueIndex(categoryIndex: number, valueIndexInCategory: number): number {
+  function getValueIndex(
+    categoryIndex: number,
+    valueIndexInCategory: number,
+  ): number {
     let offset = 0;
     for (let i = 0; i < categoryIndex; i++) {
       offset += puzzle!.grid.categories[i].values.length;
@@ -188,17 +201,26 @@ export function createPuzzleState() {
     }
 
     if (correctCount === 0 && wrongCount === 0) {
-      message = { text: "No cells confirmed yet. Click cells to mark your answers.", type: "info" };
+      message = {
+        text: "No cells confirmed yet. Click cells to mark your answers.",
+        type: "info",
+      };
       return false;
     }
 
     if (wrongCount > 0) {
-      message = { text: "Not quite right. Some confirmed cells are incorrect.", type: "error" };
+      message = {
+        text: "Not quite right. Some confirmed cells are incorrect.",
+        type: "error",
+      };
       return false;
     }
 
     if (correctCount < totalValues) {
-      message = { text: `Looking good so far! ${totalValues - correctCount} values left to place.`, type: "info" };
+      message = {
+        text: `Looking good so far! ${totalValues - correctCount} values left to place.`,
+        type: "info",
+      };
       return false;
     }
 
@@ -243,7 +265,8 @@ export function createPuzzleState() {
       return;
     }
 
-    const [valueIdx, pos] = candidates[Math.floor(Math.random() * candidates.length)];
+    const [valueIdx, pos] =
+      candidates[Math.floor(Math.random() * candidates.length)];
     grid[valueIdx][pos] = "confirmed";
     autoEliminate(valueIdx, pos);
     message = { text: "Hint: one cell revealed.", type: "info" };
@@ -260,11 +283,21 @@ export function createPuzzleState() {
   }
 
   return {
-    get puzzle() { return puzzle; },
-    get grid() { return grid; },
-    get genTime() { return genTime; },
-    get loading() { return loading; },
-    get message() { return message; },
+    get puzzle() {
+      return puzzle;
+    },
+    get grid() {
+      return grid;
+    },
+    get genTime() {
+      return genTime;
+    },
+    get loading() {
+      return loading;
+    },
+    get message() {
+      return message;
+    },
     newPuzzle,
     getValueIndex,
     toggleConfirm,
