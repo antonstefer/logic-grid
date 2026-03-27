@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`public API integration > generate with custom noun/verb produces correct clues 1`] = `
+[
+  "The violin player grows the lily.",
+  "Luna does not live next to the spanish speaker.",
+  "The drums player lives in the third house.",
+  "The daisy grower speaks italian.",
+  "Theo speaks italian.",
+  "Kai lives exactly two houses from the piano player.",
+  "The french speaker lives somewhere between Luna and the piano player.",
+  "The french speaker lives somewhere left of the lily grower.",
+  "The german speaker lives directly right of Kai.",
+  "The guitar player grows the tulip.",
+]
+`;

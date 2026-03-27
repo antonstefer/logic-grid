@@ -99,13 +99,15 @@ describe("public API integration", () => {
 
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
 
-    for (const clue of puzzle.clues) {
-      expect(clue.text.length).toBeGreaterThan(0);
-      expect(clue.text.endsWith(".")).toBe(true);
+    const texts = puzzle.clues.map((c) => c.text);
+    for (const text of texts) {
       // Custom nouns should appear instead of category names
-      expect(clue.text).not.toContain("instrument");
-      expect(clue.text).not.toContain("flower");
-      expect(clue.text).not.toContain("language");
+      expect(text).not.toContain("instrument");
+      expect(text).not.toContain("flower");
+      expect(text).not.toContain("language");
     }
+
+    // Verify actual clue sentences use custom nouns and verbs
+    expect(texts).toMatchSnapshot();
   });
 });
