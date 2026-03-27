@@ -175,6 +175,9 @@ function buildGrid(
   let categories: Category[];
 
   if (categoryNames) {
+    if (categoryNames.length < 3 || categoryNames.length > 8) {
+      throw new RangeError("categories must be 3-8");
+    }
     for (const c of categoryNames) {
       if (c.values.length < size) {
         throw new RangeError(
@@ -338,8 +341,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   // Position constraints
   for (const [val, pos] of posOf) {
     constraints.push({ type: "at_position", value: val, position: pos });
-  }
-  for (const [val, pos] of posOf) {
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
         constraints.push({ type: "not_at_position", value: val, position: p });
@@ -385,22 +386,8 @@ function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
 ): IncSolverCtx | null {
-  let maxVar = 0;
-  for (const clause of solverCtx.baseClauses) {
-    for (const lit of clause) {
-      const v = lit > 0 ? lit : -lit;
-      if (v > maxVar) maxVar = v;
-    }
-  }
-  for (const clauses of clauseCache) {
-    for (const clause of clauses) {
-      for (const lit of clause) {
-        const v = lit > 0 ? lit : -lit;
-        if (v > maxVar) maxVar = v;
-      }
-    }
-  }
-  const actBase = maxVar + 1;
+  const { numValues, numPositions } = solverCtx.ctx;
+  const actBase = numValues * numPositions + 1;
   const total = clauseCache.length;
 
   const allClauses: number[][] = [...solverCtx.baseClauses];
