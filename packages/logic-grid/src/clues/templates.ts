@@ -1,4 +1,4 @@
-import type { Constraint, Clue, Grid } from "../types";
+import type { Category, Constraint, Clue, Grid } from "../types";
 
 const ORDINALS = [
   "first",
@@ -64,24 +64,24 @@ const NOUN_VERB: Record<string, [string, string]> = {
   player: ["plays", "does not play"],
 };
 
-function findCategory(value: string, grid: Grid): string {
+function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
-    if (cat.values.includes(value)) return cat.name;
+    if (cat.values.includes(value)) return cat;
   }
   throw new Error(`Unknown value: ${value}`);
 }
 
 function nounOf(value: string, grid: Grid): string {
-  const cat = findCategory(value, grid).toLowerCase();
-  return CATEGORY_NOUN[cat] ?? cat;
+  const cat = findCategory(value, grid);
+  if (cat.noun !== undefined) return cat.noun;
+  return CATEGORY_NOUN[cat.name.toLowerCase()] ?? cat.name.toLowerCase();
 }
 
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
-  const cat = findCategory(value, grid).toLowerCase();
-  const noun = CATEGORY_NOUN[cat];
+  const noun = nounOf(value, grid);
   if (noun === "") return value;
-  return `the ${value.toLowerCase()} ${noun ?? cat}`;
+  return `the ${value.toLowerCase()} ${noun}`;
 }
 
 /** "lives" for people/owners/drinkers, "is" for houses. */
@@ -124,8 +124,8 @@ function renderSameHouse(
     return `${article} ${obj.toLowerCase()} lives in the ${subj.toLowerCase()} house.`;
   }
 
-  // Look up verb for the object noun
-  const verb = NOUN_VERB[objNoun];
+  // Look up verb: custom category verb first, then built-in noun mapping
+  const verb = findCategory(obj, grid).verb ?? NOUN_VERB[objNoun];
   if (verb) {
     const subjNoun = nounOf(subj, grid);
     // "house" subject + non-house object: insert "'s resident"
