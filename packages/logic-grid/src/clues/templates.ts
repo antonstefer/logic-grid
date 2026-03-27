@@ -185,13 +185,16 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} ${v} exactly ${constraint.distance} ${houses} from ${lb}.`;
     }
     case "at_position": {
-      const v = livesVerb(constraint.value, grid);
-      return `${capitalize(label(constraint.value, grid))} ${v} in house ${constraint.position + 1}.`;
+      if (nounOf(constraint.value, grid) === "house") {
+        return `House ${constraint.position + 1} is ${constraint.value.toLowerCase()}.`;
+      }
+      return `${capitalize(label(constraint.value, grid))} lives in house ${constraint.position + 1}.`;
     }
     case "not_at_position": {
-      const neg =
-        nounOf(constraint.value, grid) === "house" ? "is not" : "does not live";
-      return `${capitalize(label(constraint.value, grid))} ${neg} in house ${constraint.position + 1}.`;
+      if (nounOf(constraint.value, grid) === "house") {
+        return `House ${constraint.position + 1} is not ${constraint.value.toLowerCase()}.`;
+      }
+      return `${capitalize(label(constraint.value, grid))} does not live in house ${constraint.position + 1}.`;
     }
   }
 }
