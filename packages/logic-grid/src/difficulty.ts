@@ -168,17 +168,19 @@ function humanSolve(constraints: Constraint[], grid: Grid): boolean {
     // Hidden singles: if a position has only one possible value in a category
     for (let ci = 0; ci < categories.length; ci++) {
       for (let p = 0; p < n; p++) {
-        const candidates: number[] = [];
+        let count = 0;
+        let lastVi = -1;
         for (let vi = 0; vi < categories[ci].values.length; vi++) {
-          if (possible[ci][vi].has(p)) candidates.push(vi);
-        }
-        if (candidates.length === 1) {
-          const vi = candidates[0];
-          if (possible[ci][vi].size > 1) {
-            possible[ci][vi].clear();
-            possible[ci][vi].add(p);
-            changed = true;
+          if (possible[ci][vi].has(p)) {
+            count++;
+            lastVi = vi;
+            if (count > 1) break;
           }
+        }
+        if (count === 1 && possible[ci][lastVi].size > 1) {
+          possible[ci][lastVi].clear();
+          possible[ci][lastVi].add(p);
+          changed = true;
         }
       }
     }
