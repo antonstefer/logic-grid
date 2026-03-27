@@ -164,7 +164,9 @@ describe("renderClue", () => {
       { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
       grid,
     );
-    expect(clue.text).toBe("Alice lives exactly 2 houses from the cat owner.");
+    expect(clue.text).toBe(
+      "Alice lives exactly two houses from the cat owner.",
+    );
   });
 
   it("exact_distance singular", () => {
@@ -172,7 +174,7 @@ describe("renderClue", () => {
       { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
       grid,
     );
-    expect(clue.text).toBe("Alice lives exactly 1 house from the cat owner.");
+    expect(clue.text).toBe("Alice lives exactly one house from the cat owner.");
   });
 
   it("preserves constraint in returned clue", () => {
