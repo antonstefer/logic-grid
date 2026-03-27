@@ -5,7 +5,7 @@ export default {
     adapter: adapter({
       pages: "build",
       assets: "build",
-      fallback: "index.html",
+      fallback: "200.html",
     }),
     paths: {
       base: process.env.BASE_PATH || "",
