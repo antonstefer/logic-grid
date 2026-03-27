@@ -158,6 +158,16 @@ export function createPuzzleState() {
     message = { text: "Hint: one cell revealed.", type: "info" };
   }
 
+  function clear() {
+    if (!puzzle) return;
+    for (let v = 0; v < grid.length; v++) {
+      for (let p = 0; p < grid[v].length; p++) {
+        grid[v][p] = "empty";
+      }
+    }
+    message = null;
+  }
+
   return {
     get puzzle() { return puzzle; },
     get grid() { return grid; },
@@ -167,6 +177,7 @@ export function createPuzzleState() {
     newPuzzle,
     getValueIndex,
     cycleCell,
+    clear,
     checkSolution,
     showSolution,
     hint,

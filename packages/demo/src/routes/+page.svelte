@@ -73,6 +73,7 @@
         />
 
         <div class="actions">
+          <button class="btn" onclick={() => puzzleState.clear()}>Clear</button>
           <button class="btn" onclick={() => puzzleState.hint()}>Hint</button>
           <button class="btn" onclick={() => puzzleState.checkSolution()}>Check</button>
           <button class="btn" onclick={() => puzzleState.showSolution()}>Reveal</button>
