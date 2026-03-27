@@ -58,6 +58,11 @@ function label(value: string, grid: Grid): string {
   return `the ${value.toLowerCase()} ${noun ?? cat}`;
 }
 
+/** "lives" for people/owners/drinkers, "is" for houses. */
+function livesVerb(value: string, grid: Grid): string {
+  return nounOf(value, grid) === "house" ? "is" : "lives";
+}
+
 // --- Same-house rendering ---
 
 /** Subject priority: person > house > everything else. */
@@ -87,10 +92,10 @@ function renderSameHouse(
 
   const idx = negative ? 1 : 0;
 
-  // Special: color + pet → "The red house has a cat"
+  // Special: color + pet → "The cat lives in the red house"
   if (nounOf(subj, grid) === "house" && objNoun === "owner") {
-    const verb = negative ? "does not have a" : "has a";
-    return `The ${subj.toLowerCase()} house ${verb} ${obj.toLowerCase()}.`;
+    const article = negative ? "No" : "The";
+    return `${article} ${obj.toLowerCase()} lives in the ${subj.toLowerCase()} house.`;
   }
 
   // Look up verb for the object noun
@@ -129,29 +134,40 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "next_to": {
       const la = label(constraint.a, grid);
       const lb = label(constraint.b, grid);
-      return `${capitalize(la)} is next to ${lb}.`;
+      const v = livesVerb(constraint.a, grid);
+      return `${capitalize(la)} ${v} next to ${lb}.`;
     }
     case "not_next_to": {
       const la = label(constraint.a, grid);
       const lb = label(constraint.b, grid);
-      return `${capitalize(la)} is not next to ${lb}.`;
+      const neg =
+        nounOf(constraint.a, grid) === "house" ? "is not" : "does not live";
+      return `${capitalize(la)} ${neg} next to ${lb}.`;
     }
     case "left_of": {
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
-        return `${capitalize(label(constraint.a, grid))} is directly to the left of ${label(constraint.b, grid)}.`;
+        const v = livesVerb(constraint.a, grid);
+        return `${capitalize(label(constraint.a, grid))} ${v} directly left of ${label(constraint.b, grid)}.`;
       }
-      return `${capitalize(label(constraint.b, grid))} is directly to the right of ${label(constraint.a, grid)}.`;
+      const v = livesVerb(constraint.b, grid);
+      return `${capitalize(label(constraint.b, grid))} ${v} directly right of ${label(constraint.a, grid)}.`;
     }
     case "between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      return `${capitalize(lm)} is between ${lo1} and ${lo2}.`;
+      const v = livesVerb(constraint.middle, grid);
+      return `${capitalize(lm)} ${v} between ${lo1} and ${lo2}.`;
     }
-    case "at_position":
-      return `${capitalize(label(constraint.value, grid))} is in house ${constraint.position + 1}.`;
-    case "not_at_position":
-      return `${capitalize(label(constraint.value, grid))} is not in house ${constraint.position + 1}.`;
+    case "at_position": {
+      const v = livesVerb(constraint.value, grid);
+      return `${capitalize(label(constraint.value, grid))} ${v} in house ${constraint.position + 1}.`;
+    }
+    case "not_at_position": {
+      const neg =
+        nounOf(constraint.value, grid) === "house" ? "is not" : "does not live";
+      return `${capitalize(label(constraint.value, grid))} ${neg} in house ${constraint.position + 1}.`;
+    }
   }
 }
 

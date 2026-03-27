@@ -15,7 +15,7 @@ const grid: Grid = {
 describe("renderClue", () => {
   it("same_house: color + pet", () => {
     const clue = renderClue({ type: "same_house", a: "Red", b: "Cat" }, grid);
-    expect(clue.text).toBe("The red house has a cat.");
+    expect(clue.text).toBe("The cat lives in the red house.");
   });
 
   it("same_house: name + color", () => {
@@ -65,7 +65,7 @@ describe("renderClue", () => {
       { type: "not_same_house", a: "Red", b: "Cat" },
       grid,
     );
-    expect(clue.text).toBe("The red house does not have a cat.");
+    expect(clue.text).toBe("No cat lives in the red house.");
   });
 
   it("not_same_house: name + drink", () => {
@@ -99,17 +99,17 @@ describe("renderClue", () => {
 
   it("not_next_to", () => {
     const clue = renderClue({ type: "not_next_to", a: "Tea", b: "Dog" }, grid);
-    expect(clue.text).toBe("The tea drinker is not next to the dog owner.");
+    expect(clue.text).toBe(
+      "The tea drinker does not live next to the dog owner.",
+    );
   });
 
   it("left_of renders as left or right", () => {
     const clue = renderClue({ type: "left_of", a: "Blue", b: "Green" }, grid);
     // Deterministic per constraint — could be either phrasing
     expect(
-      clue.text ===
-        "The blue house is directly to the left of the green house." ||
-        clue.text ===
-          "The green house is directly to the right of the blue house.",
+      clue.text === "The blue house is directly left of the green house." ||
+        clue.text === "The green house is directly right of the blue house.",
     ).toBe(true);
   });
 
@@ -119,7 +119,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The cat owner is between the red house and the blue house.",
+      "The cat owner lives between the red house and the blue house.",
     );
   });
 
@@ -128,7 +128,7 @@ describe("renderClue", () => {
       { type: "at_position", value: "Tea", position: 0 },
       grid,
     );
-    expect(clue.text).toBe("The tea drinker is in house 1.");
+    expect(clue.text).toBe("The tea drinker lives in house 1.");
   });
 
   it("not_at_position", () => {
