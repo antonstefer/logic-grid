@@ -490,9 +490,7 @@ function minimizeConstraints(
 
   for (const idx of activeIndices) {
     active[idx] = false;
-    if (!checkUnique(solver, actBase, total, active)) {
-      active[idx] = true;
-    }
+    active[idx] = !checkUnique(solver, actBase, total, active);
   }
 
   return constraints.filter((_, i) => active[i]);
