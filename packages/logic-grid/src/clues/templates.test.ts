@@ -5,6 +5,7 @@ import type { Grid } from "../types";
 const grid: Grid = {
   size: 3,
   categories: [
+    { name: "Name", values: ["Alice", "Bob", "Carol"] },
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
@@ -12,38 +13,104 @@ const grid: Grid = {
 };
 
 describe("renderClue", () => {
-  it("same_house", () => {
+  it("same_house: color + pet", () => {
     const clue = renderClue({ type: "same_house", a: "Red", b: "Cat" }, grid);
-    expect(clue.text).toBe(
-      "The Red color is in the same house as the Cat pet.",
-    );
+    expect(clue.text).toBe("The red house has a cat.");
   });
 
-  it("not_same_house", () => {
+  it("same_house: name + color", () => {
     const clue = renderClue(
-      { type: "not_same_house", a: "Red", b: "Dog" },
+      { type: "same_house", a: "Alice", b: "Blue" },
       grid,
     );
-    expect(clue.text).toBe(
-      "The Red color is not in the same house as the Dog pet.",
+    expect(clue.text).toBe("Alice lives in the blue house.");
+  });
+
+  it("same_house: name + pet", () => {
+    const clue = renderClue({ type: "same_house", a: "Bob", b: "Dog" }, grid);
+    expect(clue.text).toBe("Bob owns the dog.");
+  });
+
+  it("same_house: name + drink", () => {
+    const clue = renderClue({ type: "same_house", a: "Carol", b: "Tea" }, grid);
+    expect(clue.text).toBe("Carol drinks tea.");
+  });
+
+  it("same_house: pet + drink", () => {
+    const clue = renderClue(
+      { type: "same_house", a: "Cat", b: "Coffee" },
+      grid,
     );
+    expect(clue.text).toBe("The cat owner drinks coffee.");
+  });
+
+  it("not_same_house: name + pet", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Alice", b: "Dog" },
+      grid,
+    );
+    expect(clue.text).toBe("Alice does not own the dog.");
+  });
+
+  it("not_same_house: name + color", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Bob", b: "Red" },
+      grid,
+    );
+    expect(clue.text).toBe("Bob does not live in the red house.");
+  });
+
+  it("not_same_house: color + pet", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Red", b: "Cat" },
+      grid,
+    );
+    expect(clue.text).toBe("The red house does not have a cat.");
+  });
+
+  it("not_same_house: name + drink", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Alice", b: "Tea" },
+      grid,
+    );
+    expect(clue.text).toBe("Alice does not drink tea.");
+  });
+
+  it("not_same_house: color + drink", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Blue", b: "Coffee" },
+      grid,
+    );
+    expect(clue.text).toBe("The blue house's resident does not drink coffee.");
+  });
+
+  it("not_same_house: pet + drink", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Dog", b: "Water" },
+      grid,
+    );
+    expect(clue.text).toBe("The dog owner does not drink water.");
   });
 
   it("next_to", () => {
     const clue = renderClue({ type: "next_to", a: "Blue", b: "Cat" }, grid);
-    expect(clue.text).toBe("The Blue color is next to the Cat pet.");
+    expect(clue.text).toBe("The blue house is next to the cat owner.");
   });
 
   it("not_next_to", () => {
     const clue = renderClue({ type: "not_next_to", a: "Tea", b: "Dog" }, grid);
-    expect(clue.text).toBe("The Tea drink is not next to the Dog pet.");
+    expect(clue.text).toBe("The tea drinker is not next to the dog owner.");
   });
 
-  it("left_of", () => {
+  it("left_of renders as left or right", () => {
     const clue = renderClue({ type: "left_of", a: "Blue", b: "Green" }, grid);
-    expect(clue.text).toBe(
-      "The Blue color is directly left of the Green color.",
-    );
+    // Deterministic per constraint — could be either phrasing
+    expect(
+      clue.text ===
+        "The blue house is directly to the left of the green house." ||
+        clue.text ===
+          "The green house is directly to the right of the blue house.",
+    ).toBe(true);
   });
 
   it("between", () => {
@@ -52,16 +119,16 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The Cat pet is between the Red color and the Blue color.",
+      "The cat owner is between the red house and the blue house.",
     );
   });
 
-  it("at_position (1-indexed for humans)", () => {
+  it("at_position (1-indexed)", () => {
     const clue = renderClue(
       { type: "at_position", value: "Tea", position: 0 },
       grid,
     );
-    expect(clue.text).toBe("The Tea drink is in position 1.");
+    expect(clue.text).toBe("The tea drinker is in house 1.");
   });
 
   it("not_at_position", () => {
@@ -69,7 +136,7 @@ describe("renderClue", () => {
       { type: "not_at_position", value: "Red", position: 2 },
       grid,
     );
-    expect(clue.text).toBe("The Red color is not in position 3.");
+    expect(clue.text).toBe("The red house is not in house 3.");
   });
 
   it("preserves constraint in returned clue", () => {
