@@ -8,7 +8,12 @@ export function createPuzzleState() {
   let message = $state<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   function newPuzzle(size: number, categories: number, difficulty?: Difficulty) {
-    puzzle = generate({ size, categories, difficulty, seed: Date.now() });
+    try {
+      puzzle = generate({ size, categories, difficulty, seed: Date.now() });
+    } catch (e) {
+      message = { text: e instanceof Error ? e.message : String(e), type: "error" };
+      return;
+    }
     // grid[valueIndex][position] — one row per value across all categories
     const totalValues = puzzle.grid.categories.reduce((sum, c) => sum + c.values.length, 0);
     grid = Array.from({ length: totalValues }, () =>

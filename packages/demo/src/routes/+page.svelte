@@ -30,7 +30,7 @@
     <label>
       Size
       <select bind:value={size}>
-        {#each [3, 4, 5, 6] as s}
+        {#each [3, 4, 5, 6, 7, 8] as s}
           <option value={s}>{s}</option>
         {/each}
       </select>
@@ -39,7 +39,7 @@
     <label>
       Categories
       <select bind:value={categories}>
-        {#each [2, 3, 4, 5, 6] as c}
+        {#each [3, 4, 5, 6, 7, 8] as c}
           <option value={c}>{c}</option>
         {/each}
       </select>
