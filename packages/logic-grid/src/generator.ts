@@ -242,8 +242,8 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Negative constraints grow O(n²) — cap to keep the pool tractable.
-  const maxNegative = n * n * 2;
+  // Negative and between constraints grow O(n²)/O(n³) — cap iterations.
+  const maxPerLoop = n * n;
   let negativeCount = 0;
 
   for (let i = 0; i < allValues.length; i++) {
@@ -258,14 +258,14 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
       if (posA === posB) {
         constraints.push({ type: "same_house", a, b });
-      } else if (negativeCount < maxNegative) {
+      } else if (negativeCount < maxPerLoop) {
         constraints.push({ type: "not_same_house", a, b });
         negativeCount++;
       }
 
       if (Math.abs(posA - posB) === 1) {
         constraints.push({ type: "next_to", a, b });
-      } else if (posA !== posB && negativeCount < maxNegative) {
+      } else if (posA !== posB && negativeCount < maxPerLoop) {
         constraints.push({ type: "not_next_to", a, b });
         negativeCount++;
       }
@@ -293,8 +293,8 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   }
 
   // Between constraints (triples from different categories)
-  // Cap loop iterations to avoid O(n³) explosion
-  const maxBetween = 50;
+  // Cap loop iterations — O(n³) without bound
+  const maxBetween = maxPerLoop;
   let betweenCount = 0;
   outer: for (
     let i = 0;
@@ -335,7 +335,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
               middle: vals[m],
               outer2: v2,
             });
-          } else if (negativeCount < maxNegative) {
+          } else if (negativeCount < maxPerLoop) {
             constraints.push({
               type: "not_between",
               outer1: v1,
