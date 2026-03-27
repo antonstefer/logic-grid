@@ -158,7 +158,7 @@ export function generate(options?: GenerateOptions): Puzzle {
     )
       continue;
 
-    const minimal = minimizeConstraints(filtered, incSolver, rng);
+    const minimal = minimizeConstraints(filtered, incSolver, rng, size);
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -241,8 +241,12 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Negative constraints (not_same_house, not_next_to) grow O(n²) and are rarely
-  // essential for uniqueness — cap them to keep the minimization set tractable.
+  // Cap same_house so it doesn't crowd out other types (~35-45% of final puzzle).
+  // It has REMOVAL_WEIGHT 1 (removed last) so most pool entries survive.
+  const maxSameHouse = n + Math.floor(grid.categories.length / 2);
+  let sameHouseCount = 0;
+
+  // Negative constraints grow O(n²) — cap to keep the pool tractable.
   const maxNegative = n * n * 2;
   let negativeCount = 0;
 
@@ -257,7 +261,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       const posB = posArr[j];
 
       if (posA === posB) {
-        constraints.push({ type: "same_house", a, b });
+        if (sameHouseCount++ < maxSameHouse) {
+          constraints.push({ type: "same_house", a, b });
+        }
       } else if (negativeCount < maxNegative) {
         constraints.push({ type: "not_same_house", a, b });
         negativeCount++;
@@ -293,7 +299,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   }
 
   // Between constraints (triples from different categories)
-  // Cap at 50 to avoid slow minimization — stop enumeration early
+  // Cap loop iterations to avoid O(n³) explosion
   const maxBetween = 50;
   let betweenCount = 0;
   outer: for (
@@ -350,9 +356,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // Position constraints.
-  // All at_position are enumerated but have high REMOVAL_WEIGHT, so the
-  // minimizer strips them first — keeping only what's truly needed.
+  // Position constraints
   for (const [val, pos] of posOf) {
     constraints.push({ type: "at_position", value: val, position: pos });
   }
@@ -428,19 +432,19 @@ function filterByDifficulty(
 }
 
 // Removal weight: higher = removed first during minimization.
-// Positional clues (at_position) are most expendable; relational clues
-// (same_house, between) are kept preferentially for interesting puzzles.
+// same_house at weight 1 survives most (core clue type for logic grids).
+// All other types share weight 2 — the shuffle determines which survive.
 const REMOVAL_WEIGHT: Record<string, number> = {
-  at_position: 5,
-  not_at_position: 5,
-  not_same_house: 4,
-  not_next_to: 3,
-  not_between: 3,
-  left_of: 2,
-  next_to: 2,
-  between: 2,
+  at_position: 2,
+  not_at_position: 2,
+  not_same_house: 2,
+  not_next_to: 2,
+  not_between: 2,
   before: 2,
   exact_distance: 2,
+  next_to: 2,
+  left_of: 2,
+  between: 2,
   same_house: 1,
 };
 
@@ -509,6 +513,7 @@ function minimizeConstraints(
   constraints: Constraint[],
   incSolver: IncSolverCtx,
   rng: () => number,
+  gridSize: number,
 ): Constraint[] {
   const { solver, actBase, total } = incSolver;
 
@@ -526,7 +531,28 @@ function minimizeConstraints(
     return wb - wa; // highest removal weight first
   });
 
+  // Count active constraints per type. Only protect types that started with
+  // enough pool entries to be meaningful (≥3) — avoids bloating small puzzles.
+  const typeCounts: Record<string, number> = {};
+  for (let i = 0; i < total; i++) {
+    if (active[i]) {
+      const t = constraints[i].type;
+      typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+    }
+  }
+  // Only protect type diversity for grids large enough to support it.
+  // Small grids (3-4) have too few clues to fit all types.
+  const protectedTypes =
+    gridSize >= 5
+      ? new Set(
+          Object.entries(typeCounts)
+            .filter(([, count]) => count >= 3)
+            .map(([type]) => type),
+        )
+      : new Set<string>();
+
   // Phase 1: Batch removal — try removing chunks at a time.
+  // Skip constraints that are the last of their type.
   for (const fraction of [0.1, 0.05]) {
     let offset = 0;
     while (offset < indices.length) {
@@ -534,24 +560,39 @@ function minimizeConstraints(
       const batch: number[] = [];
       let scan = offset;
       while (batch.length < count && scan < indices.length) {
-        if (active[indices[scan]]) batch.push(indices[scan]);
+        const idx = indices[scan];
+        const t = constraints[idx].type;
+        if (
+          active[idx] &&
+          (!protectedTypes.has(t) || (typeCounts[t] ?? 0) > 1)
+        ) {
+          batch.push(idx);
+        }
         scan++;
       }
       offset = scan;
       if (batch.length === 0) break;
 
       for (const idx of batch) active[idx] = false;
-      if (!checkUnique(solver, actBase, total, active)) {
+      if (checkUnique(solver, actBase, total, active)) {
+        for (const idx of batch) typeCounts[constraints[idx].type]--;
+      } else {
         for (const idx of batch) active[idx] = true;
       }
     }
   }
 
-  // Phase 2: Individual removal pass.
+  // Phase 2: Individual removal — skip if it's the last of its type.
   for (const idx of indices) {
     if (!active[idx]) continue;
+    const t = constraints[idx].type;
+    if (protectedTypes.has(t) && (typeCounts[t] ?? 0) <= 1) continue;
     active[idx] = false;
-    active[idx] = !checkUnique(solver, actBase, total, active);
+    if (checkUnique(solver, actBase, total, active)) {
+      typeCounts[t]--;
+    } else {
+      active[idx] = true;
+    }
   }
 
   return constraints.filter((_, i) => active[i]);
