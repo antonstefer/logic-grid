@@ -367,7 +367,7 @@ function filterByDifficulty(
 }
 
 // How many slots each type gets per round-robin cycle.
-// same_house gets 2 to ensure it dominates (~35-45% of final puzzle).
+// same_house gets 4 to ensure it dominates (~40% of final puzzle).
 const TYPE_SLOTS: Record<string, number> = { same_house: 4 };
 
 interface IncSolverCtx {

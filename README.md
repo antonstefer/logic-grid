@@ -101,6 +101,9 @@ import {
   notNextTo,
   leftOf,
   between,
+  notBetween,
+  before,
+  exactDistance,
   atPosition,
   notAtPosition,
 } from "logic-grid";
@@ -134,7 +137,10 @@ const clue = renderClue(sameHouse("Red", "Cat"), grid);
 | `next_to`         | Two values are at adjacent positions         |
 | `not_next_to`     | Two values are not adjacent                  |
 | `left_of`         | First value is directly left of second       |
-| `between`         | Middle value is between the two outer values |
+| `between`         | Middle value is somewhere between two outers  |
+| `not_between`     | Middle value is not between two outers        |
+| `before`          | First value is somewhere left of second       |
+| `exact_distance`  | Two values are exactly N positions apart      |
 | `at_position`     | Value is at a specific position (0-indexed)  |
 | `not_at_position` | Value is not at a specific position          |
 
@@ -168,7 +174,7 @@ interface Clue {
 
 2. **DPLL solver** — a minimal DPLL SAT solver with watched literals and flat `Int32Array` storage. No external dependencies.
 
-3. **Generation** — a random valid solution is generated, all true constraints are enumerated, then a minimal subset is selected through destructive minimization: batch removal at decreasing fractions followed by individual removal. An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
+3. **Generation** — a random valid solution is generated, all true constraints are enumerated, then a minimal diverse subset is selected through constructive round-robin minimization: constraints are added one per type in rotation until uniqueness is achieved, then redundant ones are trimmed. An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
 
 4. **Difficulty** — classified by constraint type complexity and whether the puzzle is solvable by direct elimination alone.
 
