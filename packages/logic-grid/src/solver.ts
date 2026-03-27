@@ -32,21 +32,13 @@ export function hasUniqueSolution(
 export interface SolverContext {
   ctx: EncodingContext;
   baseClauses: number[][];
-  allVars: Set<number>;
 }
 
 /** Pre-compute base clauses for a grid. Reuse across multiple solve/uniqueness calls on the same grid. */
 export function createSolverContext(grid: Grid): SolverContext {
   const ctx = createContext(grid);
   const baseClauses = encodeBase(ctx);
-
-  // Collect all variables from base clauses
-  const allVars = new Set<number>();
-  for (const clause of baseClauses) {
-    for (const lit of clause) allVars.add(Math.abs(lit));
-  }
-
-  return { ctx, baseClauses, allVars };
+  return { ctx, baseClauses };
 }
 
 /** Pre-encode a constraint's clauses for reuse. */
