@@ -6,23 +6,31 @@ export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
   let grid = $state<CellState[][]>([]);
   let genTime = $state(0);
+  let loading = $state(false);
   let message = $state<{ text: string; type: "success" | "error" | "info" } | null>(null);
 
   function newPuzzle(size: number, categories: number, difficulty?: Difficulty) {
-    try {
-      const t0 = performance.now();
-      puzzle = generate({ size, categories, difficulty, seed: Date.now() });
-      genTime = Math.round(performance.now() - t0);
-    } catch (e) {
-      message = { text: e instanceof Error ? e.message : String(e), type: "error" };
-      return;
-    }
-    // grid[valueIndex][position] — one row per value across all categories
-    const totalValues = puzzle.grid.categories.reduce((sum, c) => sum + c.values.length, 0);
-    grid = Array.from({ length: totalValues }, () =>
-      Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
-    );
+    loading = true;
     message = null;
+
+    // Defer so the UI can show the loading state before blocking
+    setTimeout(() => {
+      try {
+        const t0 = performance.now();
+        puzzle = generate({ size, categories, difficulty, seed: Date.now() });
+        genTime = Math.round(performance.now() - t0);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : String(e));
+        loading = false;
+        return;
+      }
+      // grid[valueIndex][position] — one row per value across all categories
+      const totalValues = puzzle.grid.categories.reduce((sum, c) => sum + c.values.length, 0);
+      grid = Array.from({ length: totalValues }, () =>
+        Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
+      );
+      loading = false;
+    }, 0);
   }
 
   function getValueIndex(categoryIndex: number, valueIndexInCategory: number): number {
@@ -154,6 +162,7 @@ export function createPuzzleState() {
     get puzzle() { return puzzle; },
     get grid() { return grid; },
     get genTime() { return genTime; },
+    get loading() { return loading; },
     get message() { return message; },
     newPuzzle,
     getValueIndex,
