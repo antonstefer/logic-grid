@@ -1,11 +1,6 @@
 import type { Constraint, Grid, Solution, Assignment } from "./types";
 import type { EncodingContext } from "./encoding";
-import {
-  createContext,
-  encodeBase,
-  encodeConstraint,
-  encodePuzzle,
-} from "./encoding";
+import { createContext, encodeBase, encodePuzzle } from "./encoding";
 import { solveSAT, solveAllSAT } from "./sat";
 
 /** Solve a puzzle. Returns the solution, or `null` if the constraints are unsatisfiable. */
@@ -39,14 +34,6 @@ export function createSolverContext(grid: Grid): SolverContext {
   const ctx = createContext(grid);
   const baseClauses = encodeBase(ctx);
   return { ctx, baseClauses };
-}
-
-/** Pre-encode a constraint's clauses for reuse. */
-export function encodeConstraintCached(
-  constraint: Constraint,
-  solverCtx: SolverContext,
-): number[][] {
-  return encodeConstraint(solverCtx.ctx, constraint);
 }
 
 function decodeSolution(

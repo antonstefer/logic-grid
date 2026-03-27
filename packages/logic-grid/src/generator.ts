@@ -9,7 +9,8 @@ import type {
   Assignment,
 } from "./types";
 import type { SolverContext } from "./solver";
-import { createSolverContext, encodeConstraintCached } from "./solver";
+import { createSolverContext } from "./solver";
+import { encodeConstraint } from "./encoding";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
@@ -124,9 +125,7 @@ export function generate(options?: GenerateOptions): Puzzle {
     shuffle(filtered, rng);
 
     // Pre-encode all constraint clauses once
-    const clauseCache = filtered.map((c) =>
-      encodeConstraintCached(c, solverCtx),
-    );
+    const clauseCache = filtered.map((c) => encodeConstraint(solverCtx.ctx, c));
 
     // Build ONE incremental solver with activation literals for all constraints
     const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
