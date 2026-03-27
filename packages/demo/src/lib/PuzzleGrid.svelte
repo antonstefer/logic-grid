@@ -83,7 +83,8 @@
                 onclick={() => handleClick(valueIdx, p)}
                 ontouchstart={() => handleTouchStart(valueIdx, p)}
                 ontouchend={handleTouchEnd}
-                oncontextmenu={(e) => { e.preventDefault(); onEliminate(valueIdx, p); }}
+                oncontextmenu={(e) => e.preventDefault()}
+                onmouseup={(e) => { if (e.button === 2) onEliminate(valueIdx, p); }}
                 role="button"
                 tabindex="0"
                 onkeydown={(e) => {
