@@ -291,6 +291,34 @@ export function createPuzzleState() {
     message = { text: step.explanation, type: "info" };
   }
 
+  function revealCell() {
+    if (!puzzle) return;
+
+    // Find all unconfirmed correct cells
+    const candidates: [number, number][] = [];
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        if (grid[valueIdx][correctPos] !== "confirmed") {
+          candidates.push([valueIdx, correctPos]);
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      message = { text: "All cells are already confirmed!", type: "info" };
+      return;
+    }
+
+    const [valueIdx, pos] =
+      candidates[Math.floor(Math.random() * candidates.length)];
+    grid[valueIdx][pos] = "confirmed";
+    autoEliminate(valueIdx, pos);
+    message = { text: "One cell revealed.", type: "info" };
+  }
+
   function clear() {
     if (!puzzle) return;
     for (let v = 0; v < grid.length; v++) {
@@ -325,5 +353,6 @@ export function createPuzzleState() {
     checkSolution,
     showSolution,
     hint,
+    revealCell,
   };
 }
