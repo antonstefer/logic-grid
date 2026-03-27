@@ -1,13 +1,13 @@
 import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 
-const EASY_TYPES: Set<ConstraintType> = new Set([
+export const EASY_TYPES: Set<ConstraintType> = new Set([
   "same_house",
   "not_same_house",
   "at_position",
   "not_at_position",
 ]);
 
-const MEDIUM_TYPES: Set<ConstraintType> = new Set([
+export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
   ...EASY_TYPES,
   "next_to",
   "left_of",
