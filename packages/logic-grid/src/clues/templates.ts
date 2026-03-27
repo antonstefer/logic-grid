@@ -183,7 +183,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
       const v = livesVerb(constraint.middle, grid);
-      return `${capitalize(lm)} ${v} between ${lo1} and ${lo2}.`;
+      return `${capitalize(lm)} ${v} somewhere between ${lo1} and ${lo2}.`;
     }
     case "not_between": {
       const lm = label(constraint.middle, grid);
@@ -193,7 +193,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
         nounOf(constraint.middle, grid) === "house"
           ? "is not"
           : "does not live";
-      return `${capitalize(lm)} ${neg} between ${lo1} and ${lo2}.`;
+      return `${capitalize(lm)} ${neg} somewhere between ${lo1} and ${lo2}.`;
     }
     case "before": {
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
