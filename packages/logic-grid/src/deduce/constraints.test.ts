@@ -450,15 +450,32 @@ describe("deduce constraint types", () => {
     expect(allAssigns).toContainEqual({ value: "Red", position: 3 });
   });
 
-  it("not_between: does nothing when neither outer is assigned", () => {
-    // With no outers pinned, tryNotBetween returns null immediately.
+  it("not_between arc-consistency: eliminates middle when all outers are on opposite sides", () => {
+    // Red={0,1}, Blue={3,4}: neither pinned. Alice at 2: all Red < 2 and all Blue > 2
+    // → always between → eliminated.
+    const grid5: Grid = {
+      size: 5,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow", "White"],
+        },
+      ],
+    };
     const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_at_position", value: "Red", position: 4 },
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 2 },
       { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
     ];
-    const result = deduce(constraints, grid);
-    expect(
-      result.steps.find((s) => s.technique === "not_between"),
-    ).toBeUndefined();
+    const result = deduce(constraints, grid5);
+    const step = result.steps.find((s) => s.technique === "not_between");
+    expect(step).toBeDefined();
+    expect(step!.eliminations).toContainEqual({ value: "Alice", position: 2 });
   });
 
   it("not_between eliminates middle positions when both outers are pinned", () => {

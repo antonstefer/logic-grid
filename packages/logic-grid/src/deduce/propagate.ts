@@ -396,7 +396,6 @@ function applyConstraintSilently(
     case "not_between": {
       const a1 = getAssigned(state, constraint.outer1);
       const a2 = getAssigned(state, constraint.outer2);
-      if (a1 === null && a2 === null) break;
       const pm = getPossible(state, constraint.middle);
       if (a1 !== null && a2 !== null) {
         const lo = Math.min(a1, a2);
@@ -407,7 +406,7 @@ function applyConstraintSilently(
             changed = true;
           }
         }
-      } else {
+      } else if (a1 !== null || a2 !== null) {
         const pinnedPos = a1 ?? a2!;
         const otherPossible =
           a1 !== null
@@ -420,6 +419,19 @@ function applyConstraintSilently(
             (pinnedPos < m && minOther > m) ||
             (pinnedPos > m && maxOther < m)
           ) {
+            pm.delete(m);
+            changed = true;
+          }
+        }
+      } else {
+        const po1 = getPossible(state, constraint.outer1);
+        const po2 = getPossible(state, constraint.outer2);
+        const maxO1 = Math.max(...po1);
+        const minO1 = Math.min(...po1);
+        const maxO2 = Math.max(...po2);
+        const minO2 = Math.min(...po2);
+        for (const m of [...pm]) {
+          if ((maxO1 < m && minO2 > m) || (minO1 > m && maxO2 < m)) {
             pm.delete(m);
             changed = true;
           }
