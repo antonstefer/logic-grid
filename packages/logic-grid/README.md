@@ -177,6 +177,8 @@ Techniques:
 
 Get the next logical deduction from a partial state. Pass `known` as a map of value names to assigned positions to represent what the user has figured out so far.
 
+> **Note:** `hint()` re-runs the full deduction engine internally. For interactive use, prefer calling `deduce()` once and iterating over its steps.
+
 ```typescript
 import { hint } from "logic-grid";
 
