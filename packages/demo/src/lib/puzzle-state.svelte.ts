@@ -271,6 +271,21 @@ export function createPuzzleState() {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
 
+    // Skip steps whose effects the user has already applied
+    while (hintIndex < hintSteps.length) {
+      const candidate = hintSteps[hintIndex];
+      const hasNewElim = candidate.eliminations.some((e) => {
+        const vi = findValueIdx(e.value);
+        return vi !== -1 && grid[vi][e.position] === "empty";
+      });
+      const hasNewAssign = candidate.assignments.some((a) => {
+        const vi = findValueIdx(a.value);
+        return vi !== -1 && grid[vi][a.position] !== "confirmed";
+      });
+      if (hasNewElim || hasNewAssign) break;
+      hintIndex++;
+    }
+
     if (hintIndex >= hintSteps.length) {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
@@ -287,7 +302,7 @@ export function createPuzzleState() {
     }
     for (const a of step.assignments) {
       const valueIdx = findValueIdx(a.value);
-      if (valueIdx !== -1) {
+      if (valueIdx !== -1 && grid[valueIdx][a.position] !== "confirmed") {
         grid[valueIdx][a.position] = "confirmed";
         autoEliminate(valueIdx, a.position);
       }
