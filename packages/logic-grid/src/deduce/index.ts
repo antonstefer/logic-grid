@@ -16,6 +16,15 @@ import {
 } from "./structural";
 import { tryContradiction } from "./contradiction";
 
+const structuralTechniques = [
+  tryNakedSingles,
+  tryHiddenSingles,
+  tryNakedPairs,
+  tryNakedTriples,
+  tryHiddenPairs,
+  tryHiddenTriples,
+];
+
 // --- Public API ---
 
 /** Solve a puzzle step-by-step using human-style deduction. */
@@ -38,48 +47,16 @@ export function deduce(constraints: Constraint[], grid: Grid): DeductionResult {
     }
     if (progress) continue;
 
-    // Try structural deductions
-    const naked = tryNakedSingles(state);
-    if (naked) {
-      steps.push(naked);
-      progress = true;
-      continue;
+    // Try structural deductions (ordered by complexity)
+    for (const tryTechnique of structuralTechniques) {
+      const s = tryTechnique(state);
+      if (s) {
+        steps.push(s);
+        progress = true;
+        break;
+      }
     }
-
-    const hidden = tryHiddenSingles(state);
-    if (hidden) {
-      steps.push(hidden);
-      progress = true;
-      continue;
-    }
-
-    const pair = tryNakedPairs(state);
-    if (pair) {
-      steps.push(pair);
-      progress = true;
-      continue;
-    }
-
-    const triple = tryNakedTriples(state);
-    if (triple) {
-      steps.push(triple);
-      progress = true;
-      continue;
-    }
-
-    const hiddenPair = tryHiddenPairs(state);
-    if (hiddenPair) {
-      steps.push(hiddenPair);
-      progress = true;
-      continue;
-    }
-
-    const hiddenTriple = tryHiddenTriples(state);
-    if (hiddenTriple) {
-      steps.push(hiddenTriple);
-      progress = true;
-      continue;
-    }
+    if (progress) continue;
 
     const contra = tryContradiction(state, constraints);
     if (contra) {
