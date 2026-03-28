@@ -13,8 +13,8 @@ import {
   tryNakedTriples,
   tryHiddenPairs,
   tryHiddenTriples,
-  tryContradiction,
 } from "./structural";
+import { tryContradiction } from "./contradiction";
 
 // --- Public API ---
 
