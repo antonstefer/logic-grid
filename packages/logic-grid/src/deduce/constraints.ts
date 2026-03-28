@@ -501,6 +501,9 @@ function tryNotBetween(
     const knownO1 = describeKnown(state, c.outer1);
     const knownO2 = describeKnown(state, c.outer2);
     const ctx = knownO1 || knownO2;
+    // ctx is always truthy for supported grid sizes (3–8): the neither-pinned
+    // branch needs 4+4+1=9 positions for both outers to exceed the describeKnown
+    // threshold, so at least one outer always has a description.
     because = ctx ? `${ctx}, so ` : "";
   }
   return step(

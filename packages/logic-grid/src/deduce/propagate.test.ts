@@ -138,6 +138,21 @@ describe("propagateToFixpoint", () => {
     expect(getPossible(state, "Alice").has(1)).toBe(false);
   });
 
+  it("not_between eliminates middle when neither outer is pinned", () => {
+    // Red={0,1}, Blue={3,4}. Alice at 2: all Red < 2 and all Blue > 2 → eliminated.
+    const state = createState(grid5);
+    propagateToFixpoint(state, [
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_at_position", value: "Red", position: 4 },
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ]);
+    expect(getPossible(state, "Alice").has(2)).toBe(false);
+  });
+
   it("silentNakedTriples restricts fourth value when three share three positions", () => {
     // Red, Blue, Green each restricted to {0,1,2} — naked triple.
     // Yellow and White must be at {3,4} and cannot occupy {0,1,2}.
