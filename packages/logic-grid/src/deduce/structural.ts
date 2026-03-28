@@ -12,6 +12,16 @@ import {
 
 // --- Structural deductions ---
 
+/** Ordered by complexity — try cheap techniques first. */
+export const structuralTechniques = [
+  tryNakedSingles,
+  tryHiddenSingles,
+  tryNakedPairs,
+  tryNakedTriples,
+  tryHiddenPairs,
+  tryHiddenTriples,
+];
+
 export function tryNakedSingles(state: DeduceState): DeductionStep | null {
   for (let ci = 0; ci < state.grid.categories.length; ci++) {
     const cat = state.grid.categories[ci];

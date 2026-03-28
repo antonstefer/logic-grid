@@ -6,24 +6,8 @@ import type {
 } from "../types";
 import { createState, isSolved } from "./state";
 import { tryConstraint } from "./constraints";
-import {
-  tryNakedSingles,
-  tryHiddenSingles,
-  tryNakedPairs,
-  tryNakedTriples,
-  tryHiddenPairs,
-  tryHiddenTriples,
-} from "./structural";
+import { structuralTechniques } from "./structural";
 import { tryContradiction } from "./contradiction";
-
-const structuralTechniques = [
-  tryNakedSingles,
-  tryHiddenSingles,
-  tryNakedPairs,
-  tryNakedTriples,
-  tryHiddenPairs,
-  tryHiddenTriples,
-];
 
 // --- Public API ---
 
