@@ -4,6 +4,7 @@ import {
   SILENT_STEP,
   getPossible,
   getAssigned,
+  first,
   step,
   dedup,
   collectAssigns,
@@ -87,7 +88,7 @@ function tryNotAtPosition(
   ps.delete(c.position);
   if (state.silent) return SILENT_STEP;
   const assigns =
-    ps.size === 1 ? [{ value: c.value, position: [...ps][0] }] : [];
+    ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
       ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} house.`
@@ -126,7 +127,7 @@ function trySameHouse(
   if (state.silent) return SILENT_STEP;
   const assigns: { value: string; position: number }[] = [];
   if (pa.size === 1) {
-    const p = [...pa][0];
+    const p = first(pa);
     assigns.push({ value: c.a, position: p });
     assigns.push({ value: c.b, position: p });
   }
@@ -166,7 +167,7 @@ function tryNotSameHouse(
   const assigns: { value: string; position: number }[] = [];
   for (const e of elims) {
     const ps = getPossible(state, e.value);
-    if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
+    if (ps.size === 1) assigns.push({ value: e.value, position: first(ps) });
   }
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;

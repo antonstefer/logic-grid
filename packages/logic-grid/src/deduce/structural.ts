@@ -2,6 +2,7 @@ import type { DeductionStep } from "../types";
 import {
   type DeduceState,
   SILENT_STEP,
+  first,
   getPossible,
   step,
   dedup,
@@ -16,7 +17,7 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
     const cat = state.grid.categories[ci];
     for (let vi = 0; vi < cat.values.length; vi++) {
       if (state.possible[ci][vi].size !== 1) continue;
-      const pos = [...state.possible[ci][vi]][0];
+      const pos = first(state.possible[ci][vi]);
       const elims: { value: string; position: number }[] = [];
       for (let ovi = 0; ovi < cat.values.length; ovi++) {
         if (ovi !== vi && state.possible[ci][ovi].has(pos)) {
