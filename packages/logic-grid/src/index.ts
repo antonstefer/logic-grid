@@ -1,7 +1,7 @@
 export { generate } from "./generator";
 export { solve, hasUniqueSolution } from "./solver";
 export { classify } from "./difficulty";
-export { deduce, hint } from "./deduce";
+export { deduce } from "./deduce";
 
 export {
   sameHouse,

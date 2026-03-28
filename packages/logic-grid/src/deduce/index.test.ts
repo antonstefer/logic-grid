@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deduce, hint } from ".";
+import { deduce } from ".";
 import { generate } from "../generator";
 import type { Grid, Constraint } from "../types";
 
@@ -91,65 +91,5 @@ describe("deduce", () => {
     const puzzle = generate({ size: 5, seed: 7, difficulty: "hard" });
     const result = deduce(puzzle.constraints, puzzle.grid);
     expect(result.steps.length).toBeGreaterThan(0);
-  });
-});
-
-describe("hint", () => {
-  it("returns first deduction with no known values", () => {
-    const h = hint(puzzle3x3, grid3x3);
-    expect(h).not.toBeNull();
-    expect(h!.technique).toBe("direct");
-  });
-
-  it("returns null when no steps can be made and no known values", () => {
-    const g: Grid = {
-      size: 3,
-      categories: [{ name: "Color", values: ["Red", "Blue", "Green"] }],
-    };
-    expect(hint([], g)).toBeNull();
-  });
-
-  it("skips past known assignments", () => {
-    const h = hint(puzzle3x3, grid3x3, { Red: 0, Cat: 0 });
-    expect(h).not.toBeNull();
-    for (const a of h!.assignments) {
-      expect(a.value).not.toBe("Red");
-      expect(a.value).not.toBe("Cat");
-    }
-  });
-
-  it("returns elimination-only step for unknown value", () => {
-    const g: Grid = {
-      size: 4,
-      categories: [
-        { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
-      ],
-    };
-    // Red loses position 0 but still has {1,2,3} — no assignment, only elimination.
-    // known has Blue but not Red, so the elimination step is "new" for the user.
-    const h = hint(
-      [{ type: "not_at_position", value: "Red", position: 0 }],
-      g,
-      { Blue: 1 },
-    );
-    expect(h).not.toBeNull();
-    expect(h!.assignments).toHaveLength(0);
-    expect(h!.eliminations).toContainEqual({ value: "Red", position: 0 });
-  });
-
-  it("returns null when puzzle is fully known", () => {
-    const known: Record<string, number> = {
-      Red: 0,
-      Blue: 1,
-      Green: 2,
-      Cat: 0,
-      Dog: 1,
-      Fish: 2,
-      Tea: 0,
-      Coffee: 1,
-      Water: 2,
-    };
-    const h = hint(puzzle3x3, grid3x3, known);
-    expect(h).toBeNull();
   });
 });
