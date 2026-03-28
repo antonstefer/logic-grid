@@ -266,16 +266,19 @@ export function createPuzzleState() {
   function hint() {
     if (!puzzle) return;
 
-    // Lazily compute deduction steps on first hint request
+    // Lazily compute deduction steps on first hint request.
+    // Steps follow the correct solution path; wrong user moves are undone before applying.
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
 
-    // Skip steps whose effects the user has already applied
+    // Skip steps whose effects the user has already correctly applied
     while (hintIndex < hintSteps.length) {
       const candidate = hintSteps[hintIndex];
       const hasNewElim = candidate.eliminations.some((e) => {
-        return grid[findValueIdx(e.value)][e.position] === "empty";
+        const cell = grid[findValueIdx(e.value)][e.position];
+        // Not done if the cell is empty, or wrongly confirmed
+        return cell === "empty" || cell === "confirmed";
       });
       const hasNewAssign = candidate.assignments.some((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";
@@ -290,6 +293,26 @@ export function createPuzzleState() {
     }
 
     const step = hintSteps[hintIndex++];
+
+    // Undo any wrong user moves that conflict with this step
+    for (const e of step.eliminations) {
+      const valueIdx = findValueIdx(e.value);
+      if (grid[valueIdx][e.position] === "confirmed") {
+        // User wrongly confirmed this cell — undo it
+        grid[valueIdx][e.position] = "empty";
+        autoRestore(valueIdx, e.position);
+      }
+    }
+    for (const a of step.assignments) {
+      const valueIdx = findValueIdx(a.value);
+      // Undo wrong confirmations in this row or at this position
+      for (let p = 0; p < puzzle.grid.size; p++) {
+        if (p !== a.position && grid[valueIdx][p] === "confirmed") {
+          grid[valueIdx][p] = "empty";
+          autoRestore(valueIdx, p);
+        }
+      }
+    }
 
     // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
