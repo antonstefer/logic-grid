@@ -346,6 +346,7 @@ export function createPuzzleState() {
         grid[v][p] = "empty";
       }
     }
+    hintIndex = 0;
     message = null;
   }
 
