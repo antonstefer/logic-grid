@@ -74,10 +74,11 @@
         />
 
         <div class="actions">
-          <button class="btn" onclick={() => puzzleState.clear()}>Clear</button>
-          <button class="btn" onclick={() => puzzleState.hint()}>Hint</button>
+          <button class="btn" onclick={() => puzzleState.hint()}>Explain Next Step</button>
+          <button class="btn" onclick={() => puzzleState.revealCell()}>Reveal a Cell</button>
           <button class="btn" onclick={() => puzzleState.checkSolution()}>Check</button>
-          <button class="btn" onclick={() => puzzleState.showSolution()}>Reveal</button>
+          <button class="btn" onclick={() => puzzleState.showSolution()}>Show Solution</button>
+          <button class="btn" onclick={() => puzzleState.clear()}>Clear</button>
         </div>
 
         {#if puzzleState.message}

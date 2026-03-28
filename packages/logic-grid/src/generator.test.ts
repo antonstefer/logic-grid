@@ -67,6 +67,19 @@ describe("generate", () => {
         case "not_at_position":
           expect(posOf.get(c.value)).not.toBe(c.position);
           break;
+        case "before":
+          expect(posOf.get(c.a)!).toBeLessThan(posOf.get(c.b)!);
+          break;
+        case "not_between": {
+          const lo = Math.min(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
+          const hi = Math.max(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
+          const mid = posOf.get(c.middle)!;
+          expect(mid > lo && mid < hi).toBe(false);
+          break;
+        }
+        case "exact_distance":
+          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).toBe(c.distance);
+          break;
       }
     }
   });

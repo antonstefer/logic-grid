@@ -124,6 +124,55 @@ const constraints = [
 ];
 ```
 
+### `deduce(constraints, grid)`
+
+Solve a puzzle step-by-step using human-style deduction. Returns each logical step with technique, clue references, and a human-readable explanation. Returns partial results if deduction stalls (e.g. on custom puzzles that require guessing).
+
+```typescript
+import { deduce } from "logic-grid";
+
+const result = deduce(puzzle.constraints, puzzle.grid);
+// result.complete — whether the puzzle was fully solved
+// result.steps — ordered deduction steps
+
+for (const step of result.steps) {
+  console.log(step.explanation);
+  // "Red is in the first house."
+  // "Red and Cat are in the same house: the first house."
+  // "Blue must be in the second house, so no other Color can be there."
+}
+```
+
+Each step includes:
+- `technique` — which deduction technique was used (see below)
+- `clueIndices` — which constraints were involved
+- `eliminations` — positions ruled out
+- `assignments` — values pinned to positions
+- `explanation` — human-readable string
+
+Techniques:
+
+| Technique              | Description                                                              |
+|------------------------|--------------------------------------------------------------------------|
+| `direct`               | Value forced to a specific position by `at_position`                     |
+| `elimination`          | Position ruled out by `not_at_position`                                  |
+| `same_house`           | Two values share possible positions — intersect them                     |
+| `not_same_house`       | Pinned value excludes its position from the other                        |
+| `next_to`              | Positions incompatible with adjacency are removed                        |
+| `not_next_to`          | Pinned value excludes its neighbors from the other                       |
+| `left_of`              | Value directly left of another — constrain both                          |
+| `before`               | Value somewhere left of another — constrain range                        |
+| `between`              | Middle must lie strictly between two outers                              |
+| `not_between`          | Middle cannot lie between two pinned outers                              |
+| `exact_distance`       | Two values must be exactly N positions apart                             |
+| `naked_single`         | One value is the only candidate for a position in its category           |
+| `hidden_single`        | One position is the only candidate for a value in its category           |
+| `naked_pair`           | Two values share the same two positions — exclude others                 |
+| `naked_triple`         | Three values share three positions — exclude others                      |
+| `hidden_pair`          | Two positions are exclusively reachable by two values                    |
+| `hidden_triple`        | Three positions are exclusively reachable by three values                |
+| `contradiction`        | Placing a value at a position leads to an impossible state               |
+
 ### `renderClue(constraint, grid)`
 
 Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names (e.g. "Alice owns the dog" for Name+Pet, "The red house has a cat" for Color+Pet).
@@ -144,10 +193,10 @@ const clue = renderClue(sameHouse("Red", "Cat"), grid);
 | `next_to`         | Two values are at adjacent positions         |
 | `not_next_to`     | Two values are not adjacent                  |
 | `left_of`         | First value is directly left of second       |
-| `between`         | Middle value is somewhere between two outers  |
-| `not_between`     | Middle value is not between two outers        |
-| `before`          | First value is somewhere left of second       |
-| `exact_distance`  | Two values are exactly N positions apart      |
+| `between`         | Middle value is somewhere between two outers |
+| `not_between`     | Middle value is not between two outers       |
+| `before`          | First value is somewhere left of second      |
+| `exact_distance`  | Two values are exactly N positions apart     |
 | `at_position`     | Value is at a specific position (0-indexed)  |
 | `not_at_position` | Value is not at a specific position          |
 

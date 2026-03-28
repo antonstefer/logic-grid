@@ -58,6 +58,49 @@ export interface Puzzle {
   difficulty: Difficulty;
 }
 
+/** The technique used in a deduction step. */
+export type DeductionTechnique =
+  | "direct"
+  | "elimination"
+  | "same_house"
+  | "not_same_house"
+  | "next_to"
+  | "not_next_to"
+  | "left_of"
+  | "before"
+  | "between"
+  | "not_between"
+  | "exact_distance"
+  | "naked_single"
+  | "hidden_single"
+  | "naked_pair"
+  | "naked_triple"
+  | "hidden_pair"
+  | "hidden_triple"
+  | "contradiction";
+
+/** A single logical deduction step. */
+export interface DeductionStep {
+  /** Which technique produced this deduction. */
+  technique: DeductionTechnique;
+  /** Indices into the constraints array (which clues were used). */
+  clueIndices: number[];
+  /** Positions eliminated in this step. */
+  eliminations: { value: string; position: number }[];
+  /** Values pinned to positions in this step. */
+  assignments: { value: string; position: number }[];
+  /** Human-readable explanation. */
+  explanation: string;
+}
+
+/** Result of step-by-step deduction. */
+export interface DeductionResult {
+  /** Ordered deduction steps. */
+  steps: DeductionStep[];
+  /** Whether the puzzle was fully solved by deduction alone. */
+  complete: boolean;
+}
+
 /** Options for {@link generate}. All fields are optional. */
 export interface GenerateOptions {
   /** Number of positions in the grid. Default: 4. */
