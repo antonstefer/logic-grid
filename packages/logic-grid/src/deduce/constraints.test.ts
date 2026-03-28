@@ -478,6 +478,33 @@ describe("deduce constraint types", () => {
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 2 });
   });
 
+  it("not_between arc-consistency: mirror case with outers swapped", () => {
+    // Red={3,4}, Blue={0,1}: Alice at 2 is always between (Blue left, Red right) → eliminated.
+    const grid5: Grid = {
+      size: 5,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow", "White"],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 0 },
+      { type: "not_at_position", value: "Red", position: 1 },
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_at_position", value: "Blue", position: 4 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid5);
+    const step = result.steps.find((s) => s.technique === "not_between");
+    expect(step).toBeDefined();
+    expect(step!.eliminations).toContainEqual({ value: "Alice", position: 2 });
+  });
+
   it("not_between eliminates middle positions when both outers are pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
