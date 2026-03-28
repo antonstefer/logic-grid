@@ -89,6 +89,13 @@ function livesVerb(value: string, grid: Grid): string {
   return nounOf(value, grid) === "house" ? "is" : "lives";
 }
 
+/** Label for positional clues: "the cat" instead of "the cat owner". */
+function positionalLabel(value: string, grid: Grid): string {
+  const noun = nounOf(value, grid);
+  if (noun === "owner") return `the ${value.toLowerCase()}`;
+  return label(value, grid);
+}
+
 // --- Same-house rendering ---
 
 /** Subject priority: person > house > everything else. */
@@ -158,14 +165,14 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "not_same_house":
       return renderSameHouse(constraint, grid, true);
     case "next_to": {
-      const la = label(constraint.a, grid);
-      const lb = label(constraint.b, grid);
+      const la = positionalLabel(constraint.a, grid);
+      const lb = positionalLabel(constraint.b, grid);
       const v = livesVerb(constraint.a, grid);
       return `${capitalize(la)} ${v} next to ${lb}.`;
     }
     case "not_next_to": {
-      const la = label(constraint.a, grid);
-      const lb = label(constraint.b, grid);
+      const la = positionalLabel(constraint.a, grid);
+      const lb = positionalLabel(constraint.b, grid);
       const neg =
         nounOf(constraint.a, grid) === "house" ? "is not" : "does not live";
       return `${capitalize(la)} ${neg} next to ${lb}.`;
@@ -173,22 +180,22 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "left_of": {
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
         const v = livesVerb(constraint.a, grid);
-        return `${capitalize(label(constraint.a, grid))} ${v} directly left of ${label(constraint.b, grid)}.`;
+        return `${capitalize(positionalLabel(constraint.a, grid))} ${v} directly left of ${positionalLabel(constraint.b, grid)}.`;
       }
       const v = livesVerb(constraint.b, grid);
-      return `${capitalize(label(constraint.b, grid))} ${v} directly right of ${label(constraint.a, grid)}.`;
+      return `${capitalize(positionalLabel(constraint.b, grid))} ${v} directly right of ${positionalLabel(constraint.a, grid)}.`;
     }
     case "between": {
-      const lm = label(constraint.middle, grid);
-      const lo1 = label(constraint.outer1, grid);
-      const lo2 = label(constraint.outer2, grid);
+      const lm = positionalLabel(constraint.middle, grid);
+      const lo1 = positionalLabel(constraint.outer1, grid);
+      const lo2 = positionalLabel(constraint.outer2, grid);
       const v = livesVerb(constraint.middle, grid);
       return `${capitalize(lm)} ${v} somewhere between ${lo1} and ${lo2}.`;
     }
     case "not_between": {
-      const lm = label(constraint.middle, grid);
-      const lo1 = label(constraint.outer1, grid);
-      const lo2 = label(constraint.outer2, grid);
+      const lm = positionalLabel(constraint.middle, grid);
+      const lo1 = positionalLabel(constraint.outer1, grid);
+      const lo2 = positionalLabel(constraint.outer2, grid);
       const neg =
         nounOf(constraint.middle, grid) === "house"
           ? "is not"
@@ -198,14 +205,14 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "before": {
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
         const v = livesVerb(constraint.a, grid);
-        return `${capitalize(label(constraint.a, grid))} ${v} somewhere left of ${label(constraint.b, grid)}.`;
+        return `${capitalize(positionalLabel(constraint.a, grid))} ${v} somewhere left of ${positionalLabel(constraint.b, grid)}.`;
       }
       const v = livesVerb(constraint.b, grid);
-      return `${capitalize(label(constraint.b, grid))} ${v} somewhere right of ${label(constraint.a, grid)}.`;
+      return `${capitalize(positionalLabel(constraint.b, grid))} ${v} somewhere right of ${positionalLabel(constraint.a, grid)}.`;
     }
     case "exact_distance": {
-      const la = label(constraint.a, grid);
-      const lb = label(constraint.b, grid);
+      const la = positionalLabel(constraint.a, grid);
+      const lb = positionalLabel(constraint.b, grid);
       const v = livesVerb(constraint.a, grid);
       const dist =
         CARDINALS[constraint.distance] ?? String(constraint.distance);
@@ -216,13 +223,13 @@ function renderText(constraint: Constraint, grid: Grid): string {
       if (nounOf(constraint.value, grid) === "house") {
         return `${capitalize(ordinalHouse(constraint.position))} is ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} lives in ${ordinalHouse(constraint.position)}.`;
+      return `${capitalize(positionalLabel(constraint.value, grid))} lives in ${ordinalHouse(constraint.position)}.`;
     }
     case "not_at_position": {
       if (nounOf(constraint.value, grid) === "house") {
         return `${capitalize(ordinalHouse(constraint.position))} is not ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} does not live in ${ordinalHouse(constraint.position)}.`;
+      return `${capitalize(positionalLabel(constraint.value, grid))} does not live in ${ordinalHouse(constraint.position)}.`;
     }
   }
 }

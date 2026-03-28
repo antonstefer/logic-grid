@@ -94,14 +94,12 @@ describe("renderClue", () => {
 
   it("next_to", () => {
     const clue = renderClue({ type: "next_to", a: "Blue", b: "Cat" }, grid);
-    expect(clue.text).toBe("The blue house is next to the cat owner.");
+    expect(clue.text).toBe("The blue house is next to the cat.");
   });
 
   it("not_next_to", () => {
     const clue = renderClue({ type: "not_next_to", a: "Tea", b: "Dog" }, grid);
-    expect(clue.text).toBe(
-      "The tea drinker does not live next to the dog owner.",
-    );
+    expect(clue.text).toBe("The tea drinker does not live next to the dog.");
   });
 
   it("left_of renders as left or right", () => {
@@ -119,7 +117,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The cat owner lives somewhere between the red house and the blue house.",
+      "The cat lives somewhere between the red house and the blue house.",
     );
   });
 
@@ -150,7 +148,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The cat owner does not live somewhere between the red house and the blue house.",
+      "The cat does not live somewhere between the red house and the blue house.",
     );
   });
 
@@ -164,9 +162,7 @@ describe("renderClue", () => {
       { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
       grid,
     );
-    expect(clue.text).toBe(
-      "Alice lives exactly two houses from the cat owner.",
-    );
+    expect(clue.text).toBe("Alice lives exactly two houses from the cat.");
   });
 
   it("exact_distance singular", () => {
@@ -174,7 +170,7 @@ describe("renderClue", () => {
       { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
       grid,
     );
-    expect(clue.text).toBe("Alice lives exactly one house from the cat owner.");
+    expect(clue.text).toBe("Alice lives exactly one house from the cat.");
   });
 
   it("preserves constraint in returned clue", () => {
