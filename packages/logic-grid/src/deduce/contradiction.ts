@@ -1,5 +1,5 @@
 import type { Constraint, DeductionStep } from "../types";
-import { type DeduceState, step, ordinal, cloneState } from "./state";
+import { type DeduceState, first, step, ordinal, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
 /**
@@ -26,8 +26,7 @@ export function tryContradiction(
           // Contradiction found — eliminate this position
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
-          const assigns =
-            ps.size === 1 ? [{ value, position: [...ps][0] }] : [];
+          const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
           const assignSuffix =
             assigns.length > 0
               ? ` So ${value} must be in the ${ordinal(assigns[0].position)} house.`

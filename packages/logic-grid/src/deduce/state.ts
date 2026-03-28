@@ -98,7 +98,7 @@ export function getPossible(state: DeduceState, value: string): Set<number> {
 
 export function getAssigned(state: DeduceState, value: string): number | null {
   const ps = getPossible(state, value);
-  return ps.size === 1 ? [...ps][0] : null;
+  return ps.size === 1 ? first(ps) : null;
 }
 
 export function isSolved(state: DeduceState): boolean {
@@ -132,6 +132,11 @@ export function step(
   return { technique, clueIndices, eliminations, assignments, explanation };
 }
 
+/** Extract the single element from a size-1 set without allocating an array. */
+export function first(set: Set<number>): number {
+  return set.values().next().value!;
+}
+
 // --- Helpers ---
 
 export function dedup(
@@ -156,7 +161,7 @@ export function collectAssigns(
     if (checked.has(e.value)) continue;
     checked.add(e.value);
     const ps = getPossible(state, e.value);
-    if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
+    if (ps.size === 1) assigns.push({ value: e.value, position: first(ps) });
   }
   return assigns;
 }
