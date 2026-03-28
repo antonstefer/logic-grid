@@ -950,12 +950,188 @@ function cloneState(state: DeduceState): DeduceState {
   };
 }
 
-/** Run all basic constraint propagation + singles to fixpoint. Returns false on contradiction. */
+// --- Silent propagation helpers (used by propagateToFixpoint) ---
+
+function silentNakedSingles(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    for (let vi = 0; vi < state.grid.categories[ci].values.length; vi++) {
+      if (state.possible[ci][vi].size !== 1) continue;
+      const pos = [...state.possible[ci][vi]][0];
+      for (let ovi = 0; ovi < state.grid.categories[ci].values.length; ovi++) {
+        if (ovi !== vi && state.possible[ci][ovi].has(pos)) {
+          state.possible[ci][ovi].delete(pos);
+          changed = true;
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+function silentHiddenSingles(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    for (let p = 0; p < state.n; p++) {
+      let count = 0;
+      let lastVi = -1;
+      for (let vi = 0; vi < state.grid.categories[ci].values.length; vi++) {
+        if (state.possible[ci][vi].has(p)) {
+          count++;
+          lastVi = vi;
+          if (count > 1) break;
+        }
+      }
+      if (count === 1 && state.possible[ci][lastVi].size > 1) {
+        state.possible[ci][lastVi].clear();
+        state.possible[ci][lastVi].add(p);
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+function silentNakedPairs(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    const pairs: [number, Set<number>][] = [];
+    for (let vi = 0; vi < cat.values.length; vi++) {
+      if (state.possible[ci][vi].size === 2)
+        pairs.push([vi, state.possible[ci][vi]]);
+    }
+    for (let i = 0; i < pairs.length; i++) {
+      for (let j = i + 1; j < pairs.length; j++) {
+        const [vi1, ps1] = pairs[i];
+        const [vi2, ps2] = pairs[j];
+        let match = ps1.size === ps2.size;
+        if (match)
+          for (const p of ps1)
+            if (!ps2.has(p)) {
+              match = false;
+              break;
+            }
+        if (!match) continue;
+        for (let ovi = 0; ovi < cat.values.length; ovi++) {
+          if (ovi === vi1 || ovi === vi2) continue;
+          for (const p of ps1) {
+            if (state.possible[ci][ovi].has(p)) {
+              state.possible[ci][ovi].delete(p);
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+function silentNakedTriples(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    const cands: [number, Set<number>][] = [];
+    for (let vi = 0; vi < cat.values.length; vi++) {
+      const sz = state.possible[ci][vi].size;
+      if (sz >= 2 && sz <= 3) cands.push([vi, state.possible[ci][vi]]);
+    }
+    for (let i = 0; i < cands.length; i++) {
+      for (let j = i + 1; j < cands.length; j++) {
+        for (let k = j + 1; k < cands.length; k++) {
+          const [vi1, ps1] = cands[i];
+          const [vi2, ps2] = cands[j];
+          const [vi3, ps3] = cands[k];
+          const union = new Set([...ps1, ...ps2, ...ps3]);
+          if (union.size !== 3) continue;
+          for (let ovi = 0; ovi < cat.values.length; ovi++) {
+            if (ovi === vi1 || ovi === vi2 || ovi === vi3) continue;
+            for (const p of union) {
+              if (state.possible[ci][ovi].has(p)) {
+                state.possible[ci][ovi].delete(p);
+                changed = true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+function silentHiddenPairs(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    for (let p1 = 0; p1 < state.n; p1++) {
+      for (let p2 = p1 + 1; p2 < state.n; p2++) {
+        const cands: number[] = [];
+        for (let vi = 0; vi < cat.values.length; vi++) {
+          if (state.possible[ci][vi].has(p1) || state.possible[ci][vi].has(p2))
+            cands.push(vi);
+        }
+        if (cands.length !== 2) continue;
+        const [vi1, vi2] = cands;
+        for (const p of [...state.possible[ci][vi1]]) {
+          if (p !== p1 && p !== p2) {
+            state.possible[ci][vi1].delete(p);
+            changed = true;
+          }
+        }
+        for (const p of [...state.possible[ci][vi2]]) {
+          if (p !== p1 && p !== p2) {
+            state.possible[ci][vi2].delete(p);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+function silentSameHouseChains(
+  state: DeduceState,
+  shLinks: Map<string, string[]>,
+): boolean {
+  let changed = false;
+  for (const [middle, neighbors] of shLinks) {
+    const pm = getPossible(state, middle);
+    for (let i = 0; i < neighbors.length; i++) {
+      const pa = getPossible(state, neighbors[i]);
+      for (const p of [...pa]) {
+        if (!pm.has(p)) {
+          pa.delete(p);
+          changed = true;
+        }
+      }
+      for (let j = i + 1; j < neighbors.length; j++) {
+        const pb = getPossible(state, neighbors[j]);
+        for (const p of [...pa]) {
+          if (!pb.has(p)) {
+            pa.delete(p);
+            changed = true;
+          }
+        }
+        for (const p of [...pb]) {
+          if (!pa.has(p)) {
+            pb.delete(p);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+/** Run all constraint propagation and structural deductions to fixpoint. Returns false on contradiction. */
 function propagateToFixpoint(
   state: DeduceState,
   constraints: Constraint[],
 ): boolean {
-  // Build same-house links once (constraints don't change)
   const shLinks = new Map<string, string[]>();
   for (const c of constraints) {
     if (c.type !== "same_house") continue;
@@ -967,187 +1143,21 @@ function propagateToFixpoint(
 
   let changed = true;
   while (changed) {
+    for (const cat of state.possible)
+      for (const ps of cat) if (ps.size === 0) return false;
     changed = false;
-
-    // Check for contradictions
-    for (const cat of state.possible) {
-      for (const ps of cat) {
-        if (ps.size === 0) return false;
-      }
-    }
-
-    // Apply all constraints
-    for (let ci = 0; ci < constraints.length; ci++) {
+    for (let ci = 0; ci < constraints.length; ci++)
       if (applyConstraintSilently(state, constraints[ci])) changed = true;
-    }
-
-    // Naked singles
-    for (let ci = 0; ci < state.grid.categories.length; ci++) {
-      for (let vi = 0; vi < state.grid.categories[ci].values.length; vi++) {
-        if (state.possible[ci][vi].size !== 1) continue;
-        const pos = [...state.possible[ci][vi]][0];
-        for (
-          let ovi = 0;
-          ovi < state.grid.categories[ci].values.length;
-          ovi++
-        ) {
-          if (ovi !== vi && state.possible[ci][ovi].has(pos)) {
-            state.possible[ci][ovi].delete(pos);
-            changed = true;
-          }
-        }
-      }
-    }
-
-    // Hidden singles
-    for (let ci = 0; ci < state.grid.categories.length; ci++) {
-      for (let p = 0; p < state.n; p++) {
-        let count = 0;
-        let lastVi = -1;
-        for (let vi = 0; vi < state.grid.categories[ci].values.length; vi++) {
-          if (state.possible[ci][vi].has(p)) {
-            count++;
-            lastVi = vi;
-            if (count > 1) break;
-          }
-        }
-        if (count === 1 && state.possible[ci][lastVi].size > 1) {
-          state.possible[ci][lastVi].clear();
-          state.possible[ci][lastVi].add(p);
-          changed = true;
-        }
-      }
-    }
-
-    // Naked pairs
-    for (let ci = 0; ci < state.grid.categories.length; ci++) {
-      const cat = state.grid.categories[ci];
-      const pairs: [number, Set<number>][] = [];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        if (state.possible[ci][vi].size === 2)
-          pairs.push([vi, state.possible[ci][vi]]);
-      }
-      for (let i = 0; i < pairs.length; i++) {
-        for (let j = i + 1; j < pairs.length; j++) {
-          const [vi1, ps1] = pairs[i];
-          const [vi2, ps2] = pairs[j];
-          let match = ps1.size === ps2.size;
-          if (match)
-            for (const p of ps1)
-              if (!ps2.has(p)) {
-                match = false;
-                break;
-              }
-          if (!match) continue;
-          for (let ovi = 0; ovi < cat.values.length; ovi++) {
-            if (ovi === vi1 || ovi === vi2) continue;
-            for (const p of ps1) {
-              if (state.possible[ci][ovi].has(p)) {
-                state.possible[ci][ovi].delete(p);
-                changed = true;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Naked triples
-    for (let ci = 0; ci < state.grid.categories.length; ci++) {
-      const cat = state.grid.categories[ci];
-      const cands: [number, Set<number>][] = [];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const sz = state.possible[ci][vi].size;
-        if (sz >= 2 && sz <= 3) cands.push([vi, state.possible[ci][vi]]);
-      }
-      for (let i = 0; i < cands.length; i++) {
-        for (let j = i + 1; j < cands.length; j++) {
-          for (let k = j + 1; k < cands.length; k++) {
-            const [vi1, ps1] = cands[i];
-            const [vi2, ps2] = cands[j];
-            const [vi3, ps3] = cands[k];
-            const union = new Set([...ps1, ...ps2, ...ps3]);
-            if (union.size !== 3) continue;
-            for (let ovi = 0; ovi < cat.values.length; ovi++) {
-              if (ovi === vi1 || ovi === vi2 || ovi === vi3) continue;
-              for (const p of union) {
-                if (state.possible[ci][ovi].has(p)) {
-                  state.possible[ci][ovi].delete(p);
-                  changed = true;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Hidden pairs: exactly 2 values can go to {p1,p2} → restrict them to those positions
-    for (let ci = 0; ci < state.grid.categories.length; ci++) {
-      const cat = state.grid.categories[ci];
-      for (let p1 = 0; p1 < state.n; p1++) {
-        for (let p2 = p1 + 1; p2 < state.n; p2++) {
-          const cands: number[] = [];
-          for (let vi = 0; vi < cat.values.length; vi++) {
-            const ps = state.possible[ci][vi];
-            if (ps.has(p1) || ps.has(p2)) cands.push(vi);
-          }
-          if (cands.length !== 2) continue;
-          const [vi1, vi2] = cands;
-          for (const p of [...state.possible[ci][vi1]]) {
-            if (p !== p1 && p !== p2) {
-              state.possible[ci][vi1].delete(p);
-              changed = true;
-            }
-          }
-          for (const p of [...state.possible[ci][vi2]]) {
-            if (p !== p1 && p !== p2) {
-              state.possible[ci][vi2].delete(p);
-              changed = true;
-            }
-          }
-        }
-      }
-    }
-
-    // Same-house chain (transitivity: if A=M and B=M then A=B)
-    for (const [middle, neighbors] of shLinks) {
-      const pm = getPossible(state, middle);
-      for (let i = 0; i < neighbors.length; i++) {
-        const pa = getPossible(state, neighbors[i]);
-        // Intersect with middle
-        for (const p of [...pa]) {
-          if (!pm.has(p)) {
-            pa.delete(p);
-            changed = true;
-          }
-        }
-        for (let j = i + 1; j < neighbors.length; j++) {
-          const pb = getPossible(state, neighbors[j]);
-          // Intersect a and b (both share middle)
-          for (const p of [...pa]) {
-            if (!pb.has(p)) {
-              pa.delete(p);
-              changed = true;
-            }
-          }
-          for (const p of [...pb]) {
-            if (!pa.has(p)) {
-              pb.delete(p);
-              changed = true;
-            }
-          }
-        }
-      }
-    }
+    if (silentNakedSingles(state)) changed = true;
+    if (silentHiddenSingles(state)) changed = true;
+    if (silentNakedPairs(state)) changed = true;
+    if (silentNakedTriples(state)) changed = true;
+    if (silentHiddenPairs(state)) changed = true;
+    if (silentSameHouseChains(state, shLinks)) changed = true;
   }
 
-  // Final contradiction check
-  for (const cat of state.possible) {
-    for (const ps of cat) {
-      if (ps.size === 0) return false;
-    }
-  }
+  for (const cat of state.possible)
+    for (const ps of cat) if (ps.size === 0) return false;
   return true;
 }
 
