@@ -326,6 +326,7 @@ function tryBefore(
   const elims: { value: string; position: number }[] = [];
 
   // a must be left of b: eliminate positions for a where no valid b exists to the right
+  if (pa.size === 0 || pb.size === 0) return null;
   const maxB = Math.max(...pb);
   for (const p of pa) {
     if (p >= maxB) elims.push({ value: c.a, position: p });
@@ -392,43 +393,46 @@ function tryBetween(
   }
 
   // Arc-consistency: eliminate middle positions where no valid outer pair exists on both sides
-  const minO1 = Math.min(...po1);
-  const maxO1 = Math.max(...po1);
-  const minO2 = Math.min(...po2);
-  const maxO2 = Math.max(...po2);
-  for (const p of pm) {
-    const case1 = minO1 < p && maxO2 > p;
-    const case2 = minO2 < p && maxO1 > p;
-    if (!case1 && !case2) elims.push({ value: c.middle, position: p });
-  }
-  // Arc-consistency for outers
-  for (const p1 of po1) {
-    let valid = false;
-    for (const m of pm) {
-      if (p1 < m && maxO2 > m) {
-        valid = true;
-        break;
-      }
-      if (p1 > m && minO2 < m) {
-        valid = true;
-        break;
-      }
+  // Skip when any set is empty — Math.min/max on empty sets returns ±Infinity
+  if (po1.size > 0 && po2.size > 0 && pm.size > 0) {
+    const minO1 = Math.min(...po1);
+    const maxO1 = Math.max(...po1);
+    const minO2 = Math.min(...po2);
+    const maxO2 = Math.max(...po2);
+    for (const p of pm) {
+      const case1 = minO1 < p && maxO2 > p;
+      const case2 = minO2 < p && maxO1 > p;
+      if (!case1 && !case2) elims.push({ value: c.middle, position: p });
     }
-    if (!valid) elims.push({ value: c.outer1, position: p1 });
-  }
-  for (const p2 of po2) {
-    let valid = false;
-    for (const m of pm) {
-      if (p2 < m && maxO1 > m) {
-        valid = true;
-        break;
+    // Arc-consistency for outers
+    for (const p1 of po1) {
+      let valid = false;
+      for (const m of pm) {
+        if (p1 < m && maxO2 > m) {
+          valid = true;
+          break;
+        }
+        if (p1 > m && minO2 < m) {
+          valid = true;
+          break;
+        }
       }
-      if (p2 > m && minO1 < m) {
-        valid = true;
-        break;
-      }
+      if (!valid) elims.push({ value: c.outer1, position: p1 });
     }
-    if (!valid) elims.push({ value: c.outer2, position: p2 });
+    for (const p2 of po2) {
+      let valid = false;
+      for (const m of pm) {
+        if (p2 < m && maxO1 > m) {
+          valid = true;
+          break;
+        }
+        if (p2 > m && minO1 < m) {
+          valid = true;
+          break;
+        }
+      }
+      if (!valid) elims.push({ value: c.outer2, position: p2 });
+    }
   }
 
   const uniqueElims = dedup(elims);
@@ -484,6 +488,7 @@ function tryNotBetween(
     const pinnedPos = a1 ?? a2!;
     const otherPossible =
       a1 !== null ? getPossible(state, c.outer2) : getPossible(state, c.outer1);
+    if (otherPossible.size === 0) return null;
     const minOther = Math.min(...otherPossible);
     const maxOther = Math.max(...otherPossible);
     for (const m of pm) {
@@ -497,6 +502,7 @@ function tryNotBetween(
     // all possible outer pairs (all outer1 positions on one side, all outer2 on the other).
     const po1 = getPossible(state, c.outer1);
     const po2 = getPossible(state, c.outer2);
+    if (po1.size === 0 || po2.size === 0) return null;
     const maxO1 = Math.max(...po1);
     const minO1 = Math.min(...po1);
     const maxO2 = Math.max(...po2);
@@ -509,7 +515,7 @@ function tryNotBetween(
 
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) pm.delete(e.position);
+  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
 

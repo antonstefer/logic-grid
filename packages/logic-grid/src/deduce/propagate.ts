@@ -8,20 +8,25 @@ export function propagateToFixpoint(
   state: DeduceState,
   constraints: Constraint[],
 ): boolean {
+  const prevSilent = state.silent;
   state.silent = true;
-  let changed = true;
-  while (changed) {
-    for (const cat of state.possible)
-      for (const ps of cat) if (ps.size === 0) return false;
-    changed = false;
-    // Run all constraints and structural techniques per iteration (not breaking
-    // after the first hit) so a single pass extracts maximum information and we
-    // reach fixpoint in fewer iterations.
-    for (let ci = 0; ci < constraints.length; ci++)
-      if (tryConstraint(state, constraints[ci], ci) !== null) changed = true;
-    for (const tryTechnique of structuralTechniques)
-      if (tryTechnique(state) !== null) changed = true;
-  }
+  try {
+    let changed = true;
+    while (changed) {
+      for (const cat of state.possible)
+        for (const ps of cat) if (ps.size === 0) return false;
+      changed = false;
+      // Run all constraints and structural techniques per iteration (not breaking
+      // after the first hit) so a single pass extracts maximum information and we
+      // reach fixpoint in fewer iterations.
+      for (let ci = 0; ci < constraints.length; ci++)
+        if (tryConstraint(state, constraints[ci], ci) !== null) changed = true;
+      for (const tryTechnique of structuralTechniques)
+        if (tryTechnique(state) !== null) changed = true;
+    }
 
-  return true;
+    return true;
+  } finally {
+    state.silent = prevSilent;
+  }
 }
