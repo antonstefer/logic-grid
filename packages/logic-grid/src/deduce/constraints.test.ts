@@ -119,6 +119,20 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Red", position: 0 });
   });
 
+  it("next_to arc-consistency: eliminates positions with no valid neighbour when neither is pinned", () => {
+    // Red restricted to {1,3}. Alice at 1 would need Red at 0 or 2 — neither in {1,3}.
+    // Alice at 3 would need Red at 2 or 4 — neither in {1,3}.
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 0 },
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "next_to", a: "Red", b: "Alice" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Alice", position: 1 });
+    expect(allElims).toContainEqual({ value: "Alice", position: 3 });
+  });
+
   it("before eliminates positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 2 },
@@ -129,6 +143,35 @@ describe("deduce constraint types", () => {
     expect(step).toBeDefined();
     // Alice must be at position 3 (only position after 2)
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 3 });
+  });
+
+  it("before arc-consistency: constrains both sides when neither is pinned", () => {
+    // Blue restricted to {0,1,2}. before(Red, Blue): Red can't be at 2 or 3 (≥ maxBlue=2).
+    // After Red becomes {0,1}, Blue can't be at 0 (≤ minRed=0).
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "before", a: "Red", b: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 2 });
+    expect(allElims).toContainEqual({ value: "Red", position: 3 });
+    expect(allElims).toContainEqual({ value: "Blue", position: 0 });
+  });
+
+  it("exact_distance arc-consistency: eliminates positions with no valid partner when neither is pinned", () => {
+    // Blue restricted to {0,1}. Red at distance 2 from Blue:
+    // Red at 0 needs Blue at 2 (missing) or -2 (invalid) → eliminated.
+    // Red at 1 needs Blue at 3 (missing) or -1 (invalid) → eliminated.
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "exact_distance", a: "Red", b: "Blue", distance: 2 },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 0 });
+    expect(allElims).toContainEqual({ value: "Red", position: 1 });
   });
 
   it("exact_distance constrains positions", () => {
