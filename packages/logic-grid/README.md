@@ -171,8 +171,6 @@ Techniques:
 | `naked_triple`         | Three values share three positions — exclude others                      |
 | `hidden_pair`          | Two positions are exclusively reachable by two values                    |
 | `hidden_triple`        | Three positions are exclusively reachable by three values                |
-| `same_house_chain`     | Transitivity: if A=M and B=M then A and B are co-located                 |
-| `not_same_house_chain` | Transitivity: if A=M (same house) and A≠C (not same house), then M≠C too |
 | `contradiction`        | Placing a value at a position leads to an impossible state               |
 
 ### `hint(constraints, grid, known?)`

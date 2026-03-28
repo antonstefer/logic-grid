@@ -3,6 +3,18 @@ import { deduce, hint } from ".";
 import { generate } from "../generator";
 import type { Grid, Constraint } from "../types";
 
+describe("error handling", () => {
+  it("throws when a constraint references an unknown value", () => {
+    const g: Grid = {
+      size: 3,
+      categories: [{ name: "Color", values: ["Red", "Blue", "Green"] }],
+    };
+    expect(() =>
+      deduce([{ type: "same_house", a: "Red", b: "Purple" }], g),
+    ).toThrow("Unknown value: Purple");
+  });
+});
+
 // Same 3x3 puzzle from solver.test.ts — known solvable by deduction
 const grid3x3: Grid = {
   size: 3,

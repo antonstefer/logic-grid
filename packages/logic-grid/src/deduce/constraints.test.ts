@@ -70,7 +70,7 @@ describe("deduce constraint types", () => {
     );
   });
 
-  it("not_next_to eliminates adjacent positions when one is pinned", () => {
+  it("not_next_to eliminates adjacent positions when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
       { type: "not_next_to", a: "Red", b: "Alice" },
@@ -80,6 +80,18 @@ describe("deduce constraint types", () => {
     expect(step).toBeDefined();
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 0 });
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 2 });
+  });
+
+  it("not_next_to eliminates adjacent positions when b is pinned", () => {
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 1 },
+      { type: "not_next_to", a: "Red", b: "Alice" },
+    ];
+    const result = deduce(constraints, grid);
+    const step = result.steps.find((s) => s.technique === "not_next_to");
+    expect(step).toBeDefined();
+    expect(step!.eliminations).toContainEqual({ value: "Red", position: 0 });
+    expect(step!.eliminations).toContainEqual({ value: "Red", position: 2 });
   });
 
   it("not_next_to arc-consistency: eliminates position when every other-value position is adjacent", () => {
@@ -252,6 +264,32 @@ describe("deduce constraint types", () => {
     expect(step).toBeDefined();
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 1 });
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 2 });
+  });
+
+  it("not_between one outer pinned (left): middle always right of pinned and left of other outer", () => {
+    // outer1=Red at 0, Blue restricted to {2,3} (min=2).
+    // Alice at 1: Red(0) < 1 AND min(Blue)=2 > 1 → always between → eliminated.
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Red", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Alice", position: 1 });
+  });
+
+  it("not_between one outer pinned (right): middle always left of pinned and right of other outer", () => {
+    // outer2=Blue at 3, Red restricted to {0,1} (max=1).
+    // Alice at 2: Blue(3) > 2 AND max(Red)=1 < 2 → always between → eliminated.
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Blue", position: 3 },
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Alice", position: 2 });
   });
 
   it("not_between with one outer pinned: eliminates middle positions always between them", () => {

@@ -2,12 +2,10 @@ import type { Constraint, DeductionStep } from "../types";
 import {
   type DeduceState,
   getPossible,
-  getAssigned,
   step,
   dedup,
   collectAssigns,
   ordinal,
-  describeResult,
   cloneState,
 } from "./state";
 import { propagateToFixpoint } from "./propagate";
@@ -74,58 +72,12 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
   return null;
 }
 
-/** Same-house transitivity: if same_house(A,B) and same_house(B,C), intersect A and C. */
-export function trySameHouseChain(
-  state: DeduceState,
-  constraints: Constraint[],
-): DeductionStep | null {
-  // Build a map of same-house links: value → set of linked values with clue indices
-  const links = new Map<string, { value: string; ci: number }[]>();
-  for (let ci = 0; ci < constraints.length; ci++) {
-    const c = constraints[ci];
-    if (c.type !== "same_house") continue;
-    if (!links.has(c.a)) links.set(c.a, []);
-    if (!links.has(c.b)) links.set(c.b, []);
-    links.get(c.a)!.push({ value: c.b, ci });
-    links.get(c.b)!.push({ value: c.a, ci });
-  }
-
-  // For each pair of values linked through a common middle, intersect positions
-  for (const [middle, neighbors] of links) {
-    for (let i = 0; i < neighbors.length; i++) {
-      for (let j = i + 1; j < neighbors.length; j++) {
-        const a = neighbors[i].value;
-        const b = neighbors[j].value;
-        const pa = getPossible(state, a);
-        const pb = getPossible(state, b);
-
-        const elims: { value: string; position: number }[] = [];
-        for (const p of pa) {
-          if (!pb.has(p)) elims.push({ value: a, position: p });
-        }
-        for (const p of pb) {
-          if (!pa.has(p)) elims.push({ value: b, position: p });
-        }
-
-        const uniqueElims = dedup(elims, state);
-        if (uniqueElims.length === 0) continue;
-
-        for (const e of uniqueElims)
-          getPossible(state, e.value).delete(e.position);
-        const assigns = collectAssigns(state, uniqueElims);
-
-        return step(
-          "same_house_chain",
-          [neighbors[i].ci, neighbors[j].ci],
-          uniqueElims,
-          assigns,
-          `${a} and ${b} must be in the same house (both share a house with ${middle}). ${describeResult(assigns, uniqueElims)}.`,
-        );
-      }
-    }
-  }
-  return null;
-}
+// same_house transitivity (A→M→B) and not_same_house chains are handled by the
+// iterative constraint loop. same_house(M,A) and same_house(M,B) are applied in
+// alternating passes until fixpoint, so A, M, and B reach the same possible set
+// before any structural technique gets to run. A dedicated chain step-function
+// would never find anything new to do and so is not needed here.
+// The propagate.ts silent versions are still used by tryContradiction.
 
 export function tryNakedPairs(state: DeduceState): DeductionStep | null {
   for (let ci = 0; ci < state.grid.categories.length; ci++) {
@@ -323,104 +275,6 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} houses, so they must be restricted to those positions.`,
           );
         }
-      }
-    }
-  }
-  return null;
-}
-
-/** Transitivity: if same_house(A,B) and not_same_house(B,C), then A and C can't share a position. */
-export function tryNotSameHouseChain(
-  state: DeduceState,
-  constraints: Constraint[],
-): DeductionStep | null {
-  // Build same_house and not_same_house adjacency with clue indices
-  const shLinks = new Map<string, { value: string; ci: number }[]>();
-  const nshLinks = new Map<string, { value: string; ci: number }[]>();
-  for (let ci = 0; ci < constraints.length; ci++) {
-    const c = constraints[ci];
-    if (c.type === "same_house") {
-      if (!shLinks.has(c.a)) shLinks.set(c.a, []);
-      if (!shLinks.has(c.b)) shLinks.set(c.b, []);
-      shLinks.get(c.a)!.push({ value: c.b, ci });
-      shLinks.get(c.b)!.push({ value: c.a, ci });
-    } else if (c.type === "not_same_house") {
-      if (!nshLinks.has(c.a)) nshLinks.set(c.a, []);
-      if (!nshLinks.has(c.b)) nshLinks.set(c.b, []);
-      nshLinks.get(c.a)!.push({ value: c.b, ci });
-      nshLinks.get(c.b)!.push({ value: c.a, ci });
-    }
-  }
-  if (shLinks.size === 0 || nshLinks.size === 0) return null;
-
-  // Find connected components of same_house graph
-  const visited = new Set<string>();
-  for (const start of shLinks.keys()) {
-    if (visited.has(start)) continue;
-
-    const component: string[] = [];
-    const shCis = new Set<number>();
-    const queue = [start];
-    const seen = new Set([start]);
-    while (queue.length > 0) {
-      const v = queue.shift()!;
-      component.push(v);
-      for (const { value: nb, ci } of shLinks.get(v) ?? []) {
-        shCis.add(ci);
-        if (!seen.has(nb)) {
-          seen.add(nb);
-          queue.push(nb);
-        }
-      }
-    }
-    for (const v of component) visited.add(v);
-    if (component.length < 2) continue;
-
-    // For each member that has a not_same_house link, propagate to non-direct peers
-    for (const member of component) {
-      for (const { value: other, ci: nshCi } of nshLinks.get(member) ?? []) {
-        if (seen.has(other)) continue; // other is in the same component — contradiction, skip
-
-        // Peers = component members that aren't the direct not_same_house partner
-        const peers = component.filter((m) => m !== member);
-        const elims: { value: string; position: number }[] = [];
-
-        const posOther = getAssigned(state, other);
-        if (posOther !== null) {
-          for (const peer of peers) {
-            const pp = getPossible(state, peer);
-            if (pp.has(posOther))
-              elims.push({ value: peer, position: posOther });
-          }
-        }
-
-        for (const peer of peers) {
-          const posPeer = getAssigned(state, peer);
-          if (posPeer !== null) {
-            const po = getPossible(state, other);
-            if (po.has(posPeer))
-              elims.push({ value: other, position: posPeer });
-          }
-        }
-
-        const uniqueElims = dedup(elims, state);
-        if (uniqueElims.length === 0) continue;
-
-        for (const e of uniqueElims)
-          getPossible(state, e.value).delete(e.position);
-        const assigns = collectAssigns(state, uniqueElims);
-
-        const peerStr =
-          peers.length === 1
-            ? peers[0]
-            : `${peers.slice(0, -1).join(", ")} and ${peers[peers.length - 1]}`;
-        return step(
-          "not_same_house_chain",
-          [...shCis, nshCi],
-          uniqueElims,
-          assigns,
-          `${peerStr} must be in the same house as ${member}, and ${member} is not in the same house as ${other}. So ${peerStr} also can't share a position with ${other}. ${describeResult(assigns, uniqueElims)}.`,
-        );
       }
     }
   }
