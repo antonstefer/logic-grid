@@ -152,26 +152,28 @@ Each step includes:
 
 Techniques:
 
-| Technique | Description |
-|---|---|
-| `direct` | Value forced to a specific position by `at_position` |
-| `elimination` | Position ruled out by `not_at_position` |
-| `same_house` | Two values share possible positions — intersect them |
-| `not_same_house` | Pinned value excludes its position from the other |
-| `next_to` | Positions incompatible with adjacency are removed |
-| `not_next_to` | Pinned value excludes its neighbors from the other |
-| `left_of` | Value directly left of another — constrain both |
-| `before` | Value somewhere left of another — constrain range |
-| `between` | Middle must lie strictly between two outers |
-| `not_between` | Middle cannot lie between two pinned outers |
-| `exact_distance` | Two values must be exactly N positions apart |
-| `naked_single` | One value is the only candidate for a position in its category |
-| `hidden_single` | One position is the only candidate for a value in its category |
-| `naked_pair` | Two values share the same two positions — exclude others |
-| `naked_triple` | Three values share three positions — exclude others |
-| `hidden_pair` | Two positions are exclusively reachable by two values |
-| `same_house_chain` | Transitivity: if A=M and B=M then A and B are co-located |
-| `contradiction` | Placing a value at a position leads to an impossible state |
+| Technique              | Description                                                              |
+|------------------------|--------------------------------------------------------------------------|
+| `direct`               | Value forced to a specific position by `at_position`                     |
+| `elimination`          | Position ruled out by `not_at_position`                                  |
+| `same_house`           | Two values share possible positions — intersect them                     |
+| `not_same_house`       | Pinned value excludes its position from the other                        |
+| `next_to`              | Positions incompatible with adjacency are removed                        |
+| `not_next_to`          | Pinned value excludes its neighbors from the other                       |
+| `left_of`              | Value directly left of another — constrain both                          |
+| `before`               | Value somewhere left of another — constrain range                        |
+| `between`              | Middle must lie strictly between two outers                              |
+| `not_between`          | Middle cannot lie between two pinned outers                              |
+| `exact_distance`       | Two values must be exactly N positions apart                             |
+| `naked_single`         | One value is the only candidate for a position in its category           |
+| `hidden_single`        | One position is the only candidate for a value in its category           |
+| `naked_pair`           | Two values share the same two positions — exclude others                 |
+| `naked_triple`         | Three values share three positions — exclude others                      |
+| `hidden_pair`          | Two positions are exclusively reachable by two values                    |
+| `hidden_triple`        | Three positions are exclusively reachable by three values                |
+| `same_house_chain`     | Transitivity: if A=M and B=M then A and B are co-located                 |
+| `not_same_house_chain` | Transitivity: if A=M (same house) and A≠C (not same house), then M≠C too |
+| `contradiction`        | Placing a value at a position leads to an impossible state               |
 
 ### `hint(constraints, grid, known?)`
 
@@ -208,10 +210,10 @@ const clue = renderClue(sameHouse("Red", "Cat"), grid);
 | `next_to`         | Two values are at adjacent positions         |
 | `not_next_to`     | Two values are not adjacent                  |
 | `left_of`         | First value is directly left of second       |
-| `between`         | Middle value is somewhere between two outers  |
-| `not_between`     | Middle value is not between two outers        |
-| `before`          | First value is somewhere left of second       |
-| `exact_distance`  | Two values are exactly N positions apart      |
+| `between`         | Middle value is somewhere between two outers |
+| `not_between`     | Middle value is not between two outers       |
+| `before`          | First value is somewhere left of second      |
+| `exact_distance`  | Two values are exactly N positions apart     |
 | `at_position`     | Value is at a specific position (0-indexed)  |
 | `not_at_position` | Value is not at a specific position          |
 

@@ -2,6 +2,7 @@ import type { Constraint, DeductionStep } from "../types";
 import {
   type DeduceState,
   getPossible,
+  getAssigned,
   step,
   dedup,
   collectAssigns,
@@ -272,6 +273,153 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
           uniqueElims,
           assigns,
           `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${ordinal(p1)} and ${ordinal(p2)} houses, so they must be restricted to those positions.`,
+        );
+      }
+    }
+  }
+  return null;
+}
+
+export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    const n = state.n;
+
+    // For each triple of positions, find all values that can be placed there.
+    // If exactly 3 values can go to {p1, p2, p3}, restrict them to those positions.
+    for (let p1 = 0; p1 < n; p1++) {
+      for (let p2 = p1 + 1; p2 < n; p2++) {
+        for (let p3 = p2 + 1; p3 < n; p3++) {
+          const candidates: number[] = [];
+          for (let vi = 0; vi < cat.values.length; vi++) {
+            const ps = state.possible[ci][vi];
+            if (ps.has(p1) || ps.has(p2) || ps.has(p3)) candidates.push(vi);
+          }
+          if (candidates.length !== 3) continue;
+
+          const [vi1, vi2, vi3] = candidates;
+          const elims: { value: string; position: number }[] = [];
+          for (const p of state.possible[ci][vi1])
+            if (p !== p1 && p !== p2 && p !== p3)
+              elims.push({ value: cat.values[vi1], position: p });
+          for (const p of state.possible[ci][vi2])
+            if (p !== p1 && p !== p2 && p !== p3)
+              elims.push({ value: cat.values[vi2], position: p });
+          for (const p of state.possible[ci][vi3])
+            if (p !== p1 && p !== p2 && p !== p3)
+              elims.push({ value: cat.values[vi3], position: p });
+
+          const uniqueElims = dedup(elims, state);
+          if (uniqueElims.length === 0) continue;
+
+          for (const e of uniqueElims)
+            getPossible(state, e.value).delete(e.position);
+          const assigns = collectAssigns(state, uniqueElims);
+          return step(
+            "hidden_triple",
+            [],
+            uniqueElims,
+            assigns,
+            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} houses, so they must be restricted to those positions.`,
+          );
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** Transitivity: if same_house(A,B) and not_same_house(B,C), then A and C can't share a position. */
+export function tryNotSameHouseChain(
+  state: DeduceState,
+  constraints: Constraint[],
+): DeductionStep | null {
+  // Build same_house and not_same_house adjacency with clue indices
+  const shLinks = new Map<string, { value: string; ci: number }[]>();
+  const nshLinks = new Map<string, { value: string; ci: number }[]>();
+  for (let ci = 0; ci < constraints.length; ci++) {
+    const c = constraints[ci];
+    if (c.type === "same_house") {
+      if (!shLinks.has(c.a)) shLinks.set(c.a, []);
+      if (!shLinks.has(c.b)) shLinks.set(c.b, []);
+      shLinks.get(c.a)!.push({ value: c.b, ci });
+      shLinks.get(c.b)!.push({ value: c.a, ci });
+    } else if (c.type === "not_same_house") {
+      if (!nshLinks.has(c.a)) nshLinks.set(c.a, []);
+      if (!nshLinks.has(c.b)) nshLinks.set(c.b, []);
+      nshLinks.get(c.a)!.push({ value: c.b, ci });
+      nshLinks.get(c.b)!.push({ value: c.a, ci });
+    }
+  }
+  if (shLinks.size === 0 || nshLinks.size === 0) return null;
+
+  // Find connected components of same_house graph
+  const visited = new Set<string>();
+  for (const start of shLinks.keys()) {
+    if (visited.has(start)) continue;
+
+    const component: string[] = [];
+    const shCis = new Set<number>();
+    const queue = [start];
+    const seen = new Set([start]);
+    while (queue.length > 0) {
+      const v = queue.shift()!;
+      component.push(v);
+      for (const { value: nb, ci } of shLinks.get(v) ?? []) {
+        shCis.add(ci);
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          queue.push(nb);
+        }
+      }
+    }
+    for (const v of component) visited.add(v);
+    if (component.length < 2) continue;
+
+    // For each member that has a not_same_house link, propagate to non-direct peers
+    for (const member of component) {
+      for (const { value: other, ci: nshCi } of nshLinks.get(member) ?? []) {
+        if (seen.has(other)) continue; // other is in the same component — contradiction, skip
+
+        // Peers = component members that aren't the direct not_same_house partner
+        const peers = component.filter((m) => m !== member);
+        const elims: { value: string; position: number }[] = [];
+
+        const posOther = getAssigned(state, other);
+        if (posOther !== null) {
+          for (const peer of peers) {
+            const pp = getPossible(state, peer);
+            if (pp.has(posOther))
+              elims.push({ value: peer, position: posOther });
+          }
+        }
+
+        for (const peer of peers) {
+          const posPeer = getAssigned(state, peer);
+          if (posPeer !== null) {
+            const po = getPossible(state, other);
+            if (po.has(posPeer))
+              elims.push({ value: other, position: posPeer });
+          }
+        }
+
+        const uniqueElims = dedup(elims, state);
+        if (uniqueElims.length === 0) continue;
+
+        for (const e of uniqueElims)
+          getPossible(state, e.value).delete(e.position);
+        const assigns = collectAssigns(state, uniqueElims);
+
+        const peerStr =
+          peers.length === 1
+            ? peers[0]
+            : `${peers.slice(0, -1).join(", ")} and ${peers[peers.length - 1]}`;
+        return step(
+          "not_same_house_chain",
+          [...shCis, nshCi],
+          uniqueElims,
+          assigns,
+          `${peerStr} must be in the same house as ${member}, and ${member} is not in the same house as ${other}. So ${peerStr} also can't share a position with ${other}. ${describeResult(assigns, uniqueElims)}.`,
         );
       }
     }

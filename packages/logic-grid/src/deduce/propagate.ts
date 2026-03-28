@@ -426,18 +426,120 @@ function applyConstraintSilently(
   return changed;
 }
 
+function silentHiddenTriples(state: DeduceState): boolean {
+  let changed = false;
+  for (let ci = 0; ci < state.grid.categories.length; ci++) {
+    const cat = state.grid.categories[ci];
+    for (let p1 = 0; p1 < state.n; p1++) {
+      for (let p2 = p1 + 1; p2 < state.n; p2++) {
+        for (let p3 = p2 + 1; p3 < state.n; p3++) {
+          const cands: number[] = [];
+          for (let vi = 0; vi < cat.values.length; vi++) {
+            if (
+              state.possible[ci][vi].has(p1) ||
+              state.possible[ci][vi].has(p2) ||
+              state.possible[ci][vi].has(p3)
+            )
+              cands.push(vi);
+          }
+          if (cands.length !== 3) continue;
+          const [vi1, vi2, vi3] = cands;
+          for (const p of [...state.possible[ci][vi1]])
+            if (p !== p1 && p !== p2 && p !== p3) {
+              state.possible[ci][vi1].delete(p);
+              changed = true;
+            }
+          for (const p of [...state.possible[ci][vi2]])
+            if (p !== p1 && p !== p2 && p !== p3) {
+              state.possible[ci][vi2].delete(p);
+              changed = true;
+            }
+          for (const p of [...state.possible[ci][vi3]])
+            if (p !== p1 && p !== p2 && p !== p3) {
+              state.possible[ci][vi3].delete(p);
+              changed = true;
+            }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+function silentNotSameHouseChains(
+  state: DeduceState,
+  shLinks: Map<string, string[]>,
+  nshLinks: Map<string, string[]>,
+): boolean {
+  let changed = false;
+  const visited = new Set<string>();
+  for (const start of shLinks.keys()) {
+    if (visited.has(start)) continue;
+    const component: string[] = [];
+    const queue = [start];
+    const seen = new Set([start]);
+    while (queue.length > 0) {
+      const v = queue.shift()!;
+      component.push(v);
+      for (const nb of shLinks.get(v) ?? []) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          queue.push(nb);
+        }
+      }
+    }
+    for (const v of component) visited.add(v);
+    if (component.length < 2) continue;
+    for (const member of component) {
+      for (const other of nshLinks.get(member) ?? []) {
+        if (seen.has(other)) continue;
+        const posOther = getAssigned(state, other);
+        if (posOther !== null) {
+          for (const peer of component) {
+            if (peer === member) continue;
+            const pp = getPossible(state, peer);
+            if (pp.has(posOther)) {
+              pp.delete(posOther);
+              changed = true;
+            }
+          }
+        }
+        for (const peer of component) {
+          if (peer === member) continue;
+          const posPeer = getAssigned(state, peer);
+          if (posPeer !== null) {
+            const po = getPossible(state, other);
+            if (po.has(posPeer)) {
+              po.delete(posPeer);
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
 /** Run all constraint propagation and structural deductions to fixpoint. Returns false on contradiction. */
 export function propagateToFixpoint(
   state: DeduceState,
   constraints: Constraint[],
 ): boolean {
   const shLinks = new Map<string, string[]>();
+  const nshLinks = new Map<string, string[]>();
   for (const c of constraints) {
-    if (c.type !== "same_house") continue;
-    if (!shLinks.has(c.a)) shLinks.set(c.a, []);
-    if (!shLinks.has(c.b)) shLinks.set(c.b, []);
-    shLinks.get(c.a)!.push(c.b);
-    shLinks.get(c.b)!.push(c.a);
+    if (c.type === "same_house") {
+      if (!shLinks.has(c.a)) shLinks.set(c.a, []);
+      if (!shLinks.has(c.b)) shLinks.set(c.b, []);
+      shLinks.get(c.a)!.push(c.b);
+      shLinks.get(c.b)!.push(c.a);
+    } else if (c.type === "not_same_house") {
+      if (!nshLinks.has(c.a)) nshLinks.set(c.a, []);
+      if (!nshLinks.has(c.b)) nshLinks.set(c.b, []);
+      nshLinks.get(c.a)!.push(c.b);
+      nshLinks.get(c.b)!.push(c.a);
+    }
   }
 
   let changed = true;
@@ -452,7 +554,9 @@ export function propagateToFixpoint(
     if (silentNakedPairs(state)) changed = true;
     if (silentNakedTriples(state)) changed = true;
     if (silentHiddenPairs(state)) changed = true;
+    if (silentHiddenTriples(state)) changed = true;
     if (silentSameHouseChains(state, shLinks)) changed = true;
+    if (silentNotSameHouseChains(state, shLinks, nshLinks)) changed = true;
   }
 
   for (const cat of state.possible)

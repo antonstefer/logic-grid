@@ -76,7 +76,9 @@ export type DeductionTechnique =
   | "naked_pair"
   | "naked_triple"
   | "hidden_pair"
+  | "hidden_triple"
   | "same_house_chain"
+  | "not_same_house_chain"
   | "contradiction";
 
 /** A single logical deduction step. */

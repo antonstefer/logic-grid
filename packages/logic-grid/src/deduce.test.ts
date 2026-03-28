@@ -379,6 +379,84 @@ describe("deduce constraint types", () => {
     expect(allAssigns).toContainEqual({ value: "Blue", position: 0 });
   });
 
+  it("hidden_triple restricts the three values exclusively reachable at three positions", () => {
+    // 7-size grid: Red/Blue/Green each have an extra position outside {0,1,2},
+    // while Yellow/White/Black/Purple are excluded from {0,1,2}.
+    // Exactly 3 values (Red, Blue, Green) intersect {0,1,2} → hidden_triple fires,
+    // restricting them to {0,1,2} by eliminating their extra positions.
+    // Naked_triple doesn't fire first because none of the 7 values has size ≤ 3.
+    const grid7: Grid = {
+      size: 7,
+      categories: [
+        { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G"] },
+        {
+          name: "Color",
+          values: [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "White",
+            "Black",
+            "Purple",
+          ],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      // Red → {0,1,2,3}
+      { type: "not_at_position", value: "Red", position: 4 },
+      { type: "not_at_position", value: "Red", position: 5 },
+      { type: "not_at_position", value: "Red", position: 6 },
+      // Blue → {0,1,2,4}
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_at_position", value: "Blue", position: 5 },
+      { type: "not_at_position", value: "Blue", position: 6 },
+      // Green → {0,1,2,5}
+      { type: "not_at_position", value: "Green", position: 3 },
+      { type: "not_at_position", value: "Green", position: 4 },
+      { type: "not_at_position", value: "Green", position: 6 },
+      // Yellow, White, Black, Purple → {3,4,5,6}
+      { type: "not_at_position", value: "Yellow", position: 0 },
+      { type: "not_at_position", value: "Yellow", position: 1 },
+      { type: "not_at_position", value: "Yellow", position: 2 },
+      { type: "not_at_position", value: "White", position: 0 },
+      { type: "not_at_position", value: "White", position: 1 },
+      { type: "not_at_position", value: "White", position: 2 },
+      { type: "not_at_position", value: "Black", position: 0 },
+      { type: "not_at_position", value: "Black", position: 1 },
+      { type: "not_at_position", value: "Black", position: 2 },
+      { type: "not_at_position", value: "Purple", position: 0 },
+      { type: "not_at_position", value: "Purple", position: 1 },
+      { type: "not_at_position", value: "Purple", position: 2 },
+    ];
+    const result = deduce(constraints, grid7);
+    const step = result.steps.find((s) => s.technique === "hidden_triple");
+    expect(step).toBeDefined();
+    // Red (was {0,1,2,3}) loses position 3;
+    // Blue (was {0,1,2,4}) loses position 4;
+    // Green (was {0,1,2,5}) loses position 5.
+    expect(step!.eliminations).toContainEqual({ value: "Red", position: 3 });
+    expect(step!.eliminations).toContainEqual({ value: "Blue", position: 4 });
+    expect(step!.eliminations).toContainEqual({ value: "Green", position: 5 });
+  });
+
+  it("not_same_house_chain: peer of A shares A's exclusion from not_same_house(A,C)", () => {
+    // same_house(Red, Alice): Red and Alice are co-located.
+    // not_same_house(Red, Bob): Red and Bob are in different houses.
+    // at_position(Alice, 0): Alice (and therefore Red) is at position 0.
+    // Bob must not be at position 0 — derivable via same_house + not_same_house.
+    const constraints: Constraint[] = [
+      { type: "same_house", a: "Red", b: "Alice" },
+      { type: "not_same_house", a: "Red", b: "Bob" },
+      { type: "at_position", value: "Alice", position: 0 },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    // Bob must not be at position 0
+    expect(allElims).toContainEqual({ value: "Bob", position: 0 });
+  });
+
   it("contradiction: rules out positions that would lead to an impossible state", () => {
     // Use a hard seeded puzzle known to require contradiction to solve
     const puzzle = generate({
