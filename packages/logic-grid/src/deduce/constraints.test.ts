@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { deduce } from ".";
+import { tryConstraint } from "./constraints";
+import { createState, getPossible, ordinal } from "./state";
 import type { Grid, Constraint } from "../types";
 
 const grid: Grid = {
@@ -586,5 +588,66 @@ describe("deduce constraint types", () => {
     const allElims = result.steps.flatMap((s) => s.eliminations);
     expect(allElims).toContainEqual({ value: "Alice", position: 1 });
     expect(allElims).toContainEqual({ value: "Alice", position: 2 });
+  });
+});
+
+describe("empty-set guards", () => {
+  it("before returns null when a possible set is empty", () => {
+    const state = createState(grid);
+    getPossible(state, "Red").clear();
+    const result = tryConstraint(
+      state,
+      { type: "before", a: "Red", b: "Alice" },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("not_between one-pinned returns null when other outer is empty", () => {
+    const state = createState(grid);
+    // Pin outer1
+    const ps = getPossible(state, "Red");
+    ps.clear();
+    ps.add(0);
+    // Empty outer2
+    getPossible(state, "Blue").clear();
+    const result = tryConstraint(
+      state,
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("not_between neither-pinned returns null when an outer is empty", () => {
+    const state = createState(grid);
+    getPossible(state, "Red").clear();
+    const result = tryConstraint(
+      state,
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("between returns null when an outer set is empty", () => {
+    const state = createState(grid);
+    getPossible(state, "Red").clear();
+    const result = tryConstraint(
+      state,
+      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      0,
+    );
+    expect(result).toBeNull();
+    // No spurious eliminations from arc-consistency with -Infinity/Infinity
+    expect(getPossible(state, "Alice").size).toBe(4);
+    expect(getPossible(state, "Blue").size).toBe(4);
+  });
+});
+
+describe("ordinal", () => {
+  it("throws for out-of-range positions", () => {
+    expect(() => ordinal(8)).toThrow("out of supported range");
+    expect(() => ordinal(-1)).toThrow("out of supported range");
   });
 });
