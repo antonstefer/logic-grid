@@ -489,79 +489,18 @@ function silentHiddenTriples(state: DeduceState): boolean {
   return changed;
 }
 
-function silentNotSameHouseChains(
-  state: DeduceState,
-  shLinks: Map<string, string[]>,
-  nshLinks: Map<string, string[]>,
-): boolean {
-  let changed = false;
-  const visited = new Set<string>();
-  for (const start of shLinks.keys()) {
-    if (visited.has(start)) continue;
-    const component: string[] = [];
-    const queue = [start];
-    const seen = new Set([start]);
-    while (queue.length > 0) {
-      const v = queue.shift()!;
-      component.push(v);
-      for (const nb of shLinks.get(v) ?? []) {
-        if (!seen.has(nb)) {
-          seen.add(nb);
-          queue.push(nb);
-        }
-      }
-    }
-    for (const v of component) visited.add(v);
-    if (component.length < 2) continue;
-    for (const member of component) {
-      for (const other of nshLinks.get(member) ?? []) {
-        if (seen.has(other)) continue;
-        const posOther = getAssigned(state, other);
-        if (posOther !== null) {
-          for (const peer of component) {
-            if (peer === member) continue;
-            const pp = getPossible(state, peer);
-            if (pp.has(posOther)) {
-              pp.delete(posOther);
-              changed = true;
-            }
-          }
-        }
-        for (const peer of component) {
-          if (peer === member) continue;
-          const posPeer = getAssigned(state, peer);
-          if (posPeer !== null) {
-            const po = getPossible(state, other);
-            if (po.has(posPeer)) {
-              po.delete(posPeer);
-              changed = true;
-            }
-          }
-        }
-      }
-    }
-  }
-  return changed;
-}
-
 /** Run all constraint propagation and structural deductions to fixpoint. Returns false on contradiction. */
 export function propagateToFixpoint(
   state: DeduceState,
   constraints: Constraint[],
 ): boolean {
   const shLinks = new Map<string, string[]>();
-  const nshLinks = new Map<string, string[]>();
   for (const c of constraints) {
     if (c.type === "same_house") {
       if (!shLinks.has(c.a)) shLinks.set(c.a, []);
       if (!shLinks.has(c.b)) shLinks.set(c.b, []);
       shLinks.get(c.a)!.push(c.b);
       shLinks.get(c.b)!.push(c.a);
-    } else if (c.type === "not_same_house") {
-      if (!nshLinks.has(c.a)) nshLinks.set(c.a, []);
-      if (!nshLinks.has(c.b)) nshLinks.set(c.b, []);
-      nshLinks.get(c.a)!.push(c.b);
-      nshLinks.get(c.b)!.push(c.a);
     }
   }
 
@@ -579,10 +518,7 @@ export function propagateToFixpoint(
     if (silentHiddenPairs(state)) changed = true;
     if (silentHiddenTriples(state)) changed = true;
     if (silentSameHouseChains(state, shLinks)) changed = true;
-    if (silentNotSameHouseChains(state, shLinks, nshLinks)) changed = true;
   }
 
-  for (const cat of state.possible)
-    for (const ps of cat) if (ps.size === 0) return false;
   return true;
 }

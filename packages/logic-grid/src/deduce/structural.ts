@@ -96,7 +96,6 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         const [vi1, ps1] = pairs[i];
         const [vi2, ps2] = pairs[j];
         // Same two positions?
-        if (ps1.size !== ps2.size) continue;
         let match = true;
         for (const p of ps1) {
           if (!ps2.has(p)) {
@@ -213,7 +212,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
             elims.push({ value: cat.values[vi2], position: p });
         }
 
-        const uniqueElims = dedup(elims, state);
+        const uniqueElims = dedup(elims);
         if (uniqueElims.length === 0) continue;
 
         for (const e of uniqueElims)
@@ -261,7 +260,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             if (p !== p1 && p !== p2 && p !== p3)
               elims.push({ value: cat.values[vi3], position: p });
 
-          const uniqueElims = dedup(elims, state);
+          const uniqueElims = dedup(elims);
           if (uniqueElims.length === 0) continue;
 
           for (const e of uniqueElims)
