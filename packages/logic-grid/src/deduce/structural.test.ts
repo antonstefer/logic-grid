@@ -187,7 +187,9 @@ describe("deduce structural techniques", () => {
     expect(step!.eliminations).toContainEqual({ value: "Green", position: 5 });
   });
 
-  it("same_house_chain: A linked to M linked to B forces A and B to share positions", () => {
+  it("same_house transitivity: A linked to M linked to B all reach same position", () => {
+    // same_house(Red, Alice) and same_house(Alice, Blue) handled by the iterative
+    // constraint loop — no dedicated chain step needed.
     const constraints: Constraint[] = [
       { type: "same_house", a: "Red", b: "Alice" },
       { type: "same_house", a: "Alice", b: "Blue" },
@@ -198,9 +200,9 @@ describe("deduce structural techniques", () => {
     expect(allAssigns).toContainEqual({ value: "Blue", position: 0 });
   });
 
-  it("not_same_house_chain: peer of A shares A's exclusion from not_same_house(A,C)", () => {
+  it("not_same_house with same_house peer: exclusion propagates via direct constraints", () => {
     // same_house(Red, Alice): co-located. not_same_house(Red, Bob): different houses.
-    // Alice pinned at 0 → Red at 0 → Bob not at 0.
+    // Alice pinned at 0 → Red at 0 (via same_house) → Bob not at 0 (via not_same_house).
     const constraints: Constraint[] = [
       { type: "same_house", a: "Red", b: "Alice" },
       { type: "not_same_house", a: "Red", b: "Bob" },
