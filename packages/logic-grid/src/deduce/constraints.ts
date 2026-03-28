@@ -450,8 +450,6 @@ function tryNotBetween(
 ): DeductionStep | null {
   const a1 = getAssigned(state, c.outer1);
   const a2 = getAssigned(state, c.outer2);
-  if (a1 === null && a2 === null) return null;
-
   const pm = getPossible(state, c.middle);
   const elims: { value: string; position: number }[] = [];
 
@@ -462,7 +460,7 @@ function tryNotBetween(
     for (const p of pm) {
       if (p > lo && p < hi) elims.push({ value: c.middle, position: p });
     }
-  } else {
+  } else if (a1 !== null || a2 !== null) {
     // One outer pinned: eliminate middle positions where every position of the
     // other outer would place the middle between them.
     const pinnedPos = a1 ?? a2!;
@@ -471,11 +469,22 @@ function tryNotBetween(
     const minOther = Math.min(...otherPossible);
     const maxOther = Math.max(...otherPossible);
     for (const m of pm) {
-      // pinned < m: middle is between pinned and other whenever other > m
       if (pinnedPos < m && minOther > m)
         elims.push({ value: c.middle, position: m });
-      // pinned > m: middle is between other and pinned whenever other < m
       if (pinnedPos > m && maxOther < m)
+        elims.push({ value: c.middle, position: m });
+    }
+  } else {
+    // Neither outer pinned: eliminate middle positions that are always between
+    // all possible outer pairs (all outer1 positions on one side, all outer2 on the other).
+    const po1 = getPossible(state, c.outer1);
+    const po2 = getPossible(state, c.outer2);
+    const maxO1 = Math.max(...po1);
+    const minO1 = Math.min(...po1);
+    const maxO2 = Math.max(...po2);
+    const minO2 = Math.min(...po2);
+    for (const m of pm) {
+      if ((maxO1 < m && minO2 > m) || (minO1 > m && maxO2 < m))
         elims.push({ value: c.middle, position: m });
     }
   }
@@ -491,7 +500,8 @@ function tryNotBetween(
   } else {
     const knownO1 = describeKnown(state, c.outer1);
     const knownO2 = describeKnown(state, c.outer2);
-    because = `${knownO1 || knownO2}, so `;
+    const ctx = knownO1 || knownO2;
+    because = ctx ? `${ctx}, so ` : "";
   }
   return step(
     "not_between",
