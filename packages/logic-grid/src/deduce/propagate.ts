@@ -1,23 +1,7 @@
 import type { Constraint } from "../types";
 import type { DeduceState } from "./state";
 import { tryConstraint } from "./constraints";
-import {
-  tryNakedSingles,
-  tryHiddenSingles,
-  tryNakedPairs,
-  tryNakedTriples,
-  tryHiddenPairs,
-  tryHiddenTriples,
-} from "./structural";
-
-const structuralTechniques = [
-  tryNakedSingles,
-  tryHiddenSingles,
-  tryNakedPairs,
-  tryNakedTriples,
-  tryHiddenPairs,
-  tryHiddenTriples,
-];
+import { structuralTechniques } from "./structural";
 
 /** Run all constraint propagation and structural deductions to fixpoint. Returns false on contradiction. */
 export function propagateToFixpoint(
