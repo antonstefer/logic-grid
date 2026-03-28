@@ -1,4 +1,4 @@
-import type { Constraint, DeductionStep } from "../types";
+import type { DeductionStep } from "../types";
 import {
   type DeduceState,
   getPossible,
@@ -6,9 +6,7 @@ import {
   dedup,
   collectAssigns,
   ordinal,
-  cloneState,
 } from "./state";
-import { propagateToFixpoint } from "./propagate";
 
 // --- Structural deductions ---
 
@@ -75,9 +73,7 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
 // same_house transitivity (A→M→B) and not_same_house chains are handled by the
 // iterative constraint loop. same_house(M,A) and same_house(M,B) are applied in
 // alternating passes until fixpoint, so A, M, and B reach the same possible set
-// before any structural technique gets to run. A dedicated chain step-function
-// would never find anything new to do and so is not needed here.
-// The propagate.ts silent versions are still used by tryContradiction.
+// before any structural technique gets to run.
 
 export function tryNakedPairs(state: DeduceState): DeductionStep | null {
   for (let ci = 0; ci < state.grid.categories.length; ci++) {
@@ -272,50 +268,6 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             uniqueElims,
             assigns,
             `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} houses, so they must be restricted to those positions.`,
-          );
-        }
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Proof by contradiction: try placing a value at a position, propagate,
- * and if any value ends up with 0 possible positions, eliminate it.
- * "If X were at position p, then [chain]... contradiction. So X can't be at p."
- */
-export function tryContradiction(
-  state: DeduceState,
-  constraints: Constraint[],
-): DeductionStep | null {
-  for (let ci = 0; ci < state.grid.categories.length; ci++) {
-    for (let vi = 0; vi < state.grid.categories[ci].values.length; vi++) {
-      const ps = state.possible[ci][vi];
-      if (ps.size <= 1) continue;
-
-      for (const p of ps) {
-        const cloned = cloneState(state);
-        const clonedPs = cloned.possible[ci][vi];
-        clonedPs.clear();
-        clonedPs.add(p);
-
-        if (!propagateToFixpoint(cloned, constraints)) {
-          // Contradiction found — eliminate this position
-          ps.delete(p);
-          const value = state.grid.categories[ci].values[vi];
-          const assigns =
-            ps.size === 1 ? [{ value, position: [...ps][0] }] : [];
-          const assignSuffix =
-            assigns.length > 0
-              ? ` So ${value} must be in the ${ordinal(assigns[0].position)} house.`
-              : "";
-          return step(
-            "contradiction",
-            [],
-            [{ value, position: p }],
-            assigns,
-            `If ${value} were in the ${ordinal(p)} house, it would lead to a contradiction.${assignSuffix}`,
           );
         }
       }
