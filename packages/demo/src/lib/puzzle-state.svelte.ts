@@ -307,7 +307,9 @@ export function createPuzzleState() {
 
     const hadWrongMoves = clearWrongMoves();
 
-    // Skip steps whose effects the user has already correctly applied
+    // Skip steps whose effects the user has already correctly applied.
+    // Scan from 0 so undone hints are found again.
+    hintIndex = 0;
     while (hintIndex < hintSteps.length) {
       const candidate = hintSteps[hintIndex];
       const hasNewElim = candidate.eliminations.some((e) => {
