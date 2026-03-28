@@ -173,23 +173,6 @@ Techniques:
 | `hidden_triple`        | Three positions are exclusively reachable by three values                |
 | `contradiction`        | Placing a value at a position leads to an impossible state               |
 
-### `hint(constraints, grid, known?)`
-
-Get the next logical deduction from a partial state. Pass `known` as a map of value names to assigned positions to represent what the user has figured out so far.
-
-> **Note:** `hint()` re-runs the full deduction engine internally. For interactive use, prefer calling `deduce()` once and iterating over its steps.
-
-```typescript
-import { hint } from "logic-grid";
-
-const h = hint(puzzle.constraints, puzzle.grid, { Red: 0, Cat: 0 });
-// h.explanation — "Blue is directly left of Green."
-// h.technique — "left_of"
-// h.clueIndices — [2]
-```
-
-Returns `null` when no more deductions can be made.
-
 ### `renderClue(constraint, grid)`
 
 Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names (e.g. "Alice owns the dog" for Name+Pet, "The red house has a cat" for Color+Pet).

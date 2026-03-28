@@ -51,28 +51,3 @@ export function deduce(constraints: Constraint[], grid: Grid): DeductionResult {
 
   return { steps, complete: isSolved(state) };
 }
-
-/**
- * Get the next logical deduction from a partial state.
- *
- * Note: this re-runs the full deduction engine internally and returns
- * the first step that goes beyond `known`. For interactive use, prefer
- * calling `deduce()` once and iterating over its steps.
- */
-export function hint(
-  constraints: Constraint[],
-  grid: Grid,
-  known?: Record<string, number>,
-): DeductionStep | null {
-  const result = deduce(constraints, grid);
-  if (!known || Object.keys(known).length === 0) {
-    return result.steps[0] ?? null;
-  }
-
-  // Find the first step that affects a value the user doesn't have yet
-  for (const s of result.steps) {
-    const items = s.assignments.length > 0 ? s.assignments : s.eliminations;
-    if (items.some((i) => !(i.value in known))) return s;
-  }
-  return null;
-}
