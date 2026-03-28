@@ -56,7 +56,6 @@ function tryAtPosition(
   for (const p of ps) {
     if (p !== c.position) elims.push({ value: c.value, position: p });
   }
-  if (elims.length === 0) return null;
   ps.clear();
   ps.add(c.position);
   return step(
@@ -122,7 +121,8 @@ function trySameHouse(
   // Build "because" context from whichever value is more constrained
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
-  const because = knownA || knownB ? `. ${knownA || knownB}, so ` : ", so ";
+  const ctx = knownA || knownB;
+  const because = ctx ? `. ${ctx}, so ` : ", so ";
 
   let explanation: string;
   if (assigns.length > 0) {
@@ -247,14 +247,15 @@ function tryAdjacency(
     }
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
   const verb = mustBeAdjacent ? "next to" : "not next to";
   const knownA = describeKnown(state, a);
   const knownB = describeKnown(state, b);
-  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
+  const ctx = knownA || knownB;
+  const because = ctx ? ` ${ctx}, so ` : " ";
   return step(
     technique,
     [ci],
@@ -282,13 +283,14 @@ function tryLeftOf(
     if (!pa.has(p - 1)) elims.push({ value: c.b, position: p });
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
-  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
+  const ctx = knownA || knownB;
+  const because = ctx ? ` ${ctx}, so ` : " ";
   return step(
     "left_of",
     [ci],
@@ -317,13 +319,14 @@ function tryBefore(
     if (p <= minA) elims.push({ value: c.b, position: p });
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
-  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
+  const ctx = knownA || knownB;
+  const because = ctx ? ` ${ctx}, so ` : " ";
   return step(
     "before",
     [ci],
@@ -411,7 +414,7 @@ function tryBetween(
     if (!valid) elims.push({ value: c.outer2, position: p2 });
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
@@ -477,7 +480,7 @@ function tryNotBetween(
     }
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) pm.delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
@@ -523,13 +526,14 @@ function tryExactDistance(
     if (!canA) elims.push({ value: c.b, position: p });
   }
 
-  const uniqueElims = dedup(elims, state);
+  const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
-  const because = knownA || knownB ? ` ${knownA || knownB}, so ` : " ";
+  const ctx = knownA || knownB;
+  const because = ctx ? ` ${ctx}, so ` : " ";
   return step(
     "exact_distance",
     [ci],

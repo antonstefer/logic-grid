@@ -124,13 +124,11 @@ export function step(
 
 export function dedup(
   elims: { value: string; position: number }[],
-  state: DeduceState,
 ): { value: string; position: number }[] {
   const seen = new Set<string>();
   return elims.filter((e) => {
     const key = `${e.value}:${e.position}`;
     if (seen.has(key)) return false;
-    if (!getPossible(state, e.value).has(e.position)) return false;
     seen.add(key);
     return true;
   });
