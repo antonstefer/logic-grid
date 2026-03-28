@@ -12,6 +12,14 @@ import {
   describeKnown,
 } from "./state";
 
+/** Check whether every position in `set` is adjacent to `p`. */
+function allAdjacent(set: Set<number>, p: number): boolean {
+  for (const q of set) {
+    if (q !== p - 1 && q !== p + 1) return false;
+  }
+  return true;
+}
+
 // --- Constraint deductions ---
 
 export function tryConstraint(
@@ -238,11 +246,11 @@ function tryAdjacency(
     }
     // Arc-consistency: eliminate p from a if every position in b is adjacent to p
     for (const p of pa) {
-      if (pb.size > 0 && [...pb].every((q) => q === p - 1 || q === p + 1))
+      if (pb.size > 0 && allAdjacent(pb, p))
         elims.push({ value: a, position: p });
     }
     for (const p of pb) {
-      if (pa.size > 0 && [...pa].every((q) => q === p - 1 || q === p + 1))
+      if (pa.size > 0 && allAdjacent(pa, p))
         elims.push({ value: b, position: p });
     }
   }
