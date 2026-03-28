@@ -65,12 +65,12 @@ export function createPuzzleState() {
   }
 
   function findValueIdx(value: string): number {
-    if (!puzzle) return -1;
+    if (!puzzle) throw new Error("No active puzzle");
     for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
       const vi = puzzle.grid.categories[ci].values.indexOf(value);
       if (vi !== -1) return getValueIndex(ci, vi);
     }
-    return -1;
+    throw new Error(`Unknown value: ${value}`);
   }
 
   /** Click: toggle confirmed (empty ↔ ✓). Auto-eliminates/restores. */
@@ -275,12 +275,10 @@ export function createPuzzleState() {
     while (hintIndex < hintSteps.length) {
       const candidate = hintSteps[hintIndex];
       const hasNewElim = candidate.eliminations.some((e) => {
-        const vi = findValueIdx(e.value);
-        return vi !== -1 && grid[vi][e.position] === "empty";
+        return grid[findValueIdx(e.value)][e.position] === "empty";
       });
       const hasNewAssign = candidate.assignments.some((a) => {
-        const vi = findValueIdx(a.value);
-        return vi !== -1 && grid[vi][a.position] !== "confirmed";
+        return grid[findValueIdx(a.value)][a.position] !== "confirmed";
       });
       if (hasNewElim || hasNewAssign) break;
       hintIndex++;
@@ -296,13 +294,13 @@ export function createPuzzleState() {
     // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
       const valueIdx = findValueIdx(e.value);
-      if (valueIdx !== -1 && grid[valueIdx][e.position] === "empty") {
+      if (grid[valueIdx][e.position] === "empty") {
         grid[valueIdx][e.position] = "eliminated";
       }
     }
     for (const a of step.assignments) {
       const valueIdx = findValueIdx(a.value);
-      if (valueIdx !== -1 && grid[valueIdx][a.position] !== "confirmed") {
+      if (grid[valueIdx][a.position] !== "confirmed") {
         grid[valueIdx][a.position] = "confirmed";
         autoEliminate(valueIdx, a.position);
       }
