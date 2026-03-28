@@ -15,6 +15,21 @@ describe("error handling", () => {
   });
 });
 
+describe("edge cases", () => {
+  it("returns no steps and incomplete for empty constraints", () => {
+    const g: Grid = {
+      size: 3,
+      categories: [
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+        { name: "Pet", values: ["Cat", "Dog", "Fish"] },
+      ],
+    };
+    const result = deduce([], g);
+    expect(result.steps).toEqual([]);
+    expect(result.complete).toBe(false);
+  });
+});
+
 // Same 3x3 puzzle from solver.test.ts — known solvable by deduction
 const grid3x3: Grid = {
   size: 3,
