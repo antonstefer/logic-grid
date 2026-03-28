@@ -282,35 +282,40 @@ function applyConstraintSilently(
           changed = true;
         }
       }
-      break;
-    }
-    case "left_of": {
-      const pa = getPossible(state, constraint.a);
-      const pb = getPossible(state, constraint.b);
-      if (pa.has(n - 1)) {
-        pa.delete(n - 1);
-        changed = true;
-      }
-      if (pb.has(0)) {
-        pb.delete(0);
-        changed = true;
-      }
-      const posA = getAssigned(state, constraint.a);
-      if (posA !== null) {
+      // Arc-consistency: eliminate p if every position of the other is adjacent to p
+      {
+        const pa = getPossible(state, constraint.a);
+        const pb = getPossible(state, constraint.b);
+        for (const p of [...pa]) {
+          if (pb.size > 0 && [...pb].every((q) => q === p - 1 || q === p + 1)) {
+            pa.delete(p);
+            changed = true;
+          }
+        }
         for (const p of [...pb]) {
-          if (p !== posA + 1) {
+          if (pa.size > 0 && [...pa].every((q) => q === p - 1 || q === p + 1)) {
             pb.delete(p);
             changed = true;
           }
         }
       }
-      const posB = getAssigned(state, constraint.b);
-      if (posB !== null) {
-        for (const p of [...pa]) {
-          if (p !== posB - 1) {
-            pa.delete(p);
-            changed = true;
-          }
+      break;
+    }
+    case "left_of": {
+      const pa = getPossible(state, constraint.a);
+      const pb = getPossible(state, constraint.b);
+      // a is directly left of b: a can only be at p if b can be at p+1
+      for (const p of [...pa]) {
+        if (!pb.has(p + 1)) {
+          pa.delete(p);
+          changed = true;
+        }
+      }
+      // b can only be at p if a can be at p-1
+      for (const p of [...pb]) {
+        if (!pa.has(p - 1)) {
+          pb.delete(p);
+          changed = true;
         }
       }
       break;
@@ -391,13 +396,31 @@ function applyConstraintSilently(
     case "not_between": {
       const a1 = getAssigned(state, constraint.outer1);
       const a2 = getAssigned(state, constraint.outer2);
+      if (a1 === null && a2 === null) break;
+      const pm = getPossible(state, constraint.middle);
       if (a1 !== null && a2 !== null) {
         const lo = Math.min(a1, a2);
         const hi = Math.max(a1, a2);
-        const pm = getPossible(state, constraint.middle);
         for (const p of [...pm]) {
           if (p > lo && p < hi) {
             pm.delete(p);
+            changed = true;
+          }
+        }
+      } else {
+        const pinnedPos = a1 ?? a2!;
+        const otherPossible =
+          a1 !== null
+            ? getPossible(state, constraint.outer2)
+            : getPossible(state, constraint.outer1);
+        const minOther = Math.min(...otherPossible);
+        const maxOther = Math.max(...otherPossible);
+        for (const m of [...pm]) {
+          if (
+            (pinnedPos < m && minOther > m) ||
+            (pinnedPos > m && maxOther < m)
+          ) {
+            pm.delete(m);
             changed = true;
           }
         }
