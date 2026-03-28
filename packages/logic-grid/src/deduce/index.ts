@@ -102,15 +102,10 @@ export function hint(
     return result.steps[0] ?? null;
   }
 
-  // Find the first step that produces an assignment the user doesn't have yet
+  // Find the first step that affects a value the user doesn't have yet
   for (const s of result.steps) {
-    if (s.assignments.some((a) => known[a.value] === undefined)) return s;
-    if (
-      s.assignments.length === 0 &&
-      s.eliminations.some((e) => known[e.value] === undefined)
-    )
-      return s;
+    const items = s.assignments.length > 0 ? s.assignments : s.eliminations;
+    if (items.some((i) => !(i.value in known))) return s;
   }
-
   return null;
 }
