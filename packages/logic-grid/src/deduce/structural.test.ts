@@ -12,6 +12,35 @@ const grid: Grid = {
 };
 
 describe("deduce structural techniques", () => {
+  it("naked_single eliminates a pinned value's position from its category peers", () => {
+    // Eliminate Red from 1,2,3 → Red forced to 0.
+    // Naked_single then removes 0 from all other Colors.
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 1 },
+      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_at_position", value: "Red", position: 3 },
+    ];
+    const result = deduce(constraints, grid);
+    const step = result.steps.find((s) => s.technique === "naked_single");
+    expect(step).toBeDefined();
+    expect(step!.eliminations).toContainEqual({ value: "Blue", position: 0 });
+    expect(step!.eliminations).toContainEqual({ value: "Green", position: 0 });
+    expect(step!.eliminations).toContainEqual({ value: "Yellow", position: 0 });
+  });
+
+  it("hidden_single assigns the only remaining candidate for a position", () => {
+    // Red, Blue, Green excluded from position 3 → Yellow must be there.
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_at_position", value: "Green", position: 3 },
+    ];
+    const result = deduce(constraints, grid);
+    const step = result.steps.find((s) => s.technique === "hidden_single");
+    expect(step).toBeDefined();
+    expect(step!.assignments).toContainEqual({ value: "Yellow", position: 3 });
+  });
+
   it("naked_pair eliminates positions from other values in category", () => {
     // Red and Blue can only be at {0,1} — no other Color can be there
     const constraints: Constraint[] = [
