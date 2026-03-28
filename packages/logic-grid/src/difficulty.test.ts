@@ -44,9 +44,28 @@ describe("classify by constraint types only", () => {
     expect(classify(constraints)).toBe("hard");
   });
 
+  it("returns medium when before is present", () => {
+    const constraints: Constraint[] = [{ type: "before", a: "Red", b: "Blue" }];
+    expect(classify(constraints)).toBe("medium");
+  });
+
   it("returns hard when not_next_to is present", () => {
     const constraints: Constraint[] = [
       { type: "not_next_to", a: "Red", b: "Cat" },
+    ];
+    expect(classify(constraints)).toBe("hard");
+  });
+
+  it("returns hard when not_between is present", () => {
+    const constraints: Constraint[] = [
+      { type: "not_between", outer1: "Red", middle: "Cat", outer2: "Blue" },
+    ];
+    expect(classify(constraints)).toBe("hard");
+  });
+
+  it("returns hard when exact_distance is present", () => {
+    const constraints: Constraint[] = [
+      { type: "exact_distance", a: "Red", b: "Cat", distance: 2 },
     ];
     expect(classify(constraints)).toBe("hard");
   });

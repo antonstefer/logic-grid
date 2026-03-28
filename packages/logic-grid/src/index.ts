@@ -1,6 +1,7 @@
 export { generate } from "./generator";
 export { solve, hasUniqueSolution } from "./solver";
 export { classify } from "./difficulty";
+export { deduce } from "./deduce";
 
 export {
   sameHouse,
@@ -29,4 +30,7 @@ export type {
   Clue,
   Puzzle,
   GenerateOptions,
+  DeductionTechnique,
+  DeductionStep,
+  DeductionResult,
 } from "./types";

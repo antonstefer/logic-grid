@@ -1,4 +1,10 @@
-import { generate, type Puzzle, type Difficulty } from "logic-grid";
+import {
+  generate,
+  deduce,
+  type Puzzle,
+  type Difficulty,
+  type DeductionStep,
+} from "logic-grid";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
 
@@ -11,6 +17,8 @@ export function createPuzzleState() {
     text: string;
     type: "success" | "error" | "info";
   } | null>(null);
+  let hintSteps = $state<DeductionStep[]>([]);
+  let hintIndex = $state(0);
 
   function newPuzzle(
     size: number,
@@ -39,6 +47,8 @@ export function createPuzzleState() {
       grid = Array.from({ length: totalValues }, () =>
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
+      hintSteps = [];
+      hintIndex = 0;
       loading = false;
     }, 0);
   }
@@ -52,6 +62,15 @@ export function createPuzzleState() {
       offset += puzzle!.grid.categories[i].values.length;
     }
     return offset + valueIndexInCategory;
+  }
+
+  function findValueIdx(value: string): number {
+    if (!puzzle) throw new Error("No active puzzle");
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const vi = puzzle.grid.categories[ci].values.indexOf(value);
+      if (vi !== -1) return getValueIndex(ci, vi);
+    }
+    throw new Error(`Unknown value: ${value}`);
   }
 
   /** Click: toggle confirmed (empty ↔ ✓). Auto-eliminates/restores. */
@@ -244,7 +263,93 @@ export function createPuzzleState() {
     message = { text: "Solution revealed.", type: "info" };
   }
 
+  /** Undo every user move that contradicts the solution. Returns true if anything was cleared. */
+  function clearWrongMoves(): boolean {
+    if (!puzzle) return false;
+    let cleared = false;
+    // Undo wrong confirmations first (triggers autoRestore to clean up cascades)
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        for (let p = 0; p < puzzle.grid.size; p++) {
+          if (grid[valueIdx][p] === "confirmed" && p !== correctPos) {
+            grid[valueIdx][p] = "empty";
+            autoRestore(valueIdx, p);
+            cleared = true;
+          }
+        }
+      }
+    }
+    // Restore cells where the user eliminated the correct answer
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        if (grid[valueIdx][correctPos] === "eliminated") {
+          grid[valueIdx][correctPos] = "empty";
+          cleared = true;
+        }
+      }
+    }
+    return cleared;
+  }
+
   function hint() {
+    if (!puzzle) return;
+
+    // Lazily compute deduction steps on first hint request.
+    if (hintSteps.length === 0) {
+      hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
+    }
+
+    const hadWrongMoves = clearWrongMoves();
+
+    // Skip steps whose effects the user has already correctly applied.
+    // Scan from 0 so undone hints are found again.
+    hintIndex = 0;
+    while (hintIndex < hintSteps.length) {
+      const candidate = hintSteps[hintIndex];
+      const hasNewElim = candidate.eliminations.some((e) => {
+        const cell = grid[findValueIdx(e.value)][e.position];
+        return cell === "empty" || cell === "confirmed";
+      });
+      const hasNewAssign = candidate.assignments.some((a) => {
+        return grid[findValueIdx(a.value)][a.position] !== "confirmed";
+      });
+      if (hasNewElim || hasNewAssign) break;
+      hintIndex++;
+    }
+
+    if (hintIndex >= hintSteps.length) {
+      message = { text: "No more logical deductions available.", type: "info" };
+      return;
+    }
+
+    const step = hintSteps[hintIndex++];
+
+    // Apply the hint's eliminations and assignments to the grid
+    for (const e of step.eliminations) {
+      const valueIdx = findValueIdx(e.value);
+      if (grid[valueIdx][e.position] === "empty") {
+        grid[valueIdx][e.position] = "eliminated";
+      }
+    }
+    for (const a of step.assignments) {
+      const valueIdx = findValueIdx(a.value);
+      if (grid[valueIdx][a.position] !== "confirmed") {
+        grid[valueIdx][a.position] = "confirmed";
+        autoEliminate(valueIdx, a.position);
+      }
+    }
+
+    const prefix = hadWrongMoves ? "Incorrect moves cleared. " : "";
+    message = { text: prefix + step.explanation, type: "info" };
+  }
+
+  function revealCell() {
     if (!puzzle) return;
 
     // Find all unconfirmed correct cells
@@ -269,7 +374,7 @@ export function createPuzzleState() {
       candidates[Math.floor(Math.random() * candidates.length)];
     grid[valueIdx][pos] = "confirmed";
     autoEliminate(valueIdx, pos);
-    message = { text: "Hint: one cell revealed.", type: "info" };
+    message = { text: "One cell revealed.", type: "info" };
   }
 
   function clear() {
@@ -279,6 +384,10 @@ export function createPuzzleState() {
         grid[v][p] = "empty";
       }
     }
+    // Reset index but keep hintSteps — the puzzle hasn't changed, so the
+    // deduction path is the same. hint() skips already-applied steps and
+    // undoes wrong moves, so replaying from the start is correct.
+    hintIndex = 0;
     message = null;
   }
 
@@ -306,5 +415,6 @@ export function createPuzzleState() {
     checkSolution,
     showSolution,
     hint,
+    revealCell,
   };
 }
