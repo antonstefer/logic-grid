@@ -155,6 +155,20 @@ describe("deduce constraint types", () => {
     });
   });
 
+  it("left_of arc-consistency: eliminates positions with no valid neighbour even when neither is pinned", () => {
+    // Alice can only be at {2,3} — so Red (directly left of Alice) can only be at {1,2}.
+    // Red at 0 is invalid because Alice can't be at 1.
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Alice", position: 0 },
+      { type: "not_at_position", value: "Alice", position: 1 },
+      { type: "left_of", a: "Red", b: "Alice" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 3 });
+    expect(allElims).toContainEqual({ value: "Red", position: 0 });
+  });
+
   it("before eliminates positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 2 },
@@ -209,6 +223,19 @@ describe("deduce constraint types", () => {
     ).toContainEqual({ value: "Alice", position: 4 });
   });
 
+  it("not_next_to arc-consistency: eliminates position when every other-value position is adjacent", () => {
+    // Blue can only be at {0,2} — both adjacent to position 1.
+    // So Red cannot be at position 1 (there's no valid position for Blue that's not adjacent).
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_next_to", a: "Red", b: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 1 });
+  });
+
   it("not_between eliminates middle positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
@@ -234,6 +261,23 @@ describe("deduce constraint types", () => {
     // After three eliminations Alice must be at position 3
     const assigns = result.steps.flatMap((s) => s.assignments);
     expect(assigns).toContainEqual({ value: "Alice", position: 3 });
+  });
+
+  it("not_between with one outer pinned: eliminates middle positions always between them", () => {
+    // outer1=Red pinned at 0. outer2=Blue restricted to {3} only.
+    // Middle=Alice at position 1 or 2 would always be between Red(0) and Blue(3) — invalid.
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Red", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    // Alice at 1 and 2 are always between Red(0) and Blue(3)
+    expect(allElims).toContainEqual({ value: "Alice", position: 1 });
+    expect(allElims).toContainEqual({ value: "Alice", position: 2 });
   });
 
   it("between arc-consistency: middle cannot be at boundary positions", () => {

@@ -236,15 +236,21 @@ function tryAdjacency(
       if (posB < n - 1 && pa.has(posB + 1))
         elims.push({ value: a, position: posB + 1 });
     }
+    // Arc-consistency: eliminate p from a if every position in b is adjacent to p
+    for (const p of pa) {
+      if (pb.size > 0 && [...pb].every((q) => q === p - 1 || q === p + 1))
+        elims.push({ value: a, position: p });
+    }
+    for (const p of pb) {
+      if (pa.size > 0 && [...pa].every((q) => q === p - 1 || q === p + 1))
+        elims.push({ value: b, position: p });
+    }
   }
 
-  if (elims.length === 0) return null;
-  for (const e of elims) getPossible(state, e.value).delete(e.position);
-  const assigns: { value: string; position: number }[] = [];
-  for (const e of elims) {
-    const ps = getPossible(state, e.value);
-    if (ps.size === 1) assigns.push({ value: e.value, position: [...ps][0] });
-  }
+  const uniqueElims = dedup(elims, state);
+  if (uniqueElims.length === 0) return null;
+  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  const assigns = collectAssigns(state, uniqueElims);
   const verb = mustBeAdjacent ? "next to" : "not next to";
   const knownA = describeKnown(state, a);
   const knownB = describeKnown(state, b);
@@ -252,9 +258,9 @@ function tryAdjacency(
   return step(
     technique,
     [ci],
-    elims,
+    uniqueElims,
     assigns,
-    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(assigns, elims)}.`,
+    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
@@ -263,29 +269,17 @@ function tryLeftOf(
   c: { a: string; b: string },
   ci: number,
 ): DeductionStep | null {
-  const n = state.n;
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
 
-  // a cannot be in last position
-  if (pa.has(n - 1)) elims.push({ value: c.a, position: n - 1 });
-  // b cannot be in first position
-  if (pb.has(0)) elims.push({ value: c.b, position: 0 });
-
-  // If a is pinned at p, b must be at p+1
-  const posA = getAssigned(state, c.a);
-  if (posA !== null && posA < n - 1) {
-    for (const p of pb) {
-      if (p !== posA + 1) elims.push({ value: c.b, position: p });
-    }
+  // a is directly left of b: a can only be at p if b can be at p+1
+  for (const p of pa) {
+    if (!pb.has(p + 1)) elims.push({ value: c.a, position: p });
   }
-  // If b is pinned at p, a must be at p-1
-  const posB = getAssigned(state, c.b);
-  if (posB !== null && posB > 0) {
-    for (const p of pa) {
-      if (p !== posB - 1) elims.push({ value: c.a, position: p });
-    }
+  // b can only be at p if a can be at p-1
+  for (const p of pb) {
+    if (!pa.has(p - 1)) elims.push({ value: c.b, position: p });
   }
 
   const uniqueElims = dedup(elims, state);
@@ -453,25 +447,55 @@ function tryNotBetween(
 ): DeductionStep | null {
   const a1 = getAssigned(state, c.outer1);
   const a2 = getAssigned(state, c.outer2);
-  if (a1 === null || a2 === null) return null;
+  if (a1 === null && a2 === null) return null;
 
-  const lo = Math.min(a1, a2);
-  const hi = Math.max(a1, a2);
   const pm = getPossible(state, c.middle);
   const elims: { value: string; position: number }[] = [];
-  for (const p of pm) {
-    if (p > lo && p < hi) elims.push({ value: c.middle, position: p });
+
+  if (a1 !== null && a2 !== null) {
+    // Both pinned: middle cannot be strictly between them
+    const lo = Math.min(a1, a2);
+    const hi = Math.max(a1, a2);
+    for (const p of pm) {
+      if (p > lo && p < hi) elims.push({ value: c.middle, position: p });
+    }
+  } else {
+    // One outer pinned: eliminate middle positions where every position of the
+    // other outer would place the middle between them.
+    const pinnedPos = a1 ?? a2!;
+    const otherPossible =
+      a1 !== null ? getPossible(state, c.outer2) : getPossible(state, c.outer1);
+    const minOther = Math.min(...otherPossible);
+    const maxOther = Math.max(...otherPossible);
+    for (const m of pm) {
+      // pinned < m: middle is between pinned and other whenever other > m
+      if (pinnedPos < m && minOther > m)
+        elims.push({ value: c.middle, position: m });
+      // pinned > m: middle is between other and pinned whenever other < m
+      if (pinnedPos > m && maxOther < m)
+        elims.push({ value: c.middle, position: m });
+    }
   }
 
-  if (elims.length === 0) return null;
-  for (const e of elims) pm.delete(e.position);
-  const assigns = collectAssigns(state, elims);
+  const uniqueElims = dedup(elims, state);
+  if (uniqueElims.length === 0) return null;
+  for (const e of uniqueElims) pm.delete(e.position);
+  const assigns = collectAssigns(state, uniqueElims);
+
+  let because: string;
+  if (a1 !== null && a2 !== null) {
+    because = `${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so `;
+  } else {
+    const knownO1 = describeKnown(state, c.outer1);
+    const knownO2 = describeKnown(state, c.outer2);
+    because = `${knownO1 || knownO2}, so `;
+  }
   return step(
     "not_between",
     [ci],
-    elims,
+    uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}. ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so ${describeResult(assigns, elims)}.`,
+    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}. ${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
