@@ -10,9 +10,11 @@ import {
   tryNakedSingles,
   tryHiddenSingles,
   trySameHouseChain,
+  tryNotSameHouseChain,
   tryNakedPairs,
   tryNakedTriples,
   tryHiddenPairs,
+  tryHiddenTriples,
   tryContradiction,
 } from "./structural";
 
@@ -74,9 +76,23 @@ export function deduce(constraints: Constraint[], grid: Grid): DeductionResult {
       continue;
     }
 
+    const hiddenTriple = tryHiddenTriples(state);
+    if (hiddenTriple) {
+      steps.push(hiddenTriple);
+      progress = true;
+      continue;
+    }
+
     const chain = trySameHouseChain(state, constraints);
     if (chain) {
       steps.push(chain);
+      progress = true;
+      continue;
+    }
+
+    const nshChain = tryNotSameHouseChain(state, constraints);
+    if (nshChain) {
+      steps.push(nshChain);
       progress = true;
       continue;
     }
