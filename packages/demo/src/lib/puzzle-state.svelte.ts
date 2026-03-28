@@ -263,9 +263,10 @@ export function createPuzzleState() {
     message = { text: "Solution revealed.", type: "info" };
   }
 
-  /** Undo every user move that contradicts the solution. */
-  function clearWrongMoves() {
-    if (!puzzle) return;
+  /** Undo every user move that contradicts the solution. Returns true if anything was cleared. */
+  function clearWrongMoves(): boolean {
+    if (!puzzle) return false;
+    let cleared = false;
     // Undo wrong confirmations first (triggers autoRestore to clean up cascades)
     for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
       const cat = puzzle.grid.categories[ci];
@@ -276,6 +277,7 @@ export function createPuzzleState() {
           if (grid[valueIdx][p] === "confirmed" && p !== correctPos) {
             grid[valueIdx][p] = "empty";
             autoRestore(valueIdx, p);
+            cleared = true;
           }
         }
       }
@@ -288,9 +290,11 @@ export function createPuzzleState() {
         const correctPos = puzzle.solution[ci][cat.values[vi]];
         if (grid[valueIdx][correctPos] === "eliminated") {
           grid[valueIdx][correctPos] = "empty";
+          cleared = true;
         }
       }
     }
+    return cleared;
   }
 
   function hint() {
@@ -301,7 +305,7 @@ export function createPuzzleState() {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
 
-    clearWrongMoves();
+    const hadWrongMoves = clearWrongMoves();
 
     // Skip steps whose effects the user has already correctly applied
     while (hintIndex < hintSteps.length) {
@@ -339,7 +343,8 @@ export function createPuzzleState() {
       }
     }
 
-    message = { text: step.explanation, type: "info" };
+    const prefix = hadWrongMoves ? "Incorrect moves cleared. " : "";
+    message = { text: prefix + step.explanation, type: "info" };
   }
 
   function revealCell() {
