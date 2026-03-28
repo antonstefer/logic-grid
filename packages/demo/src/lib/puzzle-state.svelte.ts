@@ -47,7 +47,7 @@ export function createPuzzleState() {
       grid = Array.from({ length: totalValues }, () =>
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
-      hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
+      hintSteps = [];
       hintIndex = 0;
       loading = false;
     }, 0);
@@ -265,6 +265,11 @@ export function createPuzzleState() {
 
   function hint() {
     if (!puzzle) return;
+
+    // Lazily compute deduction steps on first hint request
+    if (hintSteps.length === 0) {
+      hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
+    }
 
     if (hintIndex >= hintSteps.length) {
       message = { text: "No more logical deductions available.", type: "info" };
