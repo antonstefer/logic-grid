@@ -853,49 +853,41 @@ function tryHiddenPairs(state: DeduceState): DeductionStep | null {
     const cat = state.grid.categories[ci];
     const n = state.n;
 
-    // For each pair of positions, check if exactly two values can go there
+    // For each pair of positions, find all values that can be placed there.
+    // If exactly 2 values can go to {p1, p2}, those 2 values must occupy those
+    // positions — restrict them by eliminating their other possible positions.
     for (let p1 = 0; p1 < n; p1++) {
       for (let p2 = p1 + 1; p2 < n; p2++) {
-        // Find values that can ONLY be at p1 or p2 (not anywhere else)
-        const exclusive: number[] = [];
+        const candidates: number[] = [];
         for (let vi = 0; vi < cat.values.length; vi++) {
           const ps = state.possible[ci][vi];
-          if (ps.size < 2) continue;
-          let allInPair = true;
-          for (const p of ps) {
-            if (p !== p1 && p !== p2) {
-              allInPair = false;
-              break;
-            }
-          }
-          if (allInPair) exclusive.push(vi);
+          if (ps.has(p1) || ps.has(p2)) candidates.push(vi);
         }
+        if (candidates.length !== 2) continue;
 
-        if (exclusive.length !== 2) continue;
-
-        // Found a hidden pair — eliminate all other positions from these two values
-        // (they're already restricted to p1/p2, so eliminate other values from p1/p2)
+        const [vi1, vi2] = candidates;
         const elims: { value: string; position: number }[] = [];
-        for (let vi = 0; vi < cat.values.length; vi++) {
-          if (vi === exclusive[0] || vi === exclusive[1]) continue;
-          if (state.possible[ci][vi].has(p1)) {
-            state.possible[ci][vi].delete(p1);
-            elims.push({ value: cat.values[vi], position: p1 });
-          }
-          if (state.possible[ci][vi].has(p2)) {
-            state.possible[ci][vi].delete(p2);
-            elims.push({ value: cat.values[vi], position: p2 });
-          }
+        for (const p of state.possible[ci][vi1]) {
+          if (p !== p1 && p !== p2)
+            elims.push({ value: cat.values[vi1], position: p });
         }
-        if (elims.length === 0) continue;
+        for (const p of state.possible[ci][vi2]) {
+          if (p !== p1 && p !== p2)
+            elims.push({ value: cat.values[vi2], position: p });
+        }
 
-        const assigns = collectAssigns(state, elims);
+        const uniqueElims = dedup(elims, state);
+        if (uniqueElims.length === 0) continue;
+
+        for (const e of uniqueElims)
+          getPossible(state, e.value).delete(e.position);
+        const assigns = collectAssigns(state, uniqueElims);
         return step(
           "hidden_pair",
           [],
-          elims,
+          uniqueElims,
           assigns,
-          `${cat.values[exclusive[0]]} and ${cat.values[exclusive[1]]} can only be in the ${ordinal(p1)} and ${ordinal(p2)} houses, so no other ${cat.name} can be there.`,
+          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${ordinal(p1)} and ${ordinal(p2)} houses, so they must be restricted to those positions.`,
         );
       }
     }
@@ -1090,32 +1082,27 @@ function propagateToFixpoint(
       }
     }
 
-    // Hidden pairs
+    // Hidden pairs: exactly 2 values can go to {p1,p2} → restrict them to those positions
     for (let ci = 0; ci < state.grid.categories.length; ci++) {
       const cat = state.grid.categories[ci];
       for (let p1 = 0; p1 < state.n; p1++) {
         for (let p2 = p1 + 1; p2 < state.n; p2++) {
-          const excl: number[] = [];
+          const cands: number[] = [];
           for (let vi = 0; vi < cat.values.length; vi++) {
             const ps = state.possible[ci][vi];
-            if (ps.size < 2) continue;
-            let allIn = true;
-            for (const p of ps)
-              if (p !== p1 && p !== p2) {
-                allIn = false;
-                break;
-              }
-            if (allIn) excl.push(vi);
+            if (ps.has(p1) || ps.has(p2)) cands.push(vi);
           }
-          if (excl.length !== 2) continue;
-          for (let vi = 0; vi < cat.values.length; vi++) {
-            if (vi === excl[0] || vi === excl[1]) continue;
-            if (state.possible[ci][vi].has(p1)) {
-              state.possible[ci][vi].delete(p1);
+          if (cands.length !== 2) continue;
+          const [vi1, vi2] = cands;
+          for (const p of [...state.possible[ci][vi1]]) {
+            if (p !== p1 && p !== p2) {
+              state.possible[ci][vi1].delete(p);
               changed = true;
             }
-            if (state.possible[ci][vi].has(p2)) {
-              state.possible[ci][vi].delete(p2);
+          }
+          for (const p of [...state.possible[ci][vi2]]) {
+            if (p !== p1 && p !== p2) {
+              state.possible[ci][vi2].delete(p);
               changed = true;
             }
           }
