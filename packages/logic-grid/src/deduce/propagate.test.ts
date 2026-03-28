@@ -39,6 +39,27 @@ describe("propagateToFixpoint", () => {
     expect([...getPossible(state, "Red")]).toEqual([0]);
   });
 
+  it("same_house propagates via chain links", () => {
+    // Red pinned at 0, same_house(Red, Alice) + same_house(Red, Cat)
+    // → both Alice and Cat should be pinned at 0 via chain propagation.
+    const grid3cat: Grid = {
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
+        { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird"] },
+      ],
+    };
+    const state = createState(grid3cat);
+    propagateToFixpoint(state, [
+      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_house", a: "Red", b: "Alice" },
+      { type: "same_house", a: "Red", b: "Cat" },
+    ]);
+    expect([...getPossible(state, "Alice")]).toEqual([0]);
+    expect([...getPossible(state, "Cat")]).toEqual([0]);
+  });
+
   it("not_at_position removes position from fresh state", () => {
     const state = createState(grid4);
     propagateToFixpoint(state, [
@@ -79,6 +100,18 @@ describe("propagateToFixpoint", () => {
       { type: "not_next_to", a: "Red", b: "Alice" },
     ];
     propagateToFixpoint(state, constraints);
+    expect(getPossible(state, "Alice").has(1)).toBe(false);
+  });
+
+  it("not_next_to arc-consistency eliminates b when all a positions are adjacent (pb loop)", () => {
+    // Red={0,2} (not pinned). Alice at 1: every Red position (0,2) is adjacent to 1.
+    // So Alice loses 1 via the pb arc-consistency loop.
+    const state = createState(grid4);
+    propagateToFixpoint(state, [
+      { type: "not_at_position", value: "Red", position: 1 },
+      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_next_to", a: "Red", b: "Alice" },
+    ]);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
   });
 

@@ -107,6 +107,39 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Red", position: 1 });
   });
 
+  it("next_to arc-consistency: no known context in large grid", () => {
+    // Blue={0,...,4}, Red={0,...,7}. Red at 6,7 have no Blue neighbour → eliminated.
+    // Both retain > 3 positions so describeKnown returns "" for both.
+    const grid8: Grid = {
+      size: 8,
+      categories: [
+        { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
+        {
+          name: "Color",
+          values: [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "White",
+            "Black",
+            "Purple",
+            "Pink",
+          ],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 5 },
+      { type: "not_at_position", value: "Blue", position: 6 },
+      { type: "not_at_position", value: "Blue", position: 7 },
+      { type: "next_to", a: "Red", b: "Blue" },
+    ];
+    const result = deduce(constraints, grid8);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 7 });
+  });
+
   it("left_of pins b to a+1 when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
@@ -129,6 +162,72 @@ describe("deduce constraint types", () => {
     const allElims = result.steps.flatMap((s) => s.eliminations);
     expect(allElims).toContainEqual({ value: "Red", position: 3 });
     expect(allElims).toContainEqual({ value: "Red", position: 0 });
+  });
+
+  it("left_of arc-consistency: no known context in large grid", () => {
+    // Blue={3,...,7}, Red={0,...,7}. left_of(Red,Blue): Red at 7 has no Blue > 7 → eliminated.
+    // Both retain > 3 positions so describeKnown returns "" for both.
+    const grid8: Grid = {
+      size: 8,
+      categories: [
+        { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
+        {
+          name: "Color",
+          values: [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "White",
+            "Black",
+            "Purple",
+            "Pink",
+          ],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "left_of", a: "Red", b: "Blue" },
+    ];
+    const result = deduce(constraints, grid8);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 7 });
+  });
+
+  it("before arc-consistency: no known context in large grid", () => {
+    // Blue={3,...,7}, Red={0,...,7}. before(Red,Blue): Red at 7 has no Blue > 7 → eliminated.
+    // Both retain > 3 positions so describeKnown returns "" for both.
+    const grid8: Grid = {
+      size: 8,
+      categories: [
+        { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
+        {
+          name: "Color",
+          values: [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "White",
+            "Black",
+            "Purple",
+            "Pink",
+          ],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "before", a: "Red", b: "Blue" },
+    ];
+    const result = deduce(constraints, grid8);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Red", position: 7 });
   });
 
   it("next_to arc-consistency: eliminates positions with no valid neighbour when neither is pinned", () => {
@@ -186,6 +285,41 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Red", position: 1 });
   });
 
+  it("exact_distance arc-consistency: no known context when both values have many positions", () => {
+    // distance=5 in a size-8 grid: Red and Blue each lose positions 3 and 4
+    // (no valid partner at those positions). Both retain 6 positions (> 3),
+    // so describeKnown returns "" for both — exercises the empty 'because' branch.
+    const grid8: Grid = {
+      size: 8,
+      categories: [
+        { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
+        {
+          name: "Color",
+          values: [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "White",
+            "Black",
+            "Purple",
+            "Pink",
+          ],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "exact_distance", a: "Red", b: "Blue", distance: 5 },
+    ];
+    const result = deduce(constraints, grid8);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.eliminations).toContainEqual({ value: "Red", position: 3 });
+    expect(step!.eliminations).toContainEqual({ value: "Blue", position: 3 });
+    // Verify the empty 'because' branch is taken (no ", so " in explanation)
+    expect(step!.explanation).not.toContain(", so ");
+  });
+
   it("exact_distance constrains positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
@@ -237,7 +371,36 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Alice", position: 3 });
   });
 
-  it("between: pinned middle + pinned outer constrains the other outer to opposite side", () => {
+  it("between arc-consistency: no known context when all three values have many positions", () => {
+    // Red={0,1,2,3}, Blue={2,3,4,5}: Alice at 0 or 5 has no valid outer pair.
+    // All three values have 4 positions (> 3) so describeKnown returns "" for all.
+    const grid6: Grid = {
+      size: 6,
+      categories: [
+        {
+          name: "Name",
+          values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+        },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow", "White", "Black"],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_at_position", value: "Red", position: 4 },
+      { type: "not_at_position", value: "Red", position: 5 },
+      { type: "not_at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid6);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Alice", position: 0 });
+    expect(allElims).toContainEqual({ value: "Alice", position: 5 });
+  });
+
+  it("between: pinned middle + pinned outer1 (left of middle) constrains outer2 to right", () => {
     // middle=Alice at 2, outer1=Red at 0 → outer2=Blue must be > 2
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 2 },
@@ -251,6 +414,51 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Blue", position: 2 });
     const allAssigns = result.steps.flatMap((s) => s.assignments);
     expect(allAssigns).toContainEqual({ value: "Blue", position: 3 });
+  });
+
+  it("between: pinned middle + pinned outer1 (right of middle) constrains outer2 to left", () => {
+    // middle=Alice at 1, outer1=Red at 3 (right of middle) → outer2=Blue must be < 1, i.e. at 0
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 1 },
+      { type: "at_position", value: "Red", position: 3 },
+      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    // Blue must be at position 0 (only position < Alice=1); loses 1,2,3
+    expect(allElims).toContainEqual({ value: "Blue", position: 1 });
+    expect(allElims).toContainEqual({ value: "Blue", position: 2 });
+    expect(allElims).toContainEqual({ value: "Blue", position: 3 });
+    const allAssigns = result.steps.flatMap((s) => s.assignments);
+    expect(allAssigns).toContainEqual({ value: "Blue", position: 0 });
+  });
+
+  it("between: pinned middle + pinned outer2 (left of middle) constrains outer1 to right", () => {
+    // middle=Alice at 2, outer2=Blue at 0 (left of middle) → outer1=Red must be > 2
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 2 },
+      { type: "at_position", value: "Blue", position: 0 },
+      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    // Red must be at position 3; loses 0,1,2
+    expect(allElims).toContainEqual({ value: "Red", position: 0 });
+    expect(allElims).toContainEqual({ value: "Red", position: 1 });
+    expect(allElims).toContainEqual({ value: "Red", position: 2 });
+    const allAssigns = result.steps.flatMap((s) => s.assignments);
+    expect(allAssigns).toContainEqual({ value: "Red", position: 3 });
+  });
+
+  it("not_between: does nothing when neither outer is assigned", () => {
+    // With no outers pinned, tryNotBetween returns null immediately.
+    const constraints: Constraint[] = [
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid);
+    expect(
+      result.steps.find((s) => s.technique === "not_between"),
+    ).toBeUndefined();
   });
 
   it("not_between eliminates middle positions when both outers are pinned", () => {
@@ -290,6 +498,34 @@ describe("deduce constraint types", () => {
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
     expect(allElims).toContainEqual({ value: "Alice", position: 2 });
+  });
+
+  it("not_between: uses outer2 description when outer1 has many positions", () => {
+    // outer2=Blue pinned at 0, outer1=Red has {2,3,4,5} (4 positions, no description).
+    // Alice at 1 is always between pinnedBlue(0) and minRed(2) → eliminated.
+    // knownO1="" (Red > 3 positions) so knownO1||knownO2 uses knownO2.
+    const grid6: Grid = {
+      size: 6,
+      categories: [
+        {
+          name: "Name",
+          values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+        },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow", "White", "Black"],
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Blue", position: 0 },
+      { type: "not_at_position", value: "Red", position: 0 },
+      { type: "not_at_position", value: "Red", position: 1 },
+      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+    ];
+    const result = deduce(constraints, grid6);
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    expect(allElims).toContainEqual({ value: "Alice", position: 1 });
   });
 
   it("not_between with one outer pinned: eliminates middle positions always between them", () => {
