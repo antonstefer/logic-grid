@@ -263,21 +263,51 @@ export function createPuzzleState() {
     message = { text: "Solution revealed.", type: "info" };
   }
 
+  /** Undo every user move that contradicts the solution. */
+  function clearWrongMoves() {
+    if (!puzzle) return;
+    // Undo wrong confirmations first (triggers autoRestore to clean up cascades)
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        for (let p = 0; p < puzzle.grid.size; p++) {
+          if (grid[valueIdx][p] === "confirmed" && p !== correctPos) {
+            grid[valueIdx][p] = "empty";
+            autoRestore(valueIdx, p);
+          }
+        }
+      }
+    }
+    // Restore cells where the user eliminated the correct answer
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        if (grid[valueIdx][correctPos] === "eliminated") {
+          grid[valueIdx][correctPos] = "empty";
+        }
+      }
+    }
+  }
+
   function hint() {
     if (!puzzle) return;
 
     // Lazily compute deduction steps on first hint request.
-    // Steps follow the correct solution path; wrong user moves are undone before applying.
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
+
+    clearWrongMoves();
 
     // Skip steps whose effects the user has already correctly applied
     while (hintIndex < hintSteps.length) {
       const candidate = hintSteps[hintIndex];
       const hasNewElim = candidate.eliminations.some((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
-        // Not done if the cell is empty, or wrongly confirmed
         return cell === "empty" || cell === "confirmed";
       });
       const hasNewAssign = candidate.assignments.some((a) => {
@@ -293,26 +323,6 @@ export function createPuzzleState() {
     }
 
     const step = hintSteps[hintIndex++];
-
-    // Undo any wrong user moves that conflict with this step
-    for (const e of step.eliminations) {
-      const valueIdx = findValueIdx(e.value);
-      if (grid[valueIdx][e.position] === "confirmed") {
-        // User wrongly confirmed this cell — undo it
-        grid[valueIdx][e.position] = "empty";
-        autoRestore(valueIdx, e.position);
-      }
-    }
-    for (const a of step.assignments) {
-      const valueIdx = findValueIdx(a.value);
-      // Undo wrong confirmations in this row or at this position
-      for (let p = 0; p < puzzle.grid.size; p++) {
-        if (p !== a.position && grid[valueIdx][p] === "confirmed") {
-          grid[valueIdx][p] = "empty";
-          autoRestore(valueIdx, p);
-        }
-      }
-    }
 
     // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
