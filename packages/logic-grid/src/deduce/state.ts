@@ -63,7 +63,18 @@ export interface DeduceState {
   n: number;
   possible: Set<number>[][];
   valueInfo: Map<string, [number, number]>;
+  /** When true, try* functions skip explanation building and return SILENT_STEP. */
+  silent: boolean;
 }
+
+/** Sentinel returned by try* functions in silent mode (state was mutated, no step details). */
+export const SILENT_STEP: DeductionStep = Object.freeze({
+  technique: "direct" as DeductionTechnique,
+  clueIndices: [],
+  eliminations: [],
+  assignments: [],
+  explanation: "",
+});
 
 export function createState(grid: Grid): DeduceState {
   const n = grid.size;
@@ -76,7 +87,7 @@ export function createState(grid: Grid): DeduceState {
       valueInfo.set(grid.categories[ci].values[vi], [ci, vi]);
     }
   }
-  return { grid, n, possible, valueInfo };
+  return { grid, n, possible, valueInfo, silent: false };
 }
 
 export function getPossible(state: DeduceState, value: string): Set<number> {
@@ -105,6 +116,7 @@ export function cloneState(state: DeduceState): DeduceState {
     n: state.n,
     possible: state.possible.map((cat) => cat.map((ps) => new Set(ps))),
     valueInfo: state.valueInfo,
+    silent: state.silent,
   };
 }
 

@@ -15,6 +15,7 @@ export function propagateToFixpoint(
   state: DeduceState,
   constraints: Constraint[],
 ): boolean {
+  state.silent = true;
   let changed = true;
   while (changed) {
     for (const cat of state.possible)
