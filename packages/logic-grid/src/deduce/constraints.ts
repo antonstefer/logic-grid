@@ -504,7 +504,7 @@ function tryNotBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    because = `${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so `;
+    because = ` ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so `;
   } else {
     const knownO1 = describeKnown(state, c.outer1);
     const knownO2 = describeKnown(state, c.outer2);
@@ -512,14 +512,14 @@ function tryNotBetween(
     // ctx is always truthy for supported grid sizes (3–8): the neither-pinned
     // branch needs 4+4+1=9 positions for both outers to exceed the describeKnown
     // threshold, so at least one outer always has a description.
-    because = ctx ? `${ctx}, so ` : "";
+    because = ctx ? ` ${ctx}, so ` : " ";
   }
   return step(
     "not_between",
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}. ${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
   );
 }
 
