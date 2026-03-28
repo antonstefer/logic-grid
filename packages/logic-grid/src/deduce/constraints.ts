@@ -1,6 +1,7 @@
 import type { Constraint, DeductionStep, DeductionTechnique } from "../types";
 import {
   type DeduceState,
+  SILENT_STEP,
   getPossible,
   getAssigned,
   step,
@@ -66,6 +67,7 @@ function tryAtPosition(
   }
   ps.clear();
   ps.add(c.position);
+  if (state.silent) return SILENT_STEP;
   return step(
     "direct",
     [ci],
@@ -83,6 +85,7 @@ function tryNotAtPosition(
   const ps = getPossible(state, c.value);
   if (!ps.has(c.position)) return null;
   ps.delete(c.position);
+  if (state.silent) return SILENT_STEP;
   const assigns =
     ps.size === 1 ? [{ value: c.value, position: [...ps][0] }] : [];
   const suffix =
@@ -120,6 +123,7 @@ function trySameHouse(
     pa.add(p);
     pb.add(p);
   }
+  if (state.silent) return SILENT_STEP;
   const assigns: { value: string; position: number }[] = [];
   if (pa.size === 1) {
     const p = [...pa][0];
@@ -158,6 +162,7 @@ function tryNotSameHouse(
     elims.push({ value: c.a, position: posB });
   }
   if (elims.length === 0) return null;
+  if (state.silent) return SILENT_STEP;
   const assigns: { value: string; position: number }[] = [];
   for (const e of elims) {
     const ps = getPossible(state, e.value);
@@ -258,6 +263,7 @@ function tryAdjacency(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
   const verb = mustBeAdjacent ? "next to" : "not next to";
   const knownA = describeKnown(state, a);
@@ -294,6 +300,7 @@ function tryLeftOf(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
@@ -330,6 +337,7 @@ function tryBefore(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);
@@ -425,6 +433,7 @@ function tryBetween(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
 
   let because: string;
@@ -500,6 +509,7 @@ function tryNotBetween(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) pm.delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
 
   let because: string;
@@ -550,6 +560,7 @@ function tryExactDistance(
   const uniqueElims = dedup(elims);
   if (uniqueElims.length === 0) return null;
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
   const knownA = describeKnown(state, c.a);
   const knownB = describeKnown(state, c.b);

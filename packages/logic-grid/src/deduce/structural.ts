@@ -1,6 +1,7 @@
 import type { DeductionStep } from "../types";
 import {
   type DeduceState,
+  SILENT_STEP,
   getPossible,
   step,
   dedup,
@@ -24,6 +25,7 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
         }
       }
       if (elims.length === 0) continue;
+      if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
       return step(
         "naked_single",
@@ -58,6 +60,7 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
       }
       state.possible[ci][lastVi].clear();
       state.possible[ci][lastVi].add(p);
+      if (state.silent) return SILENT_STEP;
       return step(
         "hidden_single",
         [],
@@ -113,6 +116,7 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
           }
         }
         if (elims.length === 0) continue;
+        if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
         const positions = [...ps1].map((p) => ordinal(p)).join(" and ");
@@ -163,6 +167,7 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
             }
           }
           if (elims.length === 0) continue;
+          if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
           const positions = [...union].map((p) => ordinal(p)).join(", ");
@@ -213,6 +218,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
 
         for (const e of uniqueElims)
           getPossible(state, e.value).delete(e.position);
+        if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, uniqueElims);
         return step(
           "hidden_pair",
@@ -261,6 +267,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
 
           for (const e of uniqueElims)
             getPossible(state, e.value).delete(e.position);
+          if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, uniqueElims);
           return step(
             "hidden_triple",
