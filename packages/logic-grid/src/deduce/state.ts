@@ -69,7 +69,7 @@ export interface DeduceState {
 
 /**
  * Sentinel returned by try* functions in silent mode (state was mutated, no step details).
- * Only used as a truthy return value — fields are never inspected.
+ * Only used as a truthy non-null return value — callers check `!== null`, never inspect fields.
  */
 export const SILENT_STEP: DeductionStep = Object.freeze({
   technique: "direct" as DeductionTechnique,

@@ -367,6 +367,9 @@ export function createPuzzleState() {
         grid[v][p] = "empty";
       }
     }
+    // Reset index but keep hintSteps — the puzzle hasn't changed, so the
+    // deduction path is the same. hint() skips already-applied steps and
+    // undoes wrong moves, so replaying from the start is correct.
     hintIndex = 0;
     message = null;
   }

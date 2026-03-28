@@ -6,6 +6,10 @@ import { propagateToFixpoint } from "./propagate";
  * Proof by contradiction: try placing a value at a position, propagate,
  * and if any value ends up with 0 possible positions, eliminate it.
  * "If X were at position p, then [chain]... contradiction. So X can't be at p."
+ *
+ * Cost: O(values × positions × propagation), where propagation itself is a
+ * fixpoint over all constraints and structural techniques. Acceptable for
+ * the supported grid sizes (3–8) and only reached when cheaper techniques stall.
  */
 export function tryContradiction(
   state: DeduceState,
