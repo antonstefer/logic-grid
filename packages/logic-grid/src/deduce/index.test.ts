@@ -101,6 +101,14 @@ describe("hint", () => {
     expect(h!.technique).toBe("direct");
   });
 
+  it("returns null when no steps can be made and no known values", () => {
+    const g: Grid = {
+      size: 3,
+      categories: [{ name: "Color", values: ["Red", "Blue", "Green"] }],
+    };
+    expect(hint([], g)).toBeNull();
+  });
+
   it("skips past known assignments", () => {
     const h = hint(puzzle3x3, grid3x3, { Red: 0, Cat: 0 });
     expect(h).not.toBeNull();
@@ -108,6 +116,25 @@ describe("hint", () => {
       expect(a.value).not.toBe("Red");
       expect(a.value).not.toBe("Cat");
     }
+  });
+
+  it("returns elimination-only step for unknown value", () => {
+    const g: Grid = {
+      size: 4,
+      categories: [
+        { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
+      ],
+    };
+    // Red loses position 0 but still has {1,2,3} — no assignment, only elimination.
+    // known has Blue but not Red, so the elimination step is "new" for the user.
+    const h = hint(
+      [{ type: "not_at_position", value: "Red", position: 0 }],
+      g,
+      { Blue: 1 },
+    );
+    expect(h).not.toBeNull();
+    expect(h!.assignments).toHaveLength(0);
+    expect(h!.eliminations).toContainEqual({ value: "Red", position: 0 });
   });
 
   it("returns null when puzzle is fully known", () => {
