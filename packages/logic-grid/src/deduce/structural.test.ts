@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { deduce } from ".";
-import { generate } from "../generator";
 import type { Grid, Constraint } from "../types";
 
 const grid: Grid = {
@@ -214,13 +213,22 @@ describe("deduce structural techniques", () => {
   });
 
   it("contradiction: rules out positions that would lead to an impossible state", () => {
-    const puzzle = generate({
-      size: 4,
-      categories: 4,
-      difficulty: "hard",
-      seed: 2,
-    });
-    const result = deduce(puzzle.constraints, puzzle.grid);
+    // Fixed constraint set that requires contradiction (3x3 grid)
+    const small: Grid = {
+      size: 3,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"] },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+        { name: "Pet", values: ["Cat", "Dog", "Fish"] },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "not_next_to", a: "Bob", b: "Green" },
+      { type: "left_of", a: "Carol", b: "Blue" },
+      { type: "same_house", a: "Carol", b: "Fish" },
+      { type: "same_house", a: "Red", b: "Dog" },
+    ];
+    const result = deduce(constraints, small);
     expect(result.complete).toBe(true);
     expect(result.steps.some((s) => s.technique === "contradiction")).toBe(
       true,
