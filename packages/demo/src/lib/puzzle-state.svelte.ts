@@ -287,6 +287,23 @@ export function createPuzzleState() {
     message = { text: "Solution revealed.", type: "info" };
   }
 
+  /** Check whether any user move contradicts the solution (without clearing). */
+  function hasWrongMoves(): boolean {
+    if (!puzzle) return false;
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        for (let p = 0; p < puzzle.grid.size; p++) {
+          if (grid[valueIdx][p] === "confirmed" && p !== correctPos) return true;
+        }
+        if (grid[valueIdx][correctPos] === "eliminated") return true;
+      }
+    }
+    return false;
+  }
+
   /** Undo every user move that contradicts the solution. Returns true if anything was cleared. */
   function clearWrongMoves(): boolean {
     if (!puzzle) return false;
@@ -346,6 +363,8 @@ export function createPuzzleState() {
   function buildNudgeText(step: DeductionStep): string {
     const hintTemplate = TECHNIQUE_HINTS[step.technique];
 
+    // Clue-based steps reference specific clues and substitute {target}.
+    // Structural steps (clueIndices empty) use plain statements with no placeholder.
     if (step.clueIndices.length > 0) {
       const clueRefs = step.clueIndices
         .map((i) => `Clue ${i + 1}`)
@@ -359,7 +378,9 @@ export function createPuzzleState() {
         return `Try looking at ${clueRefs} \u2014 where must ${assignValues[0]} go?`;
       }
 
-      const target = elimValues[0] ?? "it";
+      // assignValues branch above handles all assignment cases, so elimValues
+      // is guaranteed non-empty here (every step has at least one effect).
+      const target = elimValues[0];
       return `Try looking at ${clueRefs} \u2014 ${hintTemplate.replace("{target}", target)}`;
     }
 
@@ -367,6 +388,13 @@ export function createPuzzleState() {
   }
 
   function nudge() {
+    if (hasWrongMoves()) {
+      message = {
+        text: "You have some incorrect moves. Try fixing those first, or use Explain Next Step.",
+        type: "error",
+      };
+      return;
+    }
     const step = findNextStep();
     if (!step) {
       message = { text: "No more logical deductions available.", type: "info" };
