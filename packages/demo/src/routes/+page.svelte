@@ -74,6 +74,7 @@
         />
 
         <div class="actions">
+          <button class="btn" onclick={() => puzzleState.nudge()}>Nudge</button>
           <button class="btn" onclick={() => puzzleState.hint()}>Explain Next Step</button>
           <button class="btn" onclick={() => puzzleState.revealCell()}>Reveal a Cell</button>
           <button class="btn" onclick={() => puzzleState.checkSolution()}>Check</button>
