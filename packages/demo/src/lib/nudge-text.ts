@@ -25,6 +25,11 @@ export const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
     "try assuming a value is in a position and see if it leads to a contradiction",
 };
 
+function joinValues(values: string[]): string {
+  if (values.length === 1) return values[0];
+  return values.slice(0, -1).join(", ") + " and " + values[values.length - 1];
+}
+
 export function buildNudgeText(step: DeductionStep): string {
   const hintTemplate = TECHNIQUE_HINTS[step.technique];
 
@@ -38,12 +43,13 @@ export function buildNudgeText(step: DeductionStep): string {
 
     // If this step places a value, use placement phrasing regardless of technique.
     if (assignValues.length > 0) {
-      return `Try looking at ${clueRefs} \u2014 where must ${assignValues[0]} go?`;
+      const targets = joinValues(assignValues);
+      return `Try looking at ${clueRefs} \u2014 where must ${targets} go?`;
     }
 
     // assignValues branch above handles all assignment cases, so elimValues
     // is guaranteed non-empty here (every step has at least one effect).
-    const target = elimValues[0];
+    const target = joinValues(elimValues);
     return `Try looking at ${clueRefs} \u2014 ${hintTemplate.replace("{target}", target)}`;
   }
 

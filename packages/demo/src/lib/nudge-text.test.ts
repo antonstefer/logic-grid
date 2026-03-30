@@ -100,6 +100,39 @@ describe("buildNudgeText", () => {
     expect(text).toContain("Clue 1 and Clue 4");
   });
 
+  it("includes all assigned values in nudge text", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "same_house",
+        clueIndices: [1],
+        assignments: [
+          { value: "Alice", position: 0 },
+          { value: "Red", position: 0 },
+        ],
+      }),
+    );
+    expect(text).toBe(
+      "Try looking at Clue 2 \u2014 where must Alice and Red go?",
+    );
+  });
+
+  it("includes all eliminated values in nudge text", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "not_same_house",
+        clueIndices: [0],
+        eliminations: [
+          { value: "Alice", position: 1 },
+          { value: "Bob", position: 2 },
+          { value: "Carol", position: 3 },
+        ],
+      }),
+    );
+    expect(text).toBe(
+      "Try looking at Clue 1 \u2014 what positions can you rule out for Alice, Bob and Carol?",
+    );
+  });
+
   it("TECHNIQUE_HINTS covers all techniques", () => {
     const techniques = [
       "direct",
