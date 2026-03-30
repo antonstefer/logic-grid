@@ -369,4 +369,40 @@ describe("custom positionNoun / positionPreposition", () => {
       "The circle shape and the small size are at the same slot.",
     );
   });
+
+  it("throws on empty positionNoun singular", () => {
+    const badGrid: Grid = {
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+      positionNoun: ["", "seats"],
+    };
+    expect(() =>
+      renderClue({ type: "at_position", value: "Alice", position: 0 }, badGrid),
+    ).toThrow(RangeError);
+  });
+
+  it("throws on empty positionNoun plural", () => {
+    const badGrid: Grid = {
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+      positionNoun: ["seat", ""],
+    };
+    expect(() =>
+      renderClue(
+        { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+        badGrid,
+      ),
+    ).toThrow(RangeError);
+  });
+
+  it("throws on empty positionPreposition", () => {
+    const badGrid: Grid = {
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+      positionPreposition: "",
+    };
+    expect(() =>
+      renderClue({ type: "at_position", value: "Alice", position: 0 }, badGrid),
+    ).toThrow(RangeError);
+  });
 });
