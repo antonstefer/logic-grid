@@ -4,9 +4,33 @@ import {
   type Puzzle,
   type Difficulty,
   type DeductionStep,
+  type DeductionTechnique,
 } from "logic-grid";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
+
+const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
+  direct: "use the clue directly",
+  elimination: "try eliminating positions",
+  same_house: "think about which items share a position",
+  not_same_house: "think about which items can't share a position",
+  next_to: "consider which positions are adjacent",
+  not_next_to: "consider which positions can't be adjacent",
+  left_of: "think about the left-right ordering",
+  before: "think about the relative ordering",
+  between: "think about what must be in between",
+  not_between: "think about what can't be in between",
+  exact_distance: "count the distance between positions",
+  naked_single: "look for a value that can only go in one position",
+  hidden_single: "look for a position that can only hold one value",
+  naked_pair: "look for two values sharing the same two possible positions",
+  naked_triple: "look for three values restricted to the same three positions",
+  hidden_pair: "look for two positions that can only hold the same two values",
+  hidden_triple:
+    "look for three positions that can only hold the same three values",
+  contradiction:
+    "try assuming a value is in a position and see if it leads to a contradiction",
+};
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
@@ -18,7 +42,6 @@ export function createPuzzleState() {
     type: "success" | "error" | "info";
   } | null>(null);
   let hintSteps = $state<DeductionStep[]>([]);
-  let hintIndex = $state(0);
 
   function newPuzzle(
     size: number,
@@ -48,7 +71,6 @@ export function createPuzzleState() {
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
       hintSteps = [];
-      hintIndex = 0;
       loading = false;
     }, 0);
   }
@@ -297,21 +319,16 @@ export function createPuzzleState() {
     return cleared;
   }
 
-  function hint() {
-    if (!puzzle) return;
+  /** Find the next deduction step whose effects haven't been applied yet. */
+  function findNextStep(): DeductionStep | null {
+    if (!puzzle) return null;
 
-    // Lazily compute deduction steps on first hint request.
+    // Lazily compute deduction steps on first request.
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
 
-    const hadWrongMoves = clearWrongMoves();
-
-    // Skip steps whose effects the user has already correctly applied.
-    // Scan from 0 so undone hints are found again.
-    hintIndex = 0;
-    while (hintIndex < hintSteps.length) {
-      const candidate = hintSteps[hintIndex];
+    for (const candidate of hintSteps) {
       const hasNewElim = candidate.eliminations.some((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
         return cell === "empty" || cell === "confirmed";
@@ -319,16 +336,43 @@ export function createPuzzleState() {
       const hasNewAssign = candidate.assignments.some((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";
       });
-      if (hasNewElim || hasNewAssign) break;
-      hintIndex++;
+      if (hasNewElim || hasNewAssign) return candidate;
+    }
+    return null;
+  }
+
+  function buildNudgeText(step: DeductionStep): string {
+    const techniqueHint = TECHNIQUE_HINTS[step.technique];
+
+    if (step.clueIndices.length > 0) {
+      const clueRefs = step.clueIndices
+        .map((i) => `Clue ${i + 1}`)
+        .join(" and ");
+      return `Try looking at ${clueRefs} \u2014 ${techniqueHint}.`;
     }
 
-    if (hintIndex >= hintSteps.length) {
+    return `Try a different approach \u2014 ${techniqueHint}.`;
+  }
+
+  function nudge() {
+    const step = findNextStep();
+    if (!step) {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
+    message = { text: buildNudgeText(step), type: "info" };
+  }
 
-    const step = hintSteps[hintIndex++];
+  function hint() {
+    if (!puzzle) return;
+
+    const hadWrongMoves = clearWrongMoves();
+    const step = findNextStep();
+
+    if (!step) {
+      message = { text: "No more logical deductions available.", type: "info" };
+      return;
+    }
 
     // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
@@ -384,10 +428,6 @@ export function createPuzzleState() {
         grid[v][p] = "empty";
       }
     }
-    // Reset index but keep hintSteps — the puzzle hasn't changed, so the
-    // deduction path is the same. hint() skips already-applied steps and
-    // undoes wrong moves, so replaying from the start is correct.
-    hintIndex = 0;
     message = null;
   }
 
@@ -414,6 +454,7 @@ export function createPuzzleState() {
     clear,
     checkSolution,
     showSolution,
+    nudge,
     hint,
     revealCell,
   };
