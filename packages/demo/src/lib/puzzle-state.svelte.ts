@@ -351,11 +351,15 @@ export function createPuzzleState() {
         .map((i) => `Clue ${i + 1}`)
         .join(" and ");
 
-      const values = new Set<string>();
-      for (const a of step.assignments) values.add(a.value);
-      for (const e of step.eliminations) values.add(e.value);
-      const target = [...values][0] ?? "it";
+      const assignValues = [...new Set(step.assignments.map((a) => a.value))];
+      const elimValues = [...new Set(step.eliminations.map((e) => e.value))];
 
+      // If this step places a value, use placement phrasing regardless of technique.
+      if (assignValues.length > 0) {
+        return `Try looking at ${clueRefs} \u2014 where must ${assignValues[0]} go?`;
+      }
+
+      const target = elimValues[0] ?? "it";
       return `Try looking at ${clueRefs} \u2014 ${hintTemplate.replace("{target}", target)}`;
     }
 
