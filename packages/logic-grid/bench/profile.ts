@@ -31,6 +31,28 @@ export function runBench(): void {
       `${String(size).padStart(2)}x${String(cats).padEnd(2)}   ${ms.toFixed(0).padStart(7)}ms`,
     );
   }
+
+  // Per-difficulty timing (4x4, 50 samples each)
+  console.log("\n4x4 by difficulty (50 samples)");
+  console.log("diff       median    p95");
+  console.log("----       ------    ---");
+  const diffs = ["easy", "medium", "hard", "expert"] as const;
+  for (const diff of diffs) {
+    const times: number[] = [];
+    for (let seed = 0; seed < 50; seed++) {
+      const start = performance.now();
+      try {
+        generate({ size: 4, categories: 4, difficulty: diff, seed });
+      } catch {
+        /* retry-exhausted */
+      }
+      times.push(performance.now() - start);
+    }
+    times.sort((a, b) => a - b);
+    console.log(
+      `${diff.padEnd(10)} ${times[25].toFixed(1).padStart(6)}ms  ${times[47].toFixed(1).padStart(6)}ms`,
+    );
+  }
 }
 
 interface SizeStats {
