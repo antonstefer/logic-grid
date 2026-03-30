@@ -45,7 +45,7 @@ export type Constraint =
   | { type: "not_at_position"; value: string; position: number };
 
 /** Puzzle difficulty level, determined by constraint types and deduction depth. */
-export type Difficulty = "easy" | "medium" | "hard";
+export type Difficulty = "easy" | "medium" | "hard" | "expert";
 
 /** A human-readable clue derived from a constraint. */
 export interface Clue {
