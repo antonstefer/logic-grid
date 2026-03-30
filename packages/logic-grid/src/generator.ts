@@ -180,6 +180,11 @@ function buildGrid(
         "positionNoun singular and plural must be non-empty",
       );
   }
+  if (
+    options?.positionPreposition !== undefined &&
+    !options.positionPreposition
+  )
+    throw new RangeError("positionPreposition must be non-empty");
   let categories: Category[];
 
   if (categoryNames) {
