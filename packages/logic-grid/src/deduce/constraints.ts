@@ -589,6 +589,6 @@ function tryExactDistance(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} ${posNounPlural(state.grid)} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
