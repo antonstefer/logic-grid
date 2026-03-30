@@ -27,7 +27,8 @@ export const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
 
 function joinValues(values: string[]): string {
   if (values.length === 1) return values[0];
-  return values.slice(0, -1).join(", ") + " and " + values[values.length - 1];
+  if (values.length === 2) return values[0] + " and " + values[1];
+  return values.slice(0, -1).join(", ") + ", and " + values[values.length - 1];
 }
 
 export function buildNudgeText(step: DeductionStep): string {

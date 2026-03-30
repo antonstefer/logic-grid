@@ -36,21 +36,26 @@ export function runBench(): void {
   console.log("\n4x4 by difficulty (50 samples)");
   console.log("diff       median    p95");
   console.log("----       ------    ---");
+  const samples = 50;
   const diffs = ["easy", "medium", "hard", "expert"] as const;
   for (const diff of diffs) {
     const times: number[] = [];
-    for (let seed = 0; seed < 50; seed++) {
+    let failures = 0;
+    for (let seed = 0; seed < samples; seed++) {
       const start = performance.now();
       try {
         generate({ size: 4, categories: 4, difficulty: diff, seed });
       } catch {
-        /* retry-exhausted */
+        failures++;
       }
       times.push(performance.now() - start);
     }
     times.sort((a, b) => a - b);
+    const median = times[Math.floor(times.length * 0.5)];
+    const p95 = times[Math.floor(times.length * 0.95)];
+    const failStr = failures > 0 ? `  (${failures} failed)` : "";
     console.log(
-      `${diff.padEnd(10)} ${times[25].toFixed(1).padStart(6)}ms  ${times[47].toFixed(1).padStart(6)}ms`,
+      `${diff.padEnd(10)} ${median.toFixed(1).padStart(6)}ms  ${p95.toFixed(1).padStart(6)}ms${failStr}`,
     );
   }
 }

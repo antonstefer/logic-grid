@@ -144,7 +144,7 @@ describe("buildNudgeText", () => {
       }),
     );
     expect(text).toBe(
-      "Try looking at Clue 1 \u2014 what positions can you rule out for Alice, Bob and Carol?",
+      "Try looking at Clue 1 \u2014 what positions can you rule out for Alice, Bob, and Carol?",
     );
   });
 

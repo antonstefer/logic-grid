@@ -314,7 +314,11 @@ export function createPuzzleState() {
     return cleared;
   }
 
-  /** Find the next deduction step whose effects haven't been applied yet. */
+  /**
+   * Find the next deduction step whose effects haven't been applied yet.
+   * Returns a shallow copy with only the unapplied eliminations/assignments,
+   * so nudge text and hint application only reference remaining work.
+   */
   function findNextStep(): DeductionStep | null {
     if (!puzzle) return null;
 
