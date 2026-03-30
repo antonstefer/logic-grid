@@ -112,4 +112,20 @@ describe("classify with grid (deduction depth)", () => {
     ];
     expect(classify(constraints, grid3x3)).toBe("expert");
   });
+
+  it("returns expert for medium types that require contradiction", () => {
+    const constraints: Constraint[] = [
+      { type: "not_next_to", a: "Red", b: "Cat" },
+      { type: "left_of", a: "Blue", b: "Dog" },
+    ];
+    expect(classify(constraints, grid3x3)).toBe("expert");
+  });
+
+  it("returns expert for hard types that require contradiction", () => {
+    const constraints: Constraint[] = [
+      { type: "not_next_to", a: "Red", b: "Cat" },
+      { type: "exact_distance", a: "Blue", b: "Dog", distance: 2 },
+    ];
+    expect(classify(constraints, grid3x3)).toBe("expert");
+  });
 });
