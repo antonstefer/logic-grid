@@ -53,5 +53,15 @@ export function buildNudgeText(step: DeductionStep): string {
     return `Try looking at ${clueRefs} \u2014 ${hintTemplate.replace("{target}", target)}`;
   }
 
+  // Contradiction steps have no clueIndices but target a specific value.
+  if (step.technique === "contradiction") {
+    const elimValues = [...new Set(step.eliminations.map((e) => e.value))];
+    const assignValues = [...new Set(step.assignments.map((a) => a.value))];
+    const target = joinValues(
+      assignValues.length > 0 ? assignValues : elimValues,
+    );
+    return `Try a different approach \u2014 what happens if you assume where ${target} goes?`;
+  }
+
   return `Try a different approach \u2014 ${hintTemplate}.`;
 }
