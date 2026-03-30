@@ -16,7 +16,7 @@ const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
   not_same_house: "think about what positions you can rule out",
   next_to: "consider which positions are adjacent",
   not_next_to: "consider which positions can't be adjacent",
-  left_of: "think about which positions could be directly next to each other",
+  left_of: "think about which positions are impossible at the edges",
   before: "think about which end positions are impossible",
   between: "think about which positions are possible for the middle item",
   not_between: "think about which positions the middle item can't be in",
