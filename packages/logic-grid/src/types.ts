@@ -12,6 +12,10 @@ export interface Category {
 export interface Grid {
   size: number;
   categories: Category[];
+  /** Singular and plural position noun, e.g. `["house", "houses"]`. Default: `["house", "houses"]`. */
+  positionNoun?: [string, string];
+  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". Default: `"in"`. */
+  positionPreposition?: string;
 }
 
 /** Maps each value name to its 0-indexed position. One per category. */
@@ -113,4 +117,8 @@ export interface GenerateOptions {
   categoryNames?: Category[];
   /** Random seed for reproducible generation. */
   seed?: number;
+  /** Singular and plural position noun. Default: `["house", "houses"]`. */
+  positionNoun?: [string, string];
+  /** Preposition for positional phrases. Default: `"in"`. */
+  positionPreposition?: string;
 }

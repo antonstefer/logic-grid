@@ -257,3 +257,116 @@ describe("custom category noun/verb", () => {
     expect(clue.text).toBe("Alice lives in the red house.");
   });
 });
+
+describe("custom positionNoun / positionPreposition", () => {
+  const seatGrid: Grid = {
+    size: 3,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol"] },
+      { name: "Color", values: ["Red", "Blue", "Green"] },
+      { name: "Pet", values: ["Cat", "Dog", "Fish"] },
+      { name: "Drink", values: ["Tea", "Coffee", "Water"] },
+    ],
+    positionNoun: ["seat", "seats"],
+    positionPreposition: "at",
+  };
+
+  it("at_position uses custom noun and preposition", () => {
+    const clue = renderClue(
+      { type: "at_position", value: "Tea", position: 0 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("The tea drinker lives at the first seat.");
+  });
+
+  it("at_position with color uses custom noun", () => {
+    const clue = renderClue(
+      { type: "at_position", value: "Red", position: 2 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("The third seat is red.");
+  });
+
+  it("not_at_position uses custom noun and preposition", () => {
+    const clue = renderClue(
+      { type: "not_at_position", value: "Alice", position: 1 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("Alice does not live at the second seat.");
+  });
+
+  it("not_at_position with color uses custom noun", () => {
+    const clue = renderClue(
+      { type: "not_at_position", value: "Red", position: 2 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("The third seat is not red.");
+  });
+
+  it("exact_distance singular uses custom noun", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("Alice lives exactly one seat from the cat.");
+  });
+
+  it("exact_distance plural uses custom noun", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
+      seatGrid,
+    );
+    expect(clue.text).toBe("Alice lives exactly two seats from the cat.");
+  });
+
+  it("same_house color + pet uses custom noun and preposition", () => {
+    const clue = renderClue(
+      { type: "same_house", a: "Red", b: "Cat" },
+      seatGrid,
+    );
+    expect(clue.text).toBe("The cat lives at the red seat.");
+  });
+
+  it("same_house name + color uses custom noun and preposition", () => {
+    const clue = renderClue(
+      { type: "same_house", a: "Alice", b: "Blue" },
+      seatGrid,
+    );
+    expect(clue.text).toBe("Alice lives at the blue seat.");
+  });
+
+  it("not_same_house color + pet uses custom noun and preposition", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Red", b: "Cat" },
+      seatGrid,
+    );
+    expect(clue.text).toBe("No cat lives at the red seat.");
+  });
+
+  it("not_same_house color + drink uses custom noun", () => {
+    const clue = renderClue(
+      { type: "not_same_house", a: "Blue", b: "Coffee" },
+      seatGrid,
+    );
+    expect(clue.text).toBe("The blue seat's resident does not drink coffee.");
+  });
+
+  it("same_house fallback uses custom noun and preposition", () => {
+    const minGrid: Grid = {
+      size: 3,
+      categories: [
+        { name: "Shape", values: ["Circle", "Square", "Triangle"] },
+        { name: "Size", values: ["Small", "Medium", "Large"] },
+      ],
+      positionNoun: ["slot", "slots"],
+      positionPreposition: "at",
+    };
+    const clue = renderClue(
+      { type: "same_house", a: "Circle", b: "Small" },
+      minGrid,
+    );
+    expect(clue.text).toBe(
+      "The circle shape and the small size are at the same slot.",
+    );
+  });
+});

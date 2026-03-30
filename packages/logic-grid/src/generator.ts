@@ -110,7 +110,7 @@ export function generate(options?: GenerateOptions): Puzzle {
   const difficulty = options?.difficulty;
   const rng = createRng(options?.seed);
 
-  const grid = buildGrid(size, numCategories, options?.categoryNames);
+  const grid = buildGrid(size, numCategories, options);
   const solverCtx = createSolverContext(grid);
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -170,8 +170,9 @@ export function generate(options?: GenerateOptions): Puzzle {
 function buildGrid(
   size: number,
   numCategories: number,
-  categoryNames?: Category[],
+  options?: GenerateOptions,
 ): Grid {
+  const categoryNames = options?.categoryNames;
   let categories: Category[];
 
   if (categoryNames) {
@@ -198,7 +199,12 @@ function buildGrid(
     }));
   }
 
-  return { size, categories };
+  return {
+    size,
+    categories,
+    positionNoun: options?.positionNoun,
+    positionPreposition: options?.positionPreposition,
+  };
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {

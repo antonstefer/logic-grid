@@ -12,6 +12,9 @@ import {
   describeResult,
   clueRef,
   describeKnown,
+  posNoun,
+  posNounPlural,
+  posPrep,
 } from "./state";
 
 /** Check whether every position in `set` is adjacent to `p`. */
@@ -74,7 +77,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} house.`,
+    `Clue ${ci + 1}: ${c.value} must be ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}.`,
   );
 }
 
@@ -91,14 +94,14 @@ function tryNotAtPosition(
     ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
-      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} house.`
+      ? `, so ${c.value} must be ${posPrep(state.grid)} the ${ordinal(assigns[0].position)} ${posNoun(state.grid)}.`
       : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} house${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}${suffix}`,
   );
 }
 
@@ -137,11 +140,13 @@ function trySameHouse(
   const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
+  const noun = posNoun(state.grid);
+  const prep = posPrep(state.grid);
   let explanation: string;
   if (assigns.length > 0) {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same house${because}both are in the ${ordinal(assigns[0].position)} house.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}both are ${prep} the ${ordinal(assigns[0].position)} ${noun}.`;
   } else {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same house${because}${describeResult(assigns, elims)}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
   }
   return step("same_house", [ci], elims, assigns, explanation);
 }
@@ -172,16 +177,18 @@ function tryNotSameHouse(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
+  const noun = posNoun(state.grid);
+  const prep = posPrep(state.grid);
   const assignSuffix =
     assigns.length > 0
-      ? ` ${assigns.map((a) => `${a.value} must be in the ${ordinal(a.position)} house`).join("; ")}.`
+      ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
       : "";
   return step(
     "not_same_house",
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are in different houses. ${pinned} is in the ${ordinal(pinnedPos)} house, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are ${prep} different ${posNounPlural(state.grid)}. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -276,7 +283,7 @@ function tryAdjacency(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
 
@@ -312,7 +319,7 @@ function tryLeftOf(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.a} is directly left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} is directly left of ${c.b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
 
@@ -350,7 +357,7 @@ function tryBefore(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.a} is somewhere left of ${c.b}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} is somewhere left of ${c.b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
 
@@ -443,9 +450,11 @@ function tryBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
+    const noun = posNoun(state.grid);
+    const prep = posPrep(state.grid);
     const parts = [
-      `${c.outer1} is in the ${ordinal(a1)} house`,
-      `${c.outer2} is in the ${ordinal(a2)} house`,
+      `${c.outer1} is ${prep} the ${ordinal(a1)} ${noun}`,
+      `${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}`,
     ];
     because = ` ${parts.join(" and ")}, so `;
   } else {
@@ -461,7 +470,7 @@ function tryBetween(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
 
@@ -521,7 +530,9 @@ function tryNotBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    because = ` ${c.outer1} is in the ${ordinal(a1)} house and ${c.outer2} is in the ${ordinal(a2)} house, so `;
+    const noun = posNoun(state.grid);
+    const prep = posPrep(state.grid);
+    because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
   } else {
     const knownO1 = describeKnown(state, c.outer1);
     const knownO2 = describeKnown(state, c.outer2);
@@ -536,7 +547,7 @@ function tryNotBetween(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
 
@@ -578,6 +589,6 @@ function tryExactDistance(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} houses apart.${because}${describeResult(assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} ${posNounPlural(state.grid)} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }
