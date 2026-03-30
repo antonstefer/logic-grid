@@ -173,6 +173,13 @@ function buildGrid(
   options?: GenerateOptions,
 ): Grid {
   const categoryNames = options?.categoryNames;
+  if (options?.positionNoun !== undefined) {
+    const [singular, plural] = options.positionNoun;
+    if (!singular || !plural)
+      throw new RangeError(
+        "positionNoun singular and plural must be non-empty",
+      );
+  }
   let categories: Category[];
 
   if (categoryNames) {

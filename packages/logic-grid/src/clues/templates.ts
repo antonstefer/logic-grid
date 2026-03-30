@@ -1,5 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
-import { posNoun, posNounPlural, posPrep } from "../deduce/state";
+import { posNoun, posNounPlural, posPrep } from "../grid-utils";
 
 const ORDINALS = [
   "first",
