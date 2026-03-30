@@ -1,4 +1,6 @@
 import type { Grid, DeductionStep, DeductionTechnique } from "../types";
+import { posNoun, posNounPlural, posPrep } from "../grid-utils";
+export { posNoun, posNounPlural, posPrep };
 
 // --- Display utilities ---
 
@@ -20,12 +22,15 @@ export function ordinal(position: number): string {
 }
 
 export function describeResult(
+  grid: Grid,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
+  const noun = posNoun(grid);
+  const prep = posPrep(grid);
   const parts: string[] = [];
   for (const a of assigns) {
-    parts.push(`${a.value} must be in the ${ordinal(a.position)} house`);
+    parts.push(`${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`);
   }
   // Group eliminations by value
   const byValue = new Map<string, number[]>();
@@ -37,7 +42,7 @@ export function describeResult(
   }
   for (const [value, positions] of byValue) {
     const posStr = positions.map((p) => ordinal(p)).join(" or ");
-    parts.push(`${value} can't be in the ${posStr} house`);
+    parts.push(`${value} can't be ${prep} the ${posStr} ${noun}`);
   }
   return parts.join("; ");
 }
@@ -48,12 +53,15 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
+  const { grid } = state;
+  const noun = posNoun(grid);
+  const prep = posPrep(grid);
   const pos = getAssigned(state, value);
-  if (pos !== null) return `${value} is in the ${ordinal(pos)} house`;
+  if (pos !== null) return `${value} is ${prep} the ${ordinal(pos)} ${noun}`;
   const possible = getPossible(state, value);
   if (possible.size <= 3) {
     const posStr = [...possible].map((p) => ordinal(p)).join(" or ");
-    return `${value} can only be in the ${posStr} house`;
+    return `${value} can only be ${prep} the ${posStr} ${noun}`;
   }
   return "";
 }

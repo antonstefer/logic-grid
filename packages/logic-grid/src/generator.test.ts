@@ -145,6 +145,21 @@ describe("generate", () => {
     expect(() => generate({ categories: 9 })).toThrow(RangeError);
   });
 
+  it("rejects empty positionNoun strings", () => {
+    expect(() => generate({ size: 3, positionNoun: ["", "slots"] })).toThrow(
+      RangeError,
+    );
+    expect(() => generate({ size: 3, positionNoun: ["slot", ""] })).toThrow(
+      RangeError,
+    );
+  });
+
+  it("rejects empty positionPreposition", () => {
+    expect(() => generate({ size: 3, positionPreposition: "" })).toThrow(
+      RangeError,
+    );
+  });
+
   it("accepts custom categories", () => {
     const puzzle = generate({
       size: 3,

@@ -1,4 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
+import { posNoun, posNounPlural, posPrep } from "../grid-utils";
 
 const ORDINALS = [
   "first",
@@ -22,8 +23,8 @@ const CARDINALS = [
   "seven",
 ];
 
-function ordinalHouse(position: number): string {
-  return `the ${ORDINALS[position]} house`;
+function ordinalHouse(position: number, grid: Grid): string {
+  return `the ${ORDINALS[position]} ${posNoun(grid)}`;
 }
 
 /** Convert a constraint into a human-readable English clue. */
@@ -57,12 +58,16 @@ const NOUN_VERB: Record<string, [string, string]> = {
   "": ["lives with", "does not live with"],
   owner: ["owns the", "does not own the"],
   drinker: ["drinks", "does not drink"],
-  house: ["lives in the", "does not live in the"],
   lover: ["eats", "does not eat"],
   enthusiast: ["enjoys", "does not enjoy"],
   fan: ["listens to", "does not listen to"],
   player: ["plays", "does not play"],
 };
+
+function posNounVerb(grid: Grid): [string, string] {
+  const prep = posPrep(grid);
+  return [`lives ${prep} the`, `does not live ${prep} the`];
+}
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -128,22 +133,24 @@ function renderSameHouse(
   // Special: color + pet → "The cat lives in the red house"
   if (nounOf(subj, grid) === "house" && objNoun === "owner") {
     const article = negative ? "No" : "The";
-    return `${article} ${obj.toLowerCase()} lives in the ${subj.toLowerCase()} house.`;
+    return `${article} ${obj.toLowerCase()} lives ${posPrep(grid)} the ${subj.toLowerCase()} ${posNoun(grid)}.`;
   }
 
   // Look up verb: custom category verb first, then built-in noun mapping
-  const verb = findCategory(obj, grid).verb ?? NOUN_VERB[objNoun];
+  const verb =
+    findCategory(obj, grid).verb ??
+    (objNoun === "house" ? posNounVerb(grid) : NOUN_VERB[objNoun]);
   if (verb) {
     const subjNoun = nounOf(subj, grid);
     // "house" subject + non-house object: insert "'s resident"
     const subjLabel =
       subjNoun === "house"
-        ? `The ${subj.toLowerCase()} house's resident`
+        ? `The ${subj.toLowerCase()} ${posNoun(grid)}'s resident`
         : capitalize(label(subj, grid));
     // "house" object needs "house" suffix: "lives in the red house"
     const suffix =
       objNoun === "house"
-        ? ` ${obj.toLowerCase()} house`
+        ? ` ${obj.toLowerCase()} ${posNoun(grid)}`
         : ` ${obj.toLowerCase()}`;
     return `${subjLabel} ${verb[idx]}${suffix}.`;
   }
@@ -151,9 +158,10 @@ function renderSameHouse(
   // Generic fallback
   const la = label(constraint.a, grid);
   const lb = label(constraint.b, grid);
+  const prep = posPrep(grid);
   return negative
-    ? `${capitalize(la)} and ${lb} are not in the same house.`
-    : `${capitalize(la)} and ${lb} are in the same house.`;
+    ? `${capitalize(la)} and ${lb} are not ${prep} the same ${posNoun(grid)}.`
+    : `${capitalize(la)} and ${lb} are ${prep} the same ${posNoun(grid)}.`;
 }
 
 // --- Main renderer ---
@@ -216,20 +224,21 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const v = livesVerb(constraint.a, grid);
       const dist =
         CARDINALS[constraint.distance] ?? String(constraint.distance);
-      const houses = constraint.distance === 1 ? "house" : "houses";
-      return `${capitalize(la)} ${v} exactly ${dist} ${houses} from ${lb}.`;
+      const noun =
+        constraint.distance === 1 ? posNoun(grid) : posNounPlural(grid);
+      return `${capitalize(la)} ${v} exactly ${dist} ${noun} from ${lb}.`;
     }
     case "at_position": {
       if (nounOf(constraint.value, grid) === "house") {
-        return `${capitalize(ordinalHouse(constraint.position))} is ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(ordinalHouse(constraint.position, grid))} is ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(positionalLabel(constraint.value, grid))} lives in ${ordinalHouse(constraint.position)}.`;
+      return `${capitalize(positionalLabel(constraint.value, grid))} lives ${posPrep(grid)} ${ordinalHouse(constraint.position, grid)}.`;
     }
     case "not_at_position": {
       if (nounOf(constraint.value, grid) === "house") {
-        return `${capitalize(ordinalHouse(constraint.position))} is not ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(ordinalHouse(constraint.position, grid))} is not ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(positionalLabel(constraint.value, grid))} does not live in ${ordinalHouse(constraint.position)}.`;
+      return `${capitalize(positionalLabel(constraint.value, grid))} does not live ${posPrep(grid)} ${ordinalHouse(constraint.position, grid)}.`;
     }
   }
 }

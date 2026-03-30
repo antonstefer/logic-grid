@@ -8,6 +8,9 @@ import {
   dedup,
   collectAssigns,
   ordinal,
+  posNoun,
+  posNounPlural,
+  posPrep,
 } from "./state";
 
 // --- Structural deductions ---
@@ -43,7 +46,7 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
         [],
         elims,
         assigns,
-        `${cat.values[vi]} has no other possible position — it must be in the ${ordinal(pos)} house. So no other ${cat.name} can be there.`,
+        `${cat.values[vi]} has no other possible position — it must be ${posPrep(state.grid)} the ${ordinal(pos)} ${posNoun(state.grid)}. So no other ${cat.name} can be there.`,
       );
     }
   }
@@ -77,7 +80,7 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
         [],
         elims,
         [{ value: val, position: p }],
-        `The ${ordinal(p)} house must be ${val} (only remaining ${cat.name}).`,
+        `The ${ordinal(p)} ${posNoun(state.grid)} must be ${val} (only remaining ${cat.name}).`,
       );
     }
   }
@@ -136,7 +139,7 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} houses, so no other ${cat.name} can be there.`,
+          `${cat.values[vi1]} and ${cat.values[vi2]} can only be ${posPrep(state.grid)} the ${positions} ${posNounPlural(state.grid)}, so no other ${cat.name} can be there.`,
         );
       }
     }
@@ -187,7 +190,7 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be in the ${positions} houses, so no other ${cat.name} can be there.`,
+            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be ${posPrep(state.grid)} the ${positions} ${posNounPlural(state.grid)}, so no other ${cat.name} can be there.`,
           );
         }
       }
@@ -236,7 +239,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
           [],
           uniqueElims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${ordinal(p1)} and ${ordinal(p2)} houses, so they must be restricted to those positions.`,
+          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${ordinal(p1)} and ${ordinal(p2)} ${posNounPlural(state.grid)}, so they must be restricted to those positions.`,
         );
       }
     }
@@ -285,7 +288,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             [],
             uniqueElims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} houses, so they must be restricted to those positions.`,
+            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} ${posNounPlural(state.grid)}, so they must be restricted to those positions.`,
           );
         }
       }

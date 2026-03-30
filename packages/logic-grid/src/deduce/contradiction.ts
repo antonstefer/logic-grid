@@ -1,5 +1,13 @@
 import type { Constraint, DeductionStep } from "../types";
-import { type DeduceState, first, step, ordinal, cloneState } from "./state";
+import {
+  type DeduceState,
+  first,
+  step,
+  ordinal,
+  cloneState,
+  posNoun,
+  posPrep,
+} from "./state";
 import { propagateToFixpoint } from "./propagate";
 
 /**
@@ -31,16 +39,18 @@ export function tryContradiction(
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
           const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
+          const noun = posNoun(state.grid);
+          const prep = posPrep(state.grid);
           const assignSuffix =
             assigns.length > 0
-              ? ` So ${value} must be in the ${ordinal(assigns[0].position)} house.`
+              ? ` So ${value} must be ${prep} the ${ordinal(assigns[0].position)} ${noun}.`
               : "";
           return step(
             "contradiction",
             [],
             [{ value, position: p }],
             assigns,
-            `If ${value} were in the ${ordinal(p)} house, it would lead to a contradiction.${assignSuffix}`,
+            `If ${value} were ${prep} the ${ordinal(p)} ${noun}, it would lead to a contradiction.${assignSuffix}`,
           );
         }
       }
