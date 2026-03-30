@@ -5,6 +5,7 @@ import {
   type Difficulty,
   type DeductionStep,
 } from "logic-grid";
+import { buildNudgeText } from "./nudge-text";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
 
@@ -18,7 +19,6 @@ export function createPuzzleState() {
     type: "success" | "error" | "info";
   } | null>(null);
   let hintSteps = $state<DeductionStep[]>([]);
-  let hintIndex = $state(0);
 
   function newPuzzle(
     size: number,
@@ -48,7 +48,6 @@ export function createPuzzleState() {
         Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
       );
       hintSteps = [];
-      hintIndex = 0;
       loading = false;
     }, 0);
   }
@@ -263,6 +262,24 @@ export function createPuzzleState() {
     message = { text: "Solution revealed.", type: "info" };
   }
 
+  /** Check whether any user move contradicts the solution (without clearing). */
+  function hasWrongMoves(): boolean {
+    if (!puzzle) return false;
+    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
+      const cat = puzzle.grid.categories[ci];
+      for (let vi = 0; vi < cat.values.length; vi++) {
+        const valueIdx = getValueIndex(ci, vi);
+        const correctPos = puzzle.solution[ci][cat.values[vi]];
+        for (let p = 0; p < puzzle.grid.size; p++) {
+          if (grid[valueIdx][p] === "confirmed" && p !== correctPos)
+            return true;
+        }
+        if (grid[valueIdx][correctPos] === "eliminated") return true;
+      }
+    }
+    return false;
+  }
+
   /** Undo every user move that contradicts the solution. Returns true if anything was cleared. */
   function clearWrongMoves(): boolean {
     if (!puzzle) return false;
@@ -297,21 +314,16 @@ export function createPuzzleState() {
     return cleared;
   }
 
-  function hint() {
-    if (!puzzle) return;
+  /** Find the next deduction step whose effects haven't been applied yet. */
+  function findNextStep(): DeductionStep | null {
+    if (!puzzle) return null;
 
-    // Lazily compute deduction steps on first hint request.
+    // Lazily compute deduction steps on first request.
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
 
-    const hadWrongMoves = clearWrongMoves();
-
-    // Skip steps whose effects the user has already correctly applied.
-    // Scan from 0 so undone hints are found again.
-    hintIndex = 0;
-    while (hintIndex < hintSteps.length) {
-      const candidate = hintSteps[hintIndex];
+    for (const candidate of hintSteps) {
       const hasNewElim = candidate.eliminations.some((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
         return cell === "empty" || cell === "confirmed";
@@ -319,16 +331,37 @@ export function createPuzzleState() {
       const hasNewAssign = candidate.assignments.some((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";
       });
-      if (hasNewElim || hasNewAssign) break;
-      hintIndex++;
+      if (hasNewElim || hasNewAssign) return candidate;
     }
+    return null;
+  }
 
-    if (hintIndex >= hintSteps.length) {
+  function nudge() {
+    if (hasWrongMoves()) {
+      message = {
+        text: "You have some incorrect moves. Try fixing those first, or use Explain Next Step.",
+        type: "error",
+      };
+      return;
+    }
+    const step = findNextStep();
+    if (!step) {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
+    message = { text: buildNudgeText(step), type: "info" };
+  }
 
-    const step = hintSteps[hintIndex++];
+  function hint() {
+    if (!puzzle) return;
+
+    const hadWrongMoves = clearWrongMoves();
+    const step = findNextStep();
+
+    if (!step) {
+      message = { text: "No more logical deductions available.", type: "info" };
+      return;
+    }
 
     // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
@@ -384,10 +417,6 @@ export function createPuzzleState() {
         grid[v][p] = "empty";
       }
     }
-    // Reset index but keep hintSteps — the puzzle hasn't changed, so the
-    // deduction path is the same. hint() skips already-applied steps and
-    // undoes wrong moves, so replaying from the start is correct.
-    hintIndex = 0;
     message = null;
   }
 
@@ -414,6 +443,7 @@ export function createPuzzleState() {
     clear,
     checkSolution,
     showSolution,
+    nudge,
     hint,
     revealCell,
   };
