@@ -79,14 +79,29 @@ describe("buildNudgeText", () => {
     );
   });
 
-  it("contradiction technique uses correct phrasing", () => {
+  it("contradiction technique names the target value", () => {
     const text = buildNudgeText(
       makeStep({
         technique: "contradiction",
         eliminations: [{ value: "Bob", position: 0 }],
       }),
     );
-    expect(text).toContain("try assuming a value");
+    expect(text).toBe(
+      "Try a different approach \u2014 what happens if you assume where Bob goes?",
+    );
+  });
+
+  it("contradiction with assignment names the assigned value", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "contradiction",
+        eliminations: [{ value: "Bob", position: 0 }],
+        assignments: [{ value: "Bob", position: 2 }],
+      }),
+    );
+    expect(text).toBe(
+      "Try a different approach \u2014 what happens if you assume where Bob goes?",
+    );
   });
 
   it("joins multiple clue indices with 'and'", () => {
