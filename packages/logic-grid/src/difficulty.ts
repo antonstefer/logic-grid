@@ -18,8 +18,9 @@ export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
 // Hard types: between, not_between, not_next_to, exact_distance (plus everything else)
 
 /**
- * Classify puzzle difficulty. Uses constraint types as a floor, then (if grid
- * is provided) checks whether the puzzle is solvable by direct elimination alone.
+ * Classify puzzle difficulty. Uses constraint types as a floor (easy/medium/hard),
+ * then promotes to "expert" if the puzzle requires contradiction or cannot be
+ * fully solved by deduction.
  */
 export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   const typeFloor = classifyByTypes(constraints);
@@ -29,8 +30,9 @@ export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   if (
     !result.complete ||
     result.steps.some((s) => s.technique === "contradiction")
-  )
+  ) {
     return "expert";
+  }
   return typeFloor;
 }
 
