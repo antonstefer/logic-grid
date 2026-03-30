@@ -9,18 +9,20 @@ import {
 
 export type CellState = "empty" | "eliminated" | "confirmed";
 
+// Clue-based techniques use question templates with {target} replaced by the
+// value being deduced. Structural techniques are plain statements (no target).
 const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
-  direct: "use the clue directly",
-  elimination: "try eliminating positions",
-  same_house: "think about what positions you can rule out",
-  not_same_house: "think about what positions you can rule out",
-  next_to: "consider which positions are adjacent",
-  not_next_to: "consider which positions can't be adjacent",
-  left_of: "think about which positions are impossible at the edges",
-  before: "think about which end positions are impossible",
-  between: "think about which positions are possible for the middle item",
-  not_between: "think about which positions the middle item can't be in",
-  exact_distance: "count the distance between positions",
+  direct: "where must {target} go?",
+  elimination: "can you cross off a position for {target}?",
+  same_house: "what positions can you rule out for {target}?",
+  not_same_house: "what positions can you rule out for {target}?",
+  next_to: "where can {target} go?",
+  not_next_to: "what positions can you rule out for {target}?",
+  left_of: "which edge positions are ruled out for {target}?",
+  before: "which edge positions are ruled out for {target}?",
+  between: "which positions are possible for {target}?",
+  not_between: "which positions can {target} not be in?",
+  exact_distance: "which positions are possible for {target}?",
   naked_single: "look for a value that can only go in one position",
   hidden_single: "look for a position that can only hold one value",
   naked_pair: "look for two values sharing the same two possible positions",
@@ -342,25 +344,22 @@ export function createPuzzleState() {
   }
 
   function buildNudgeText(step: DeductionStep): string {
-    const techniqueHint = TECHNIQUE_HINTS[step.technique];
+    const hintTemplate = TECHNIQUE_HINTS[step.technique];
 
     if (step.clueIndices.length > 0) {
       const clueRefs = step.clueIndices
         .map((i) => `Clue ${i + 1}`)
         .join(" and ");
 
-      // Name the value being deduced so the player knows which side
-      // of the clue to focus on (clues mention 2+ items).
       const values = new Set<string>();
       for (const a of step.assignments) values.add(a.value);
       for (const e of step.eliminations) values.add(e.value);
-      const target = [...values][0];
-      const focus = target ? ` Focus on ${target}.` : "";
+      const target = [...values][0] ?? "it";
 
-      return `Try looking at ${clueRefs} \u2014 ${techniqueHint}.${focus}`;
+      return `Try looking at ${clueRefs} \u2014 ${hintTemplate.replace("{target}", target)}`;
     }
 
-    return `Try a different approach \u2014 ${techniqueHint}.`;
+    return `Try a different approach \u2014 ${hintTemplate}.`;
   }
 
   function nudge() {
