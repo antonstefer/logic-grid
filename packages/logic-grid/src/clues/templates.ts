@@ -1,4 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
+import { posNoun, posNounPlural, posPrep } from "../deduce/state";
 
 const ORDINALS = [
   "first",
@@ -21,16 +22,6 @@ const CARDINALS = [
   "six",
   "seven",
 ];
-
-function posNoun(grid: Grid): string {
-  return grid.positionNoun?.[0] ?? "house";
-}
-function posNounPlural(grid: Grid): string {
-  return grid.positionNoun?.[1] ?? "houses";
-}
-function posPrep(grid: Grid): string {
-  return grid.positionPreposition ?? "in";
-}
 
 function ordinalHouse(position: number, grid: Grid): string {
   return `the ${ORDINALS[position]} ${posNoun(grid)}`;
