@@ -348,7 +348,16 @@ export function createPuzzleState() {
       const clueRefs = step.clueIndices
         .map((i) => `Clue ${i + 1}`)
         .join(" and ");
-      return `Try looking at ${clueRefs} \u2014 ${techniqueHint}.`;
+
+      // Name the value being deduced so the player knows which side
+      // of the clue to focus on (clues mention 2+ items).
+      const values = new Set<string>();
+      for (const a of step.assignments) values.add(a.value);
+      for (const e of step.eliminations) values.add(e.value);
+      const target = [...values][0];
+      const focus = target ? ` Focus on ${target}.` : "";
+
+      return `Try looking at ${clueRefs} \u2014 ${techniqueHint}.${focus}`;
     }
 
     return `Try a different approach \u2014 ${techniqueHint}.`;
