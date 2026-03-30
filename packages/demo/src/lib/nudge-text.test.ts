@@ -1,0 +1,131 @@
+import { describe, it, expect } from "vitest";
+import type { DeductionStep } from "logic-grid";
+import { buildNudgeText, TECHNIQUE_HINTS } from "./nudge-text";
+
+function makeStep(
+  overrides: Partial<DeductionStep> & Pick<DeductionStep, "technique">,
+): DeductionStep {
+  return {
+    clueIndices: [],
+    eliminations: [],
+    assignments: [],
+    explanation: "",
+    ...overrides,
+  };
+}
+
+describe("buildNudgeText", () => {
+  it("clue-based elimination uses technique template with target", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "same_house",
+        clueIndices: [2],
+        eliminations: [{ value: "Alice", position: 0 }],
+      }),
+    );
+    expect(text).toBe(
+      "Try looking at Clue 3 \u2014 what positions can you rule out for Alice?",
+    );
+  });
+
+  it("clue-based assignment uses placement phrasing", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "same_house",
+        clueIndices: [4],
+        assignments: [{ value: "Dog", position: 1 }],
+        eliminations: [{ value: "Dog", position: 0 }],
+      }),
+    );
+    expect(text).toBe("Try looking at Clue 5 \u2014 where must Dog go?");
+  });
+
+  it("direct technique uses placement phrasing", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "direct",
+        clueIndices: [0],
+        assignments: [{ value: "Red", position: 2 }],
+        eliminations: [
+          { value: "Red", position: 0 },
+          { value: "Red", position: 1 },
+        ],
+      }),
+    );
+    expect(text).toBe("Try looking at Clue 1 \u2014 where must Red go?");
+  });
+
+  it("structural technique uses plain statement", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "naked_single",
+        assignments: [{ value: "Cat", position: 3 }],
+      }),
+    );
+    expect(text).toBe(
+      "Try a different approach \u2014 look for a value that can only go in one position.",
+    );
+  });
+
+  it("structural hidden_single uses correct phrasing", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "hidden_single",
+        assignments: [{ value: "Blue", position: 0 }],
+      }),
+    );
+    expect(text).toBe(
+      "Try a different approach \u2014 look for a position that can only hold one value.",
+    );
+  });
+
+  it("contradiction technique uses correct phrasing", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "contradiction",
+        eliminations: [{ value: "Bob", position: 0 }],
+      }),
+    );
+    expect(text).toContain("try assuming a value");
+  });
+
+  it("joins multiple clue indices with 'and'", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "elimination",
+        clueIndices: [0, 3],
+        eliminations: [{ value: "Tea", position: 1 }],
+      }),
+    );
+    expect(text).toContain("Clue 1 and Clue 4");
+  });
+
+  it("TECHNIQUE_HINTS covers all techniques", () => {
+    const techniques = [
+      "direct",
+      "elimination",
+      "same_house",
+      "not_same_house",
+      "next_to",
+      "not_next_to",
+      "left_of",
+      "before",
+      "between",
+      "not_between",
+      "exact_distance",
+      "naked_single",
+      "hidden_single",
+      "naked_pair",
+      "naked_triple",
+      "hidden_pair",
+      "hidden_triple",
+      "contradiction",
+    ];
+    for (const t of techniques) {
+      expect(TECHNIQUE_HINTS).toHaveProperty(t);
+      expect(typeof TECHNIQUE_HINTS[t as keyof typeof TECHNIQUE_HINTS]).toBe(
+        "string",
+      );
+    }
+  });
+});
