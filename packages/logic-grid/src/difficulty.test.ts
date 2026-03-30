@@ -115,8 +115,10 @@ describe("classify with grid (deduction depth)", () => {
 
   it("returns expert for medium types that require contradiction", () => {
     const constraints: Constraint[] = [
-      { type: "not_next_to", a: "Red", b: "Cat" },
-      { type: "left_of", a: "Blue", b: "Dog" },
+      { type: "next_to", a: "Red", b: "Cat" },
+      { type: "next_to", a: "Red", b: "Dog" },
+      { type: "left_of", a: "Blue", b: "Tea" },
+      { type: "before", a: "Cat", b: "Coffee" },
     ];
     expect(classify(constraints, grid3x3)).toBe("expert");
   });
