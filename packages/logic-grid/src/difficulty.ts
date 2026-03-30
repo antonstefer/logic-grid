@@ -26,8 +26,10 @@ export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   if (!grid) return typeFloor;
 
   const result = deduce(constraints, grid);
-  if (!result.complete) return typeFloor === "easy" ? "medium" : typeFloor;
-  if (result.steps.some((s) => s.technique === "contradiction"))
+  if (
+    !result.complete ||
+    result.steps.some((s) => s.technique === "contradiction")
+  )
     return "expert";
   return typeFloor;
 }

@@ -103,13 +103,13 @@ describe("classify with grid (deduction depth)", () => {
     expect(classify(constraints, grid3x3)).toBe("easy");
   });
 
-  it("returns medium for easy types that require deeper reasoning", () => {
-    // Only easy-type constraints, but not enough for direct elimination
+  it("returns expert for easy types that require contradiction", () => {
+    // Only easy-type constraints, but not solvable by pure deduction
     const constraints: Constraint[] = [
       { type: "same_house", a: "Red", b: "Cat" },
       { type: "not_same_house", a: "Blue", b: "Dog" },
       { type: "not_same_house", a: "Green", b: "Fish" },
     ];
-    expect(classify(constraints, grid3x3)).toBe("medium");
+    expect(classify(constraints, grid3x3)).toBe("expert");
   });
 });

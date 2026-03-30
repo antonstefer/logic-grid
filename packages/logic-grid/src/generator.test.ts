@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generate } from "./generator";
+import { deduce } from "./deduce";
 import { hasUniqueSolution, solve } from "./solver";
 
 describe("generate", () => {
@@ -11,7 +12,7 @@ describe("generate", () => {
     expect(puzzle.constraints.length).toBeGreaterThan(0);
     expect(puzzle.clues.length).toBe(puzzle.constraints.length);
     expect(puzzle.solution.length).toBe(4);
-    expect(["easy", "medium", "hard"]).toContain(puzzle.difficulty);
+    expect(["easy", "medium", "hard", "expert"]).toContain(puzzle.difficulty);
   });
 
   it("solution is a valid permutation", () => {
@@ -241,6 +242,34 @@ describe("generate", () => {
     });
     expect(puzzle.difficulty).toBe("hard");
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  });
+
+  it("easy/medium/hard puzzles never require contradiction", () => {
+    for (const difficulty of ["easy", "medium", "hard"] as const) {
+      for (let seed = 0; seed < 10; seed++) {
+        let puzzle;
+        try {
+          puzzle = generate({ size: 4, categories: 4, difficulty, seed });
+        } catch {
+          continue; // seed may not produce this difficulty
+        }
+        const result = deduce(puzzle.constraints, puzzle.grid);
+        expect(result.complete).toBe(true);
+        expect(result.steps.some((s) => s.technique === "contradiction")).toBe(
+          false,
+        );
+      }
+    }
+  });
+
+  it("expert puzzles require contradiction", () => {
+    const puzzle = generate({ size: 4, categories: 4, difficulty: "expert" });
+    expect(puzzle.difficulty).toBe("expert");
+    const result = deduce(puzzle.constraints, puzzle.grid);
+    expect(result.complete).toBe(true);
+    expect(result.steps.some((s) => s.technique === "contradiction")).toBe(
+      true,
+    );
   });
 
   it("throws when custom category has too few values", () => {

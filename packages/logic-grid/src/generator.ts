@@ -510,18 +510,23 @@ function minimizeConstraints(
   for (let i = 0; i < total; i++) if (active[i]) activeIndices.push(i);
   shuffle(activeIndices, rng);
 
-  const getActive = () => constraints.filter((_, i) => active[i]);
   for (const idx of activeIndices) {
     active[idx] = false;
+    // Short-circuit: needsContradiction only runs when the constraint is
+    // SAT-redundant (checkUnique passed), which is the less common path.
     if (
       !checkUnique(solver, actBase, total, active) ||
-      (avoidContradiction && needsContradiction(getActive(), grid))
+      (avoidContradiction &&
+        needsContradiction(
+          constraints.filter((_, i) => active[i]),
+          grid,
+        ))
     ) {
       active[idx] = true;
     }
   }
 
-  return getActive();
+  return constraints.filter((_, i) => active[i]);
 }
 
 // Seeded PRNG (xorshift32)
