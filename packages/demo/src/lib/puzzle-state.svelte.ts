@@ -314,7 +314,11 @@ export function createPuzzleState() {
     return cleared;
   }
 
-  /** Find the next deduction step whose effects haven't been applied yet. */
+  /**
+   * Find the next deduction step whose effects haven't been applied yet.
+   * Returns a shallow copy with only the unapplied eliminations/assignments,
+   * so nudge text and hint application only reference remaining work.
+   */
   function findNextStep(): DeductionStep | null {
     if (!puzzle) return null;
 
@@ -324,14 +328,20 @@ export function createPuzzleState() {
     }
 
     for (const candidate of hintSteps) {
-      const hasNewElim = candidate.eliminations.some((e) => {
+      const newElims = candidate.eliminations.filter((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
         return cell === "empty" || cell === "confirmed";
       });
-      const hasNewAssign = candidate.assignments.some((a) => {
+      const newAssigns = candidate.assignments.filter((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";
       });
-      if (hasNewElim || hasNewAssign) return candidate;
+      if (newElims.length > 0 || newAssigns.length > 0) {
+        return {
+          ...candidate,
+          eliminations: newElims,
+          assignments: newAssigns,
+        };
+      }
     }
     return null;
   }

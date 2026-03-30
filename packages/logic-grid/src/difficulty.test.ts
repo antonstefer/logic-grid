@@ -103,13 +103,31 @@ describe("classify with grid (deduction depth)", () => {
     expect(classify(constraints, grid3x3)).toBe("easy");
   });
 
-  it("returns medium for easy types that require deeper reasoning", () => {
-    // Only easy-type constraints, but not enough for direct elimination
+  it("returns expert for easy types that require contradiction", () => {
+    // Only easy-type constraints, but not solvable by pure deduction
     const constraints: Constraint[] = [
       { type: "same_house", a: "Red", b: "Cat" },
       { type: "not_same_house", a: "Blue", b: "Dog" },
       { type: "not_same_house", a: "Green", b: "Fish" },
     ];
-    expect(classify(constraints, grid3x3)).toBe("medium");
+    expect(classify(constraints, grid3x3)).toBe("expert");
+  });
+
+  it("returns expert for medium types that require contradiction", () => {
+    const constraints: Constraint[] = [
+      { type: "next_to", a: "Red", b: "Cat" },
+      { type: "next_to", a: "Red", b: "Dog" },
+      { type: "left_of", a: "Blue", b: "Tea" },
+      { type: "before", a: "Cat", b: "Coffee" },
+    ];
+    expect(classify(constraints, grid3x3)).toBe("expert");
+  });
+
+  it("returns expert for hard types that require contradiction", () => {
+    const constraints: Constraint[] = [
+      { type: "not_next_to", a: "Red", b: "Cat" },
+      { type: "exact_distance", a: "Blue", b: "Dog", distance: 2 },
+    ];
+    expect(classify(constraints, grid3x3)).toBe("expert");
   });
 });

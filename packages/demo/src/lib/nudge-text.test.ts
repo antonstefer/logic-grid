@@ -79,14 +79,29 @@ describe("buildNudgeText", () => {
     );
   });
 
-  it("contradiction technique uses correct phrasing", () => {
+  it("contradiction technique names the target value", () => {
     const text = buildNudgeText(
       makeStep({
         technique: "contradiction",
         eliminations: [{ value: "Bob", position: 0 }],
       }),
     );
-    expect(text).toContain("try assuming a value");
+    expect(text).toBe(
+      "Try a different approach \u2014 what happens if you assume where Bob goes?",
+    );
+  });
+
+  it("contradiction with assignment names the assigned value", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "contradiction",
+        eliminations: [{ value: "Bob", position: 0 }],
+        assignments: [{ value: "Bob", position: 2 }],
+      }),
+    );
+    expect(text).toBe(
+      "Try a different approach \u2014 what happens if you assume where Bob goes?",
+    );
   });
 
   it("joins multiple clue indices with 'and'", () => {
@@ -98,6 +113,39 @@ describe("buildNudgeText", () => {
       }),
     );
     expect(text).toContain("Clue 1 and Clue 4");
+  });
+
+  it("includes all assigned values in nudge text", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "same_house",
+        clueIndices: [1],
+        assignments: [
+          { value: "Alice", position: 0 },
+          { value: "Red", position: 0 },
+        ],
+      }),
+    );
+    expect(text).toBe(
+      "Try looking at Clue 2 \u2014 where must Alice and Red go?",
+    );
+  });
+
+  it("includes all eliminated values in nudge text", () => {
+    const text = buildNudgeText(
+      makeStep({
+        technique: "not_same_house",
+        clueIndices: [0],
+        eliminations: [
+          { value: "Alice", position: 1 },
+          { value: "Bob", position: 2 },
+          { value: "Carol", position: 3 },
+        ],
+      }),
+    );
+    expect(text).toBe(
+      "Try looking at Clue 1 \u2014 what positions can you rule out for Alice, Bob, and Carol?",
+    );
   });
 
   it("TECHNIQUE_HINTS covers all techniques", () => {

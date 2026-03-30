@@ -14,6 +14,7 @@ import { encodeConstraint } from "./encoding";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
+import { deduce } from "./deduce";
 
 const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -143,7 +144,13 @@ export function generate(options?: GenerateOptions): Puzzle {
     )
       continue;
 
-    const minimal = minimizeConstraints(filtered, incSolver, rng);
+    const minimal = minimizeConstraints(
+      filtered,
+      incSolver,
+      rng,
+      grid,
+      difficulty !== "expert",
+    );
     if (minimal.length === 0) continue;
     const actualDifficulty = classify(minimal, grid);
 
@@ -437,10 +444,18 @@ function checkUnique(
   return solver.isUniqueUnder(assumptions);
 }
 
+function needsContradiction(constraints: Constraint[], grid: Grid): boolean {
+  return deduce(constraints, grid).steps.some(
+    (s) => s.technique === "contradiction",
+  );
+}
+
 function minimizeConstraints(
   constraints: Constraint[],
   incSolver: IncSolverCtx,
   rng: () => number,
+  grid: Grid,
+  avoidContradiction: boolean,
 ): Constraint[] {
   const { solver, actBase, total } = incSolver;
   const active = new Array<boolean>(total).fill(false);
@@ -489,14 +504,26 @@ function minimizeConstraints(
 
   if (!unique) return [];
 
-  // Phase 2: Destructive trim — remove redundant in random order
+  // Phase 2: Destructive trim — remove redundant in random order,
+  // but keep constraints needed to avoid proof-by-contradiction.
   const activeIndices: number[] = [];
   for (let i = 0; i < total; i++) if (active[i]) activeIndices.push(i);
   shuffle(activeIndices, rng);
 
   for (const idx of activeIndices) {
     active[idx] = false;
-    active[idx] = !checkUnique(solver, actBase, total, active);
+    // Short-circuit: needsContradiction only runs when the constraint is
+    // SAT-redundant (checkUnique passed), which is the less common path.
+    if (
+      !checkUnique(solver, actBase, total, active) ||
+      (avoidContradiction &&
+        needsContradiction(
+          constraints.filter((_, i) => active[i]),
+          grid,
+        ))
+    ) {
+      active[idx] = true;
+    }
   }
 
   return constraints.filter((_, i) => active[i]);
