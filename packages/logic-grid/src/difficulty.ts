@@ -23,13 +23,12 @@ export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
  */
 export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
   const typeFloor = classifyByTypes(constraints);
+  if (!grid) return typeFloor;
 
-  if (grid && typeFloor === "easy") {
-    // Check if human-style elimination can fully solve it
-    if (deduce(constraints, grid).complete) return "easy";
-    return "medium";
-  }
-
+  const result = deduce(constraints, grid);
+  if (!result.complete) return typeFloor === "easy" ? "medium" : typeFloor;
+  if (result.steps.some((s) => s.technique === "contradiction"))
+    return "expert";
   return typeFloor;
 }
 
