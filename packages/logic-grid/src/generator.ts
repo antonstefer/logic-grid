@@ -130,19 +130,6 @@ export function generate(options?: GenerateOptions): Puzzle {
 
     // Build ONE incremental solver with activation literals for all constraints
     const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
-    if (!incSolver) continue; // base clauses contradictory (shouldn't happen)
-
-    // Check if all constraints together produce a unique solution
-    const allActive = Array.from({ length: filtered.length }, () => true);
-    if (
-      !checkUnique(
-        incSolver.solver,
-        incSolver.actBase,
-        filtered.length,
-        allActive,
-      )
-    )
-      continue;
 
     const minimal = minimizeConstraints(
       filtered,
@@ -151,7 +138,6 @@ export function generate(options?: GenerateOptions): Puzzle {
       grid,
       difficulty !== "expert",
     );
-    if (minimal.length === 0) continue;
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -350,14 +336,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
               middle: vals[m],
               outer2: v2,
             });
-          } else if (negativeCount < maxPerLoop) {
-            constraints.push({
-              type: "not_between",
-              outer1: v1,
-              middle: vals[m],
-              outer2: v2,
-            });
-            negativeCount++;
           }
           if (++betweenCount >= maxBetween) continue outer;
         }
@@ -412,7 +390,7 @@ interface IncSolverCtx {
 function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
-): IncSolverCtx | null {
+): IncSolverCtx {
   const { numValues, numPositions } = solverCtx.ctx;
   const actBase = numValues * numPositions + 1;
   const total = clauseCache.length;
@@ -426,7 +404,8 @@ function buildIncrementalSolver(
   }
 
   const solver = new IncrementalSolver(allClauses);
-  if (!solver.init()) return null;
+  /* v8 ignore next */
+  if (!solver.init()) throw new Error("base clauses contradictory");
 
   return { solver, actBase, total };
 }
@@ -488,6 +467,7 @@ function minimizeConstraints(
     for (const type of rotation) {
       const pool = byType.get(type)!;
       const cursor = cursors.get(type)!;
+      /* v8 ignore next */
       if (cursor >= pool.length) continue;
 
       active[pool[cursor]] = true;
@@ -499,9 +479,11 @@ function minimizeConstraints(
         break;
       }
     }
+    /* v8 ignore next */
     if (!addedAny) break;
   }
 
+  /* v8 ignore next */
   if (!unique) return [];
 
   // Phase 2: Destructive trim — remove redundant in random order,

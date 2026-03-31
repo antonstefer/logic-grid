@@ -534,13 +534,11 @@ function tryNotBetween(
     const prep = posPrep(state.grid);
     because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
   } else {
-    const knownO1 = describeKnown(state, c.outer1);
-    const knownO2 = describeKnown(state, c.outer2);
-    const ctx = knownO1 || knownO2;
-    // ctx is always truthy for supported grid sizes (3–8): the neither-pinned
-    // branch needs 4+4+1=9 positions for both outers to exceed the describeKnown
-    // threshold, so at least one outer always has a description.
-    because = ctx ? ` ${ctx}, so ` : " ";
+    // At least one outer always has a description for supported grid sizes (3–8):
+    // the neither-pinned case needs 4+4+1=9 positions, exceeding max size 8.
+    const ctx =
+      describeKnown(state, c.outer1) || describeKnown(state, c.outer2);
+    because = ` ${ctx}, so `;
   }
   return step(
     "not_between",
@@ -580,10 +578,9 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
-  const because = ctx ? ` ${ctx}, so ` : " ";
+  // At least one value always has a description for supported grid sizes (3–8).
+  const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
+  const because = ` ${ctx}, so `;
   return step(
     "exact_distance",
     [ci],
