@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { solveSAT, solveAllSAT } from "./sat";
+import { solveSAT, solveAllSAT, IncrementalSolver } from "./sat";
 
 function verifySolution(
   clauses: number[][],
@@ -108,6 +108,44 @@ describe("solveSAT", () => {
         expect(result.assignment.get(i)).toBe(true);
       }
     }
+  });
+
+  it("detects empty clause as UNSAT", () => {
+    const result = solveSAT([[]]);
+    expect(result.satisfiable).toBe(false);
+  });
+});
+
+describe("IncrementalSolver", () => {
+  it("returns false when assumption contradicts fixed assignment", () => {
+    // Clauses: x1 must be true, x2 free
+    const solver = new IncrementalSolver([[1], [2, -2]]);
+    expect(solver.init()).toBe(true);
+    // Assume x1 is false — contradicts the unit clause
+    expect(solver.isUniqueUnder([-1])).toBe(false);
+  });
+
+  it("skips assumption when variable already has same value", () => {
+    // x1 must be true (unit clause forces it). Exactly one of x2,x3 is true.
+    const solver = new IncrementalSolver([[1], [2, 3], [-2, -3]]);
+    expect(solver.init()).toBe(true);
+    // Assume x1=true (already forced — hits the continue branch) and x2=true
+    expect(solver.isUniqueUnder([1, 2])).toBe(true);
+  });
+
+  it("init returns false for contradictory base clauses", () => {
+    const solver = new IncrementalSolver([[1], [-1]]);
+    expect(solver.init()).toBe(false);
+  });
+
+  it("returns false when propagation fails after assumptions", () => {
+    // [[1,2],[1,-2]]: assuming x1=false forces x2=true (from [1,2]) and x2=false (from [1,-2])
+    const solver = new IncrementalSolver([
+      [1, 2],
+      [1, -2],
+    ]);
+    expect(solver.init()).toBe(true);
+    expect(solver.isUniqueUnder([-1])).toBe(false);
   });
 });
 

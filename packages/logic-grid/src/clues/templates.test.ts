@@ -102,6 +102,11 @@ describe("renderClue", () => {
     expect(clue.text).toBe("The tea drinker does not live next to the dog.");
   });
 
+  it("not_next_to: house noun uses 'is not'", () => {
+    const clue = renderClue({ type: "not_next_to", a: "Red", b: "Cat" }, grid);
+    expect(clue.text).toBe("The red house is not next to the cat.");
+  });
+
   it("left_of renders as left or right", () => {
     const clue = renderClue({ type: "left_of", a: "Blue", b: "Green" }, grid);
     // Deterministic per constraint — could be either phrasing
@@ -152,6 +157,16 @@ describe("renderClue", () => {
     );
   });
 
+  it("not_between: house noun as middle uses 'is not'", () => {
+    const clue = renderClue(
+      { type: "not_between", outer1: "Alice", middle: "Red", outer2: "Cat" },
+      grid,
+    );
+    expect(clue.text).toBe(
+      "The red house is not somewhere between Alice and the cat.",
+    );
+  });
+
   it("before", () => {
     const clue = renderClue({ type: "before", a: "Alice", b: "Cat" }, grid);
     expect(clue.text).toMatch(/somewhere (left|right) of/);
@@ -171,6 +186,19 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe("Alice lives exactly one house from the cat.");
+  });
+
+  it("throws on unknown value", () => {
+    expect(() =>
+      renderClue({ type: "same_house", a: "Unknown", b: "Cat" }, grid),
+    ).toThrow("Unknown value: Unknown");
+  });
+
+  it("swaps subject/object when b has higher priority", () => {
+    // Cat (owner, priority 0) as a, Alice (person, priority 2) as b
+    // Should swap so Alice becomes the subject
+    const clue = renderClue({ type: "same_house", a: "Cat", b: "Alice" }, grid);
+    expect(clue.text).toBe("Alice owns the cat.");
   });
 
   it("preserves constraint in returned clue", () => {
@@ -367,6 +395,23 @@ describe("custom positionNoun / positionPreposition", () => {
     );
     expect(clue.text).toBe(
       "The circle shape and the small size are at the same slot.",
+    );
+  });
+
+  it("not_same_house fallback (negative branch)", () => {
+    const minGrid: Grid = {
+      size: 3,
+      categories: [
+        { name: "Shape", values: ["Circle", "Square", "Triangle"] },
+        { name: "Size", values: ["Small", "Medium", "Large"] },
+      ],
+    };
+    const clue = renderClue(
+      { type: "not_same_house", a: "Circle", b: "Small" },
+      minGrid,
+    );
+    expect(clue.text).toBe(
+      "The circle shape and the small size are not in the same house.",
     );
   });
 

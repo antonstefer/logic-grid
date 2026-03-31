@@ -222,8 +222,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const la = positionalLabel(constraint.a, grid);
       const lb = positionalLabel(constraint.b, grid);
       const v = livesVerb(constraint.a, grid);
-      const dist =
-        CARDINALS[constraint.distance] ?? String(constraint.distance);
+      const dist = CARDINALS[constraint.distance];
       const noun =
         constraint.distance === 1 ? posNoun(grid) : posNounPlural(grid);
       return `${capitalize(la)} ${v} exactly ${dist} ${noun} from ${lb}.`;

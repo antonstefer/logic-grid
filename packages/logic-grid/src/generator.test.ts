@@ -146,6 +146,15 @@ describe("generate", () => {
     expect(() => generate({ categories: 9 })).toThrow(RangeError);
   });
 
+  it("accepts valid positionNoun", () => {
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      positionNoun: ["seat", "seats"],
+    });
+    expect(puzzle.grid.positionNoun).toEqual(["seat", "seats"]);
+  });
+
   it("rejects empty positionNoun strings", () => {
     expect(() => generate({ size: 3, positionNoun: ["", "slots"] })).toThrow(
       RangeError,
@@ -270,6 +279,27 @@ describe("generate", () => {
     expect(result.steps.some((s) => s.technique === "contradiction")).toBe(
       true,
     );
+  });
+
+  it("throws when custom categoryNames count is out of range", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "A", values: ["1", "2", "3"] },
+          { name: "B", values: ["4", "5", "6"] },
+        ],
+      }),
+    ).toThrow("categories must be 3-8");
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: Array.from({ length: 9 }, (_, i) => ({
+          name: `Cat${i}`,
+          values: ["a", "b", "c"],
+        })),
+      }),
+    ).toThrow("categories must be 3-8");
   });
 
   it("throws when custom category has too few values", () => {
