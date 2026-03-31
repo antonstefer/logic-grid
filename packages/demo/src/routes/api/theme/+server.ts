@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const result = await generateTheme({ theme, size, categories, client });
     return json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return json({ error: message }, { status: 500 });
+    console.error("Theme generation failed:", e);
+    return json({ error: "Theme generation failed" }, { status: 500 });
   }
 };
