@@ -22,3 +22,4 @@ Monorepo for logic grid puzzle generation and solving.
 - Supported grid sizes: 3–8
 - Throw on errors — never silently swallow or use fallback values
 - Prefer simple solutions — don't over-engineer
+- Never add Co-Authored-By lines or any AI/Claude references to commits or outputs
