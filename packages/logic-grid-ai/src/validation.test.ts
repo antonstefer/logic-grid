@@ -104,6 +104,25 @@ describe("validateThemeResult", () => {
     );
   });
 
+  it("rejects null/undefined category name", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[0].name = null as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("A category has an empty name"),
+    );
+  });
+
+  it("rejects whitespace-only category name", () => {
+    const r = validResult();
+    r.categories[0].name = "   ";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("A category has an empty name"),
+    );
+  });
+
   it("rejects empty values", () => {
     const r = validResult();
     r.categories[0].values[0] = "";
@@ -116,6 +135,32 @@ describe("validateThemeResult", () => {
     r.categories[0].values[0] = "A".repeat(31);
     const errors = validateThemeResult(r, 3, 3);
     expect(errors).toContainEqual(expect.stringContaining("too long"));
+  });
+
+  it("rejects category name longer than 30 chars", () => {
+    const r = validResult();
+    r.categories[0].name = "A".repeat(31);
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(expect.stringContaining("too long"));
+  });
+
+  it("rejects duplicate category names (case-insensitive)", () => {
+    const r = validResult();
+    r.categories[2].name = "dish";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("Duplicate category name"),
+    );
+  });
+
+  it("rejects invalid positionNoun type", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.positionNoun = "station" as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("positionNoun must be [singular, plural]"),
+    );
   });
 
   it("rejects values that collide with positional words", () => {
