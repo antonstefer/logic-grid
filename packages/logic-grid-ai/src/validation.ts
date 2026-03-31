@@ -19,63 +19,80 @@ export function validateThemeResult(
 ): string[] {
   const errors: string[] = [];
 
-  // 1. Category count
   if (result.categories.length !== expectedCategories) {
     errors.push(
       `Expected ${expectedCategories} categories, got ${result.categories.length}.`,
     );
   }
 
-  // 2. Value counts
+  const seenNames = new Set<string>();
+  const seenValues = new Map<string, string>();
+  const seenNouns = new Set<string>();
+  let personCount = 0;
+
   for (const cat of result.categories) {
+    // Category name checks
+    if (!cat.name || cat.name.trim() === "") {
+      errors.push("A category has an empty name.");
+    } else if (cat.name.length > 30) {
+      errors.push(
+        `Category name "${cat.name}" is too long (${cat.name.length} chars, max 30).`,
+      );
+    }
+    const nameLower = (cat.name ?? "").toLowerCase();
+    if (seenNames.has(nameLower)) {
+      errors.push(`Duplicate category name "${cat.name}".`);
+    }
+    seenNames.add(nameLower);
+
+    // Value count
     if (cat.values.length !== expectedSize) {
       errors.push(
         `Category "${cat.name}" has ${cat.values.length} values, expected ${expectedSize}.`,
       );
     }
-  }
 
-  // 3. Global value uniqueness (case-insensitive)
-  const seen = new Map<string, string>();
-  for (const cat of result.categories) {
+    // Value checks
     for (const val of cat.values) {
-      const lower = val.toLowerCase();
-      const existing = seen.get(lower);
+      if (val.trim() === "") {
+        errors.push(`Category "${cat.name}" has an empty value.`);
+      } else if (val.length > 30) {
+        errors.push(
+          `Category "${cat.name}" value "${val}" is too long (${val.length} chars, max 30).`,
+        );
+      }
+      const valLower = val.toLowerCase();
+      const existing = seenValues.get(valLower);
       if (existing !== undefined) {
         errors.push(
           `Duplicate value "${val}" (also in category with value "${existing}").`,
         );
       } else {
-        seen.set(lower, val);
+        seenValues.set(valLower, val);
+      }
+      if (POSITIONAL_WORDS.has(valLower)) {
+        errors.push(
+          `Category "${cat.name}" value "${val}" collides with a positional word.`,
+        );
       }
     }
-  }
 
-  // 4. Exactly one person category (noun: "")
-  const personCategories = result.categories.filter(
-    (c) => c.noun === "" || c.noun === undefined,
-  );
-  if (personCategories.length === 0) {
-    errors.push(
-      'No person category found. Exactly one category must have noun: "".',
-    );
-  } else if (personCategories.length > 1) {
-    errors.push(
-      `Multiple person categories found (${personCategories.map((c) => c.name).join(", ")}). Exactly one must have noun: "".`,
-    );
-  }
-
-  // 5. Non-person categories must have non-empty noun
-  for (const cat of result.categories) {
-    if (cat.noun !== "" && cat.noun !== undefined && cat.noun.trim() === "") {
+    // Noun checks
+    if (cat.noun === "" || cat.noun === undefined) {
+      personCount++;
+    } else if (cat.noun.trim() === "") {
       errors.push(
         `Category "${cat.name}" has a whitespace-only noun. Use a meaningful noun or "" for person categories.`,
       );
+    } else {
+      const nounLower = cat.noun.toLowerCase();
+      if (seenNouns.has(nounLower)) {
+        errors.push(`Duplicate noun "${cat.noun}" in category "${cat.name}".`);
+      }
+      seenNouns.add(nounLower);
     }
-  }
 
-  // 6. Verb arrays must be [string, string] if present
-  for (const cat of result.categories) {
+    // Verb checks
     if (cat.verb !== undefined) {
       if (
         !Array.isArray(cat.verb) ||
@@ -92,32 +109,17 @@ export function validateThemeResult(
     }
   }
 
-  // 7. Values must not be empty or too long
-  for (const cat of result.categories) {
-    for (const val of cat.values) {
-      if (val.trim() === "") {
-        errors.push(`Category "${cat.name}" has an empty value.`);
-      }
-      if (val.length > 30) {
-        errors.push(
-          `Category "${cat.name}" value "${val}" is too long (${val.length} chars, max 30).`,
-        );
-      }
-    }
+  if (personCount === 0) {
+    errors.push(
+      'No person category found. Exactly one category must have noun: "".',
+    );
+  } else if (personCount > 1) {
+    errors.push(
+      'Multiple person categories found. Exactly one must have noun: "".',
+    );
   }
 
-  // 8. Values must not collide with positional words
-  for (const cat of result.categories) {
-    for (const val of cat.values) {
-      if (POSITIONAL_WORDS.has(val.toLowerCase())) {
-        errors.push(
-          `Category "${cat.name}" value "${val}" collides with a positional word.`,
-        );
-      }
-    }
-  }
-
-  // 9. Position noun validation
+  // Position noun validation
   if (
     !Array.isArray(result.positionNoun) ||
     result.positionNoun.length !== 2 ||
@@ -134,7 +136,7 @@ export function validateThemeResult(
     }
   }
 
-  // 10. Position preposition validation
+  // Position preposition validation
   if (
     typeof result.positionPreposition !== "string" ||
     result.positionPreposition.trim() === ""
@@ -142,7 +144,7 @@ export function validateThemeResult(
     errors.push("positionPreposition must be a non-empty string.");
   }
 
-  // 11. No category name/value matches position noun
+  // No category name/value matches position noun
   if (Array.isArray(result.positionNoun) && result.positionNoun.length === 2) {
     const nounLower = result.positionNoun[0].toLowerCase();
     const nounPluralLower = result.positionNoun[1].toLowerCase();
