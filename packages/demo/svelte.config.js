@@ -1,14 +1,11 @@
-import adapter from "@sveltejs/adapter-static";
+import adapter from "@sveltejs/adapter-cloudflare";
 
 export default {
   kit: {
-    adapter: adapter({
-      pages: "build",
-      assets: "build",
-      fallback: "200.html",
-    }),
+    adapter: adapter(),
     alias: {
       "logic-grid": "../logic-grid/src",
+      "logic-grid-ai": "../logic-grid-ai/src",
     },
     paths: {
       base: process.env.BASE_PATH || "",
