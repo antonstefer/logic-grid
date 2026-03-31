@@ -28,9 +28,6 @@ export function solveAllSAT(
     if (!solver.solve()) break;
 
     const assignment = solver.getAssignment();
-    for (const v of allVars) {
-      if (!assignment.has(v)) assignment.set(v, false);
-    }
     solutions.push(assignment);
 
     const blocking: number[] = [];
@@ -215,9 +212,7 @@ class Solver extends SATBase {
   getAssignment(): Map<number, boolean> {
     const result = new Map<number, boolean>();
     for (let v = 1; v <= this.numVars; v++) {
-      if (this.values[v] !== UNDEF) {
-        result.set(v, this.values[v] === TRUE);
-      }
+      result.set(v, this.values[v] === TRUE);
     }
     return result;
   }

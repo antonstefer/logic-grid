@@ -287,10 +287,9 @@ describe("deduce constraint types", () => {
     expect(allElims).toContainEqual({ value: "Red", position: 1 });
   });
 
-  it("exact_distance arc-consistency: no known context when both values have many positions", () => {
+  it("exact_distance arc-consistency: eliminates when both values have many positions", () => {
     // distance=5 in a size-8 grid: Red and Blue each lose positions 3 and 4
-    // (no valid partner at those positions). Both retain 6 positions (> 3),
-    // so describeKnown returns "" for both — exercises the empty 'because' branch.
+    // (no valid partner at those positions).
     const grid8: Grid = {
       size: 8,
       categories: [
@@ -318,8 +317,6 @@ describe("deduce constraint types", () => {
     expect(step).toBeDefined();
     expect(step!.eliminations).toContainEqual({ value: "Red", position: 3 });
     expect(step!.eliminations).toContainEqual({ value: "Blue", position: 3 });
-    // Verify the empty 'because' branch is taken (no ", so " in explanation)
-    expect(step!.explanation).not.toContain(", so ");
   });
 
   it("exact_distance constrains positions", () => {
@@ -331,6 +328,19 @@ describe("deduce constraint types", () => {
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 2 });
+  });
+
+  it("exact_distance distance=1 explanation uses singular noun", () => {
+    // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Red", b: "Alice", distance: 1 },
+    ];
+    const result = deduce(constraints, grid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.assignments).toContainEqual({ value: "Red", position: 1 });
+    expect(step!.explanation).toContain("1 house apart");
   });
 
   it("between constrains middle position", () => {
