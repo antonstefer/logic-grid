@@ -9,9 +9,15 @@
   let size = $state(4);
   let categories = $state(4);
   let difficulty = $state<Difficulty | "any">("any");
+  let theme = $state("");
 
   function handleNewPuzzle() {
-    puzzleState.newPuzzle(size, categories, difficulty === "any" ? undefined : difficulty);
+    puzzleState.newPuzzle(
+      size,
+      categories,
+      difficulty === "any" ? undefined : difficulty,
+      theme.trim() || undefined,
+    );
   }
 
   // Generate initial puzzle
@@ -54,6 +60,11 @@
         <option value="hard">Hard</option>
         <option value="expert">Expert</option>
       </select>
+    </label>
+
+    <label>
+      Theme
+      <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" />
     </label>
 
     <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
@@ -159,13 +170,18 @@
     letter-spacing: 0.05em;
   }
 
-  select {
+  select,
+  input[type="text"] {
     padding: 0.5rem 0.75rem;
     border: 1px solid #cbd5e1;
     border-radius: 0.375rem;
     font-size: 0.875rem;
     background: white;
     color: #1e293b;
+  }
+
+  input[type="text"] {
+    width: 14rem;
   }
 
   .btn {

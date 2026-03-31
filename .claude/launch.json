@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "demo",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "packages/demo"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "unset ANTHROPIC_API_KEY && npm run dev -w packages/demo"],
       "port": 5173
     }
   ]
