@@ -243,9 +243,10 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Negative and between constraints grow O(n²)/O(n³) — cap iterations.
-  const maxPerLoop = n * n;
-  let negativeCount = 0;
+  // Negative constraints grow O(n²) — cap each type independently.
+  const maxPerType = n * n;
+  let notSameCount = 0;
+  let notNextCount = 0;
 
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
@@ -259,16 +260,16 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
       if (posA === posB) {
         constraints.push({ type: "same_house", a, b });
-      } else if (negativeCount < maxPerLoop) {
+      } else if (notSameCount < maxPerType) {
         constraints.push({ type: "not_same_house", a, b });
-        negativeCount++;
+        notSameCount++;
       }
 
       if (Math.abs(posA - posB) === 1) {
         constraints.push({ type: "next_to", a, b });
-      } else if (posA !== posB && negativeCount < maxPerLoop) {
+      } else if (posA !== posB && notNextCount < maxPerType) {
         constraints.push({ type: "not_next_to", a, b });
-        negativeCount++;
+        notNextCount++;
       }
 
       if (posA === posB - 1) {
@@ -295,7 +296,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
   // Between constraints (triples from different categories)
   // Cap loop iterations — O(n³) without bound
-  const maxBetween = maxPerLoop;
+  const maxBetween = maxPerType;
   let betweenCount = 0;
   outer: for (
     let i = 0;
@@ -332,6 +333,13 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
           if (positions[m] > lo && positions[m] < hi) {
             constraints.push({
               type: "between",
+              outer1: v1,
+              middle: vals[m],
+              outer2: v2,
+            });
+          } else {
+            constraints.push({
+              type: "not_between",
               outer1: v1,
               middle: vals[m],
               outer2: v2,

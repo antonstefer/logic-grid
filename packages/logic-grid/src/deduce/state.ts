@@ -1,25 +1,7 @@
 import type { Grid, DeductionStep, DeductionTechnique } from "../types";
-import { posNoun, posNounPlural, posPrep } from "../grid-utils";
-export { posNoun, posNounPlural, posPrep };
+import { ordinal, posNoun, posPrep } from "../grid-utils";
 
 // --- Display utilities ---
-
-const ORDINALS = [
-  "first",
-  "second",
-  "third",
-  "fourth",
-  "fifth",
-  "sixth",
-  "seventh",
-  "eighth",
-];
-
-export function ordinal(position: number): string {
-  const o = ORDINALS[position];
-  if (!o) throw new Error(`Position ${position} out of supported range (0–7)`);
-  return o;
-}
 
 export function describeResult(
   grid: Grid,

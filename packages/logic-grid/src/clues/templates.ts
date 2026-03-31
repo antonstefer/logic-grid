@@ -1,16 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
-import { posNoun, posNounPlural, posPrep } from "../grid-utils";
-
-const ORDINALS = [
-  "first",
-  "second",
-  "third",
-  "fourth",
-  "fifth",
-  "sixth",
-  "seventh",
-  "eighth",
-];
+import { ORDINALS, posNoun, posNounPlural, posPrep } from "../grid-utils";
 
 const CARDINALS = [
   "zero",
