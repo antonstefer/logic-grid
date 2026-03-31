@@ -1,4 +1,5 @@
 {
+  "name": "logic-grid-monorepo",
   "private": true,
   "workspaces": [
     "packages/*"

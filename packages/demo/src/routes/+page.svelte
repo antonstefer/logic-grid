@@ -64,7 +64,7 @@
 
     <label>
       Theme
-      <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" />
+      <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
     </label>
 
     <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
