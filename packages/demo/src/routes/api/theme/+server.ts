@@ -4,7 +4,12 @@ import type { RequestHandler } from "./$types";
 import { generateTheme, createAnthropicClient } from "logic-grid-ai";
 
 export const POST: RequestHandler = async ({ request }) => {
-  const { theme, size, categories } = await request.json();
+  let theme: unknown, size: unknown, categories: unknown;
+  try {
+    ({ theme, size, categories } = await request.json());
+  } catch {
+    return json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
   if (typeof theme !== "string" || !theme.trim() || theme.length > 200) {
     return json({ error: "Invalid theme" }, { status: 400 });
