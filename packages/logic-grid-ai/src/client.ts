@@ -1,7 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIClient, JSONSchema } from "./types";
 
-/** Default AIClient implementation using the Anthropic SDK. */
+/**
+ * Create an AIClient backed by the Anthropic SDK.
+ *
+ * Uses Claude's tool_use feature for structured JSON output.
+ * If no apiKey is provided, the SDK reads from ANTHROPIC_API_KEY.
+ */
 export function createAnthropicClient(apiKey?: string): AIClient {
   const client = new Anthropic({ apiKey });
 
