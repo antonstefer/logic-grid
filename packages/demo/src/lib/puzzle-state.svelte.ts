@@ -42,8 +42,14 @@ export function createPuzzleState() {
               body: JSON.stringify({ theme, size, categories }),
             });
             if (!res.ok) {
-              const body = (await res.json()) as { error: string };
-              throw new Error(body.error || "Theme generation failed");
+              let message = "Theme generation failed";
+              try {
+                const body = (await res.json()) as { error: string };
+                if (body.error) message = body.error;
+              } catch {
+                // non-JSON response (e.g. HTML error page)
+              }
+              throw new Error(message);
             }
             const themeResult = (await res.json()) as ThemeResult;
             puzzle = generate({
