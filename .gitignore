@@ -19,6 +19,7 @@ coverage
 /tmp
 /out-tsc
 .svelte-kit
+.wrangler
 build
 
 # Package managers

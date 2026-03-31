@@ -110,7 +110,7 @@ describe("deduce constraint types", () => {
   });
 
   it("next_to arc-consistency: no known context in large grid", () => {
-    // Blue={0,...,4}, Red={0,...,7}. Red at 6,7 have no Blue neighbour → eliminated.
+    // Blue={0,...,4}, Red={0,...,7}. Red at 6,7 have no Blue neighbor → eliminated.
     // Both retain > 3 positions so describeKnown returns "" for both.
     const grid8: Grid = {
       size: 8,
