@@ -19,7 +19,8 @@
     "logic-grid-ai": "*"
   },
   "devDependencies": {
-    "@sveltejs/adapter-cloudflare": "^6.0.0",
+    "@sveltejs/adapter-cloudflare": "^7.2.8",
+    "wrangler": "^4.0.0",
     "@sveltejs/kit": "^2.55.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "eslint-plugin-svelte": "^3.16.0",
