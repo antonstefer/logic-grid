@@ -5,6 +5,7 @@ import {
   type Difficulty,
   type DeductionStep,
 } from "logic-grid";
+import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
@@ -24,31 +25,64 @@ export function createPuzzleState() {
     size: number,
     categories: number,
     difficulty?: Difficulty,
+    theme?: string,
   ) {
     loading = true;
     message = null;
 
     // Defer so the UI can show the loading state before blocking
     setTimeout(() => {
-      try {
-        const t0 = performance.now();
-        puzzle = generate({ size, categories, difficulty, seed: Date.now() });
-        genTime = Math.round(performance.now() - t0);
-      } catch (e) {
-        alert(e instanceof Error ? e.message : String(e));
+      void (async () => {
+        try {
+          const t0 = performance.now();
+          if (theme) {
+            const res = await fetch("/api/theme", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ theme, size, categories }),
+            });
+            if (!res.ok) {
+              const body = (await res.json()) as { error: string };
+              throw new Error(body.error || "Theme generation failed");
+            }
+            const themeResult = (await res.json()) as ThemeResult;
+            puzzle = generate({
+              size,
+              categories,
+              difficulty,
+              seed: Date.now(),
+              categoryNames: themeResult.categories,
+              positionNoun: themeResult.positionNoun,
+              positionPreposition: themeResult.positionPreposition,
+            });
+          } else {
+            puzzle = generate({
+              size,
+              categories,
+              difficulty,
+              seed: Date.now(),
+            });
+          }
+          genTime = Math.round(performance.now() - t0);
+        } catch (e) {
+          message = {
+            text: e instanceof Error ? e.message : String(e),
+            type: "error",
+          };
+          loading = false;
+          return;
+        }
+        // grid[valueIndex][position] — one row per value across all categories
+        const totalValues = puzzle.grid.categories.reduce(
+          (sum: number, c) => sum + c.values.length,
+          0,
+        );
+        grid = Array.from({ length: totalValues }, () =>
+          Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
+        );
+        hintSteps = [];
         loading = false;
-        return;
-      }
-      // grid[valueIndex][position] — one row per value across all categories
-      const totalValues = puzzle.grid.categories.reduce(
-        (sum: number, c) => sum + c.values.length,
-        0,
-      );
-      grid = Array.from({ length: totalValues }, () =>
-        Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
-      );
-      hintSteps = [];
-      loading = false;
+      })();
     }, 0);
   }
 

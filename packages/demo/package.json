@@ -15,10 +15,11 @@
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "dependencies": {
-    "logic-grid": "*"
+    "logic-grid": "*",
+    "logic-grid-ai": "*"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/adapter-cloudflare": "^6.0.0",
     "@sveltejs/kit": "^2.55.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "eslint-plugin-svelte": "^3.16.0",

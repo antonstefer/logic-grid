@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       // Resolve to source for hot reload during dev
       "logic-grid": path.resolve(__dirname, "../logic-grid/src/index.ts"),
+      "logic-grid-ai": path.resolve(__dirname, "../logic-grid-ai/src/index.ts"),
     },
   },
 });
