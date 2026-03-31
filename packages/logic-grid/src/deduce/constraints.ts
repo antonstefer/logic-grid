@@ -1,4 +1,5 @@
 import type { Constraint, DeductionStep, DeductionTechnique } from "../types";
+import { ordinal, posNoun, posNounPlural, posPrep } from "../grid-utils";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -8,13 +9,9 @@ import {
   step,
   dedup,
   collectAssigns,
-  ordinal,
   describeResult,
   clueRef,
   describeKnown,
-  posNoun,
-  posNounPlural,
-  posPrep,
 } from "./state";
 
 /** Check whether every position in `set` is adjacent to `p`. */

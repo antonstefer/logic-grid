@@ -1,13 +1,6 @@
 import type { Constraint, DeductionStep } from "../types";
-import {
-  type DeduceState,
-  first,
-  step,
-  ordinal,
-  cloneState,
-  posNoun,
-  posPrep,
-} from "./state";
+import { ordinal, posNoun, posPrep } from "../grid-utils";
+import { type DeduceState, first, step, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
 /**

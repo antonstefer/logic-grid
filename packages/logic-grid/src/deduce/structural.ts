@@ -1,4 +1,5 @@
 import type { DeductionStep } from "../types";
+import { ordinal, posNoun, posNounPlural, posPrep } from "../grid-utils";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -7,10 +8,6 @@ import {
   step,
   dedup,
   collectAssigns,
-  ordinal,
-  posNoun,
-  posNounPlural,
-  posPrep,
 } from "./state";
 
 // --- Structural deductions ---
