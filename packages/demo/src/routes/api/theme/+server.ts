@@ -6,6 +6,13 @@ import { generateTheme, createAnthropicClient } from "logic-grid-ai";
 export const POST: RequestHandler = async ({ request }) => {
   const { theme, size, categories } = await request.json();
 
+  if (typeof theme !== "string" || !theme.trim() || theme.length > 200) {
+    return json({ error: "Invalid theme" }, { status: 400 });
+  }
+  if (typeof size !== "number" || typeof categories !== "number") {
+    return json({ error: "Invalid size or categories" }, { status: 400 });
+  }
+
   try {
     const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_API_KEY) {
