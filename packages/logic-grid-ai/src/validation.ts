@@ -11,7 +11,12 @@ const POSITIONAL_WORDS = new Set([
   "eighth",
 ]);
 
-/** Validate a ThemeResult and return an array of error messages. Empty = valid. */
+/**
+ * Validate AI-generated theme output against structural and semantic rules.
+ *
+ * Returns an array of error messages. Empty array means the result is valid.
+ * Used internally by generateTheme to decide whether to retry.
+ */
 export function validateThemeResult(
   result: ThemeResult,
   expectedSize: number,

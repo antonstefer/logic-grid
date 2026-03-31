@@ -124,7 +124,16 @@ Generate themed categories for: "${theme}"
   return prompt;
 }
 
-/** Generate themed categories for a logic grid puzzle. */
+/**
+ * Generate themed categories for a logic grid puzzle using AI.
+ *
+ * Calls the AI client to produce categories, position noun, and preposition
+ * that fit the given theme. Validates the result and retries up to 3 times
+ * if the AI output fails validation, feeding errors back into the prompt.
+ *
+ * @throws {RangeError} If size or categories is outside 3-8.
+ * @throws {Error} If generation fails after all retry attempts.
+ */
 export async function generateTheme(
   options: ThemeOptions,
 ): Promise<ThemeResult> {
