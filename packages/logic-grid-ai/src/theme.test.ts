@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { generate } from "logic-grid";
 import { generateTheme } from "./theme";
 import type { AIClient, ThemeResult } from "./types";
+import * as clientModule from "./client";
 
 function mockClient(result: ThemeResult): AIClient {
   return {
@@ -52,6 +53,42 @@ describe("generateTheme", () => {
     expect(result.categories[0].noun).toBe("");
     expect(result.positionNoun).toEqual(["spot", "spots"]);
     expect(result.positionPreposition).toBe("at");
+  });
+
+  it("uses default Anthropic client when none provided", async () => {
+    const spy = vi
+      .spyOn(clientModule, "createAnthropicClient")
+      .mockReturnValue(mockClient(VALID_THEME));
+
+    const result = await generateTheme({
+      theme: "pirate adventure",
+      size: 4,
+      categories: 4,
+    });
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(result.categories).toHaveLength(4);
+    spy.mockRestore();
+  });
+
+  it("passes constraints to the AI prompt", async () => {
+    let capturedPrompt = "";
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string) => {
+        capturedPrompt = prompt;
+        return Promise.resolve(VALID_THEME as T);
+      },
+    };
+
+    await generateTheme({
+      theme: "pirate adventure",
+      size: 4,
+      categories: 4,
+      constraints: ["kid-friendly", "educational"],
+      client,
+    });
+
+    expect(capturedPrompt).toContain("kid-friendly, educational");
   });
 
   it("retries on validation failure", async () => {
