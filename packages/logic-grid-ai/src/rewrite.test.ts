@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { generate, deduce } from "logic-grid";
 import { rewriteClues } from "./rewrite";
 import type { AIClient, RewriteCluesResult } from "./types";
 import type { Clue } from "logic-grid";
@@ -159,6 +160,48 @@ describe("rewriteClues", () => {
 
     expect(result).toEqual([]);
     expect(called).toBe(false);
+  });
+
+  it("trims whitespace from rewritten clue text", async () => {
+    const paddedResult: RewriteCluesResult = {
+      clues: [
+        "  Padded clue one.  ",
+        "\tTabbed clue two.\n",
+        "Clean clue three.",
+      ],
+    };
+
+    const result = await rewriteClues({
+      clues: SAMPLE_CLUES,
+      client: mockClient(paddedResult),
+    });
+
+    expect(result[0].text).toBe("Padded clue one.");
+    expect(result[1].text).toBe("Tabbed clue two.");
+    expect(result[2].text).toBe("Clean clue three.");
+  });
+
+  it("result integrates with generate() and deduce()", async () => {
+    const puzzle = generate({ size: 4, categories: 4, seed: 42 });
+
+    const rewrittenTexts: RewriteCluesResult = {
+      clues: puzzle.clues.map((_, i) => `Rewritten clue ${i + 1}.`),
+    };
+
+    const result = await rewriteClues({
+      clues: puzzle.clues,
+      client: mockClient(rewrittenTexts),
+    });
+
+    // Constraints are preserved — puzzle remains solvable
+    expect(result).toHaveLength(puzzle.clues.length);
+    for (let i = 0; i < result.length; i++) {
+      expect(result[i].constraint).toBe(puzzle.clues[i].constraint);
+    }
+
+    const rewrittenPuzzle = { ...puzzle, clues: result };
+    const deduction = deduce(rewrittenPuzzle.constraints, rewrittenPuzzle.grid);
+    expect(deduction.complete).toBe(true);
   });
 
   it("feeds validation errors back into retry prompt", async () => {

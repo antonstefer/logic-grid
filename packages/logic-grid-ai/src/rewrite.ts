@@ -91,7 +91,7 @@ export async function rewriteClues(
     if (errors.length === 0) {
       return result.clues.map((text, i) => ({
         constraint: clues[i].constraint,
-        text,
+        text: text.trim(),
       }));
     }
 
