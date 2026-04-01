@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
   ) {
     return json({ error: "Invalid clues" }, { status: 400 });
   }
-  if (typeof style !== "string" || !style.trim() || style.length > 200) {
+  if (typeof style !== "string" || !style.trim() || style.length > 100) {
     return json({ error: "Invalid style" }, { status: 400 });
   }
 
