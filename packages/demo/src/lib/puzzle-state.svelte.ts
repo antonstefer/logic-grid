@@ -117,6 +117,7 @@ export function createPuzzleState() {
         );
         hintSteps = [];
         loading = false;
+        loadingMessage = "Generating…";
       })();
     }, 0);
   }
