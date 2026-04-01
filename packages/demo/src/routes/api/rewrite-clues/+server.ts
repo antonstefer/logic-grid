@@ -12,10 +12,22 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!Array.isArray(clues) || clues.length === 0) {
+  if (
+    !Array.isArray(clues) ||
+    clues.length === 0 ||
+    !clues.every(
+      (c: unknown) =>
+        typeof c === "object" &&
+        c !== null &&
+        "text" in c &&
+        typeof (c as Record<string, unknown>).text === "string" &&
+        "constraint" in c &&
+        typeof (c as Record<string, unknown>).constraint === "object",
+    )
+  ) {
     return json({ error: "Invalid clues" }, { status: 400 });
   }
-  if (typeof style !== "string" || !style.trim()) {
+  if (typeof style !== "string" || !style.trim() || style.length > 200) {
     return json({ error: "Invalid style" }, { status: 400 });
   }
 
