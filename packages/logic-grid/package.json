@@ -27,8 +27,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ bench/",
-    "format": "prettier --write src/ bench/",
-    "format:check": "prettier --check src/ bench/",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.ts",
     "bench:profile": "tsup --entry.profile bench/profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
@@ -56,6 +56,5 @@
     "directory": "packages/logic-grid"
   },
   "bugs": "https://github.com/antonstefer/logic-grid/issues",
-  "homepage": "https://github.com/antonstefer/logic-grid/tree/main/packages/logic-grid#readme",
-  "devDependencies": {}
+  "homepage": "https://github.com/antonstefer/logic-grid/tree/main/packages/logic-grid#readme"
 }

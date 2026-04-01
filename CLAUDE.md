@@ -5,6 +5,7 @@ Monorepo for logic grid puzzle generation and solving.
 ## Structure
 
 - `packages/logic-grid` — Core library (TypeScript, zero dependencies)
+- `packages/logic-grid-ai` — AI-powered themed category generation
 - `packages/demo` — Browser demo (SvelteKit)
 
 ## Commands

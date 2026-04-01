@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { deduce } from ".";
 import { tryConstraint } from "./constraints";
-import { createState, getPossible, ordinal } from "./state";
+import { ordinal } from "../grid-utils";
+import { createState, getPossible } from "./state";
 import type { Grid, Constraint } from "../types";
 
 const grid: Grid = {

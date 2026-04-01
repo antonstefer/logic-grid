@@ -51,10 +51,10 @@ Generate themed categories for a logic grid puzzle.
 ```typescript
 const result = await generateTheme({
   theme: "space exploration", // theme description (required)
-  size: 5,                    // values per category, 3-8 (required)
-  categories: 4,              // number of categories, 3-8 (required)
+  size: 5, // values per category, 3-8 (required)
+  categories: 4, // number of categories, 3-8 (required)
   constraints: ["kid-friendly"], // optional hints for the AI
-  client: myClient,           // optional custom AIClient
+  client: myClient, // optional custom AIClient
 });
 ```
 
@@ -62,9 +62,9 @@ Returns a `ThemeResult`:
 
 ```typescript
 interface ThemeResult {
-  categories: Category[];          // from logic-grid
-  positionNoun: [string, string];  // [singular, plural], e.g. ["planet", "planets"]
-  positionPreposition: string;     // e.g. "on" -> "lives on the first planet"
+  categories: Category[]; // from logic-grid
+  positionNoun: [string, string]; // [singular, plural], e.g. ["planet", "planets"]
+  positionPreposition: string; // e.g. "on" -> "lives on the first planet"
 }
 ```
 

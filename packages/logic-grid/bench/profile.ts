@@ -7,6 +7,7 @@
  *
  * Open .cpuprofile in Chrome DevTools or https://www.speedscope.app.
  */
+import type { Difficulty } from "../src";
 import { generate } from "../src";
 
 const sizes: [number, number][] = [
@@ -71,14 +72,18 @@ interface SizeStats {
   totalClues: number;
 }
 
-function collectStats(sizes: [number, number][], samples: number): SizeStats[] {
+function collectStats(
+  sizes: [number, number][],
+  samples: number,
+  difficulty?: Difficulty,
+): SizeStats[] {
   return sizes.map(([size, cats]) => {
     const types = new Map<string, number>();
     let totalClues = 0;
     let totalDistinct = 0;
 
     for (let seed = 0; seed < samples; seed++) {
-      const puzzle = generate({ size, categories: cats, seed });
+      const puzzle = generate({ size, categories: cats, seed, difficulty });
       totalClues += puzzle.constraints.length;
       const seen = new Set<string>();
       for (const c of puzzle.constraints) {
@@ -165,6 +170,25 @@ export function runDiversity(): void {
     console.log(
       `  ${type.padEnd(18)} ${avg.padStart(5)} avg  ${pct.padStart(3)}%`,
     );
+  }
+
+  // Per-difficulty breakdown (4x4 only to keep runtime reasonable)
+  const diffs: Difficulty[] = ["easy", "medium", "hard", "expert"];
+  const diffSize: [number, number][] = [[4, 4]];
+  console.log(`\n--- By difficulty (4x4, ${samples} puzzles each) ---`);
+  for (const diff of diffs) {
+    const [ds] = collectStats(diffSize, samples, diff);
+    console.log(
+      `\n${diff}  avg ${ds.avgClues.toFixed(1)} clues, ${ds.avgTypes.toFixed(1)} types`,
+    );
+    const sorted = [...ds.types.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [type, count] of sorted) {
+      const avg = (count / samples).toFixed(1);
+      const pct = ((count / ds.totalClues) * 100).toFixed(0);
+      console.log(
+        `  ${type.padEnd(18)} ${avg.padStart(5)} avg  ${pct.padStart(3)}%`,
+      );
+    }
   }
 }
 

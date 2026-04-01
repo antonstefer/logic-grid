@@ -33,7 +33,7 @@ Generate a puzzle with a unique solution and minimal constraint set.
 const puzzle = generate({
   size: 5, // 3-8 (default: 4)
   categories: 4, // 3-8 (default: 4)
-  difficulty: "hard", // "easy" | "medium" | "hard" (optional)
+  difficulty: "hard", // "easy" | "medium" | "hard" | "expert" (optional)
   seed: 42, // random seed for reproducibility (optional)
 });
 ```
@@ -93,7 +93,7 @@ hasUniqueSolution(puzzle.constraints, puzzle.grid); // true
 Classify puzzle difficulty based on constraint types and deduction depth.
 
 ```typescript
-classify(puzzle.constraints, puzzle.grid); // "easy" | "medium" | "hard"
+classify(puzzle.constraints, puzzle.grid); // "easy" | "medium" | "hard" | "expert"
 ```
 
 ### Constraint Factories
@@ -144,6 +144,7 @@ for (const step of result.steps) {
 ```
 
 Each step includes:
+
 - `technique` — which deduction technique was used (see below)
 - `clueIndices` — which constraints were involved
 - `eliminations` — positions ruled out
@@ -152,26 +153,26 @@ Each step includes:
 
 Techniques:
 
-| Technique              | Description                                                              |
-|------------------------|--------------------------------------------------------------------------|
-| `direct`               | Value forced to a specific position by `at_position`                     |
-| `elimination`          | Position ruled out by `not_at_position`                                  |
-| `same_house`           | Two values share possible positions — intersect them                     |
-| `not_same_house`       | Pinned value excludes its position from the other                        |
-| `next_to`              | Positions incompatible with adjacency are removed                        |
-| `not_next_to`          | Pinned value excludes its neighbors from the other                       |
-| `left_of`              | Value directly left of another — constrain both                          |
-| `before`               | Value somewhere left of another — constrain range                        |
-| `between`              | Middle must lie strictly between two outers                              |
-| `not_between`          | Middle cannot lie between two pinned outers                              |
-| `exact_distance`       | Two values must be exactly N positions apart                             |
-| `naked_single`         | One value is the only candidate for a position in its category           |
-| `hidden_single`        | One position is the only candidate for a value in its category           |
-| `naked_pair`           | Two values share the same two positions — exclude others                 |
-| `naked_triple`         | Three values share three positions — exclude others                      |
-| `hidden_pair`          | Two positions are exclusively reachable by two values                    |
-| `hidden_triple`        | Three positions are exclusively reachable by three values                |
-| `contradiction`        | Placing a value at a position leads to an impossible state               |
+| Technique        | Description                                                    |
+| ---------------- | -------------------------------------------------------------- |
+| `direct`         | Value forced to a specific position by `at_position`           |
+| `elimination`    | Position ruled out by `not_at_position`                        |
+| `same_house`     | Two values share possible positions — intersect them           |
+| `not_same_house` | Pinned value excludes its position from the other              |
+| `next_to`        | Positions incompatible with adjacency are removed              |
+| `not_next_to`    | Pinned value excludes its neighbors from the other             |
+| `left_of`        | Value directly left of another — constrain both                |
+| `before`         | Value somewhere left of another — constrain range              |
+| `between`        | Middle must lie strictly between two outers                    |
+| `not_between`    | Middle cannot lie between two pinned outers                    |
+| `exact_distance` | Two values must be exactly N positions apart                   |
+| `naked_single`   | One value is the only candidate for a position in its category |
+| `hidden_single`  | One position is the only candidate for a value in its category |
+| `naked_pair`     | Two values share the same two positions — exclude others       |
+| `naked_triple`   | Three values share three positions — exclude others            |
+| `hidden_pair`    | Two positions are exclusively reachable by two values          |
+| `hidden_triple`  | Three positions are exclusively reachable by three values      |
+| `contradiction`  | Placing a value at a position leads to an impossible state     |
 
 ### `renderClue(constraint, grid)`
 
@@ -187,7 +188,7 @@ const clue = renderClue(sameHouse("Red", "Cat"), grid);
 ## Constraint Types
 
 | Type              | Meaning                                      |
-|-------------------|----------------------------------------------|
+| ----------------- | -------------------------------------------- |
 | `same_house`      | Two values are at the same position          |
 | `not_same_house`  | Two values are at different positions        |
 | `next_to`         | Two values are at adjacent positions         |
@@ -203,7 +204,7 @@ const clue = renderClue(sameHouse("Red", "Cat"), grid);
 ## Types
 
 ```typescript
-type Difficulty = "easy" | "medium" | "hard";
+type Difficulty = "easy" | "medium" | "hard" | "expert";
 
 interface Grid {
   size: number;
@@ -241,7 +242,7 @@ interface Clue {
 Generation time by grid size (Node 24, Apple Silicon):
 
 | Size | Time  |
-|------|-------|
+| ---- | ----- |
 | 3×3  | <1ms  |
 | 4×4  | ~5ms  |
 | 5×5  | ~10ms |
