@@ -26,6 +26,7 @@ export function createPuzzleState() {
     categories: number,
     difficulty?: Difficulty,
     theme?: string,
+    clueStyle?: string,
   ) {
     loading = true;
     message = null;
@@ -68,6 +69,26 @@ export function createPuzzleState() {
               difficulty,
               seed: Date.now(),
             });
+          }
+          if (clueStyle && puzzle) {
+            try {
+              const rewriteRes = await fetch("/api/rewrite-clues", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  clues: puzzle.clues,
+                  style: clueStyle,
+                }),
+              });
+              if (rewriteRes.ok) {
+                const body = (await rewriteRes.json()) as {
+                  clues: typeof puzzle.clues;
+                };
+                puzzle = { ...puzzle, clues: body.clues };
+              }
+            } catch {
+              // Rewrite failed — keep original clues
+            }
           }
           genTime = Math.round(performance.now() - t0);
         } catch (e) {
