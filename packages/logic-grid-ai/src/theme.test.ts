@@ -194,6 +194,7 @@ describe("generateTheme", () => {
       positionNoun: theme.positionNoun,
       positionPreposition: theme.positionPreposition,
       size: 4,
+      seed: 0,
     });
 
     expect(puzzle.grid.size).toBe(4);
