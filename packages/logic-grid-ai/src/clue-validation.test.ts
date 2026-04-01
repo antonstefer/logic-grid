@@ -70,6 +70,14 @@ describe("validateRewrittenClues", () => {
     expect(errors.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("rejects non-string clue item", () => {
+    const r = { clues: ["Valid clue.", 42 as unknown as string, "Another."] };
+    const errors = validateRewrittenClues(r, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("Clue 2 is not a string"),
+    );
+  });
+
   it("accepts single clue", () => {
     expect(validateRewrittenClues(validResult(1), 1)).toEqual([]);
   });

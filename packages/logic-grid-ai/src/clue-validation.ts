@@ -21,6 +21,11 @@ export function validateRewrittenClues(
   for (let i = 0; i < result.clues.length; i++) {
     const text = result.clues[i];
 
+    if (typeof text !== "string") {
+      errors.push(`Clue ${i + 1} is not a string.`);
+      continue;
+    }
+
     if (!text || text.trim() === "") {
       errors.push(`Clue ${i + 1} is empty.`);
       continue;
