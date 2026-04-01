@@ -1,4 +1,13 @@
 export { generateTheme } from "./theme";
+export { rewriteClues } from "./rewrite";
 export { createAnthropicClient } from "./client";
 export { validateThemeResult } from "./validation";
-export type { ThemeOptions, ThemeResult, AIClient, JSONSchema } from "./types";
+export { validateRewrittenClues } from "./clue-validation";
+export type {
+  ThemeOptions,
+  ThemeResult,
+  RewriteCluesOptions,
+  RewriteCluesResult,
+  AIClient,
+  JSONSchema,
+} from "./types";
