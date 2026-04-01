@@ -75,7 +75,7 @@
     </label>
 
     <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
-      {puzzleState.loading ? "Generating…" : "New Puzzle"}
+      {puzzleState.loading ? puzzleState.loadingMessage : "New Puzzle"}
     </button>
   </div>
 

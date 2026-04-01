@@ -15,6 +15,7 @@ export function createPuzzleState() {
   let grid = $state<CellState[][]>([]);
   let genTime = $state(0);
   let loading = $state(false);
+  let loadingMessage = $state("Generating…");
   let message = $state<{
     text: string;
     type: "success" | "error" | "info";
@@ -29,6 +30,7 @@ export function createPuzzleState() {
     clueStyle?: string,
   ) {
     loading = true;
+    loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
 
     // Defer so the UI can show the loading state before blocking
@@ -71,6 +73,7 @@ export function createPuzzleState() {
             });
           }
           if (clueStyle && puzzle) {
+            loadingMessage = "Rewriting clues…";
             const res = await fetch("/api/rewrite-clues", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -507,6 +510,9 @@ export function createPuzzleState() {
     },
     get loading() {
       return loading;
+    },
+    get loadingMessage() {
+      return loadingMessage;
     },
     get message() {
       return message;
