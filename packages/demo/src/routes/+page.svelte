@@ -10,6 +10,7 @@
   let categories = $state(4);
   let difficulty = $state<Difficulty | "any">("any");
   let theme = $state("");
+  let clueStyle = $state("");
 
   function handleNewPuzzle() {
     puzzleState.newPuzzle(
@@ -17,6 +18,7 @@
       categories,
       difficulty === "any" ? undefined : difficulty,
       theme.trim() || undefined,
+      clueStyle.trim() || undefined,
     );
   }
 
@@ -67,8 +69,13 @@
       <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
     </label>
 
+    <label>
+      Clue style
+      <input type="text" bind:value={clueStyle} placeholder="e.g. formal, casual" maxlength={100} />
+    </label>
+
     <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
-      {puzzleState.loading ? "Generating…" : "New Puzzle"}
+      {puzzleState.loading ? puzzleState.loadingMessage : "New Puzzle"}
     </button>
   </div>
 

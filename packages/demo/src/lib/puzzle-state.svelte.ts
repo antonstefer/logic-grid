@@ -15,6 +15,7 @@ export function createPuzzleState() {
   let grid = $state<CellState[][]>([]);
   let genTime = $state(0);
   let loading = $state(false);
+  let loadingMessage = $state("Generating…");
   let message = $state<{
     text: string;
     type: "success" | "error" | "info";
@@ -26,8 +27,10 @@ export function createPuzzleState() {
     categories: number,
     difficulty?: Difficulty,
     theme?: string,
+    clueStyle?: string,
   ) {
     loading = true;
+    loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
 
     // Defer so the UI can show the loading state before blocking
@@ -69,6 +72,31 @@ export function createPuzzleState() {
               seed: Date.now(),
             });
           }
+          if (clueStyle && puzzle) {
+            loadingMessage = "Rewriting clues…";
+            const res = await fetch("/api/rewrite-clues", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                clues: puzzle.clues,
+                style: clueStyle,
+              }),
+            });
+            if (!res.ok) {
+              let errorMsg = "Clue rewriting failed";
+              try {
+                const body = (await res.json()) as { error: string };
+                if (body.error) errorMsg = body.error;
+              } catch {
+                // non-JSON response (e.g. HTML error page)
+              }
+              throw new Error(errorMsg);
+            }
+            const rewriteBody = (await res.json()) as {
+              clues: typeof puzzle.clues;
+            };
+            puzzle = { ...puzzle, clues: rewriteBody.clues };
+          }
           genTime = Math.round(performance.now() - t0);
         } catch (e) {
           message = {
@@ -76,6 +104,7 @@ export function createPuzzleState() {
             type: "error",
           };
           loading = false;
+          loadingMessage = "Generating…";
           return;
         }
         // grid[valueIndex][position] — one row per value across all categories
@@ -88,6 +117,7 @@ export function createPuzzleState() {
         );
         hintSteps = [];
         loading = false;
+        loadingMessage = "Generating…";
       })();
     }, 0);
   }
@@ -482,6 +512,9 @@ export function createPuzzleState() {
     },
     get loading() {
       return loading;
+    },
+    get loadingMessage() {
+      return loadingMessage;
     },
     get message() {
       return message;

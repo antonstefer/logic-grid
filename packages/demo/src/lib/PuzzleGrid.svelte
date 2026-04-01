@@ -84,8 +84,13 @@
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
+        <th class="position-noun-header" colspan={grid.size}>{grid.positionNoun?.[0] ?? "house"}</th>
+      </tr>
+      <tr>
+        <th class="category-header"></th>
+        <th class="value-header"></th>
         {#each Array(grid.size) as _, p}
-          <th class="position-header">{p + 1}<br/><span class="house-emoji">🏠</span></th>
+          <th class="position-number">{p + 1}</th>
         {/each}
       </tr>
     </thead>
@@ -140,16 +145,35 @@
     touch-action: manipulation;
   }
 
-  .category-header, .value-header, .position-header {
+  .category-header, .value-header {
     padding: 0.375rem 0.5rem;
     text-align: center;
     font-weight: 600;
     color: #475569;
   }
 
-  .house-emoji {
-    font-size: 1.5rem;
-    line-height: 1;
+  .value-header {
+    border-right: 2px solid #94a3b8;
+  }
+
+  .position-noun-header {
+    padding: 0.375rem 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    text-transform: capitalize;
+  }
+
+  .position-number {
+    padding: 0.375rem 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-bottom: 2px solid #94a3b8;
   }
 
   .category-label {
@@ -159,11 +183,13 @@
     border: 1px solid #cbd5e1;
     vertical-align: middle;
     white-space: nowrap;
+    text-transform: capitalize;
   }
 
   .value-label {
     padding: 0.375rem 0.75rem;
     border: 1px solid #cbd5e1;
+    border-right: 2px solid #94a3b8;
     background: #f8fafc;
     white-space: nowrap;
   }
