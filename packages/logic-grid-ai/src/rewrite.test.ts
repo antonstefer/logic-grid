@@ -123,27 +123,27 @@ describe("rewriteClues", () => {
     expect(result[0].text).toBe(VALID_RESULT.clues[0]);
   });
 
-  it("returns original clues after max retries", async () => {
+  it("throws after max retries", async () => {
     const badResult: RewriteCluesResult = {
       clues: ["Only one clue."],
     };
 
-    const result = await rewriteClues({
-      clues: SAMPLE_CLUES,
-      client: mockClient(badResult),
-    });
-
-    expect(result).toBe(SAMPLE_CLUES);
+    await expect(
+      rewriteClues({
+        clues: SAMPLE_CLUES,
+        client: mockClient(badResult),
+      }),
+    ).rejects.toThrow("Clue rewriting failed after 3 attempts");
   });
 
-  it("returns original clues on client error", async () => {
+  it("propagates client errors", async () => {
     const client: AIClient = {
       completeJSON: () => Promise.reject(new Error("Network error")),
     };
 
-    const result = await rewriteClues({ clues: SAMPLE_CLUES, client });
-
-    expect(result).toBe(SAMPLE_CLUES);
+    await expect(rewriteClues({ clues: SAMPLE_CLUES, client })).rejects.toThrow(
+      "Network error",
+    );
   });
 
   it("returns empty array for empty clues input", async () => {

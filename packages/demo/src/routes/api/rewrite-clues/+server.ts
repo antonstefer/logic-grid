@@ -22,7 +22,8 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_API_KEY) {
-      return json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
+      console.error("ANTHROPIC_API_KEY not configured");
+      return json({ error: "Clue rewriting failed" }, { status: 500 });
     }
     const client = createAnthropicClient(ANTHROPIC_API_KEY);
     const result = await rewriteClues({

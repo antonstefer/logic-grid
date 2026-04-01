@@ -71,24 +71,28 @@ export function createPuzzleState() {
             });
           }
           if (clueStyle && puzzle) {
-            try {
-              const rewriteRes = await fetch("/api/rewrite-clues", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  clues: puzzle.clues,
-                  style: clueStyle,
-                }),
-              });
-              if (rewriteRes.ok) {
-                const body = (await rewriteRes.json()) as {
-                  clues: typeof puzzle.clues;
-                };
-                puzzle = { ...puzzle, clues: body.clues };
+            const res = await fetch("/api/rewrite-clues", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                clues: puzzle.clues,
+                style: clueStyle,
+              }),
+            });
+            if (!res.ok) {
+              let errorMsg = "Clue rewriting failed";
+              try {
+                const body = (await res.json()) as { error: string };
+                if (body.error) errorMsg = body.error;
+              } catch {
+                // non-JSON response (e.g. HTML error page)
               }
-            } catch {
-              // Rewrite failed — keep original clues
+              throw new Error(errorMsg);
             }
+            const rewriteBody = (await res.json()) as {
+              clues: typeof puzzle.clues;
+            };
+            puzzle = { ...puzzle, clues: rewriteBody.clues };
           }
           genTime = Math.round(performance.now() - t0);
         } catch (e) {

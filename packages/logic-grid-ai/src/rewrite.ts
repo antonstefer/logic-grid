@@ -66,8 +66,7 @@ function buildPrompt(
  * Sends all clues in a single batched AI call. Each clue is accompanied
  * by its constraint JSON so the AI has ground truth semantics.
  *
- * On any failure (validation exhausted, network error), returns the
- * original clues unchanged — never throws.
+ * @throws {Error} If rewriting fails after all retry attempts.
  */
 export async function rewriteClues(
   options: RewriteCluesOptions,
@@ -76,32 +75,30 @@ export async function rewriteClues(
 
   if (clues.length === 0) return [];
 
-  try {
-    const client: AIClient = options.client ?? createAnthropicClient();
-    const schema = buildSchema(clues.length);
+  const client: AIClient = options.client ?? createAnthropicClient();
+  const schema = buildSchema(clues.length);
 
-    let lastErrors: string[] | undefined;
+  let lastErrors: string[] | undefined;
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const prompt = buildPrompt(options, lastErrors);
-      const result = await client.completeJSON<RewriteCluesResult>(
-        prompt,
-        schema,
-      );
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const prompt = buildPrompt(options, lastErrors);
+    const result = await client.completeJSON<RewriteCluesResult>(
+      prompt,
+      schema,
+    );
 
-      const errors = validateRewrittenClues(result, clues.length);
-      if (errors.length === 0) {
-        return result.clues.map((text, i) => ({
-          constraint: clues[i].constraint,
-          text,
-        }));
-      }
-
-      lastErrors = errors;
+    const errors = validateRewrittenClues(result, clues.length);
+    if (errors.length === 0) {
+      return result.clues.map((text, i) => ({
+        constraint: clues[i].constraint,
+        text,
+      }));
     }
-  } catch {
-    // Network/auth/unexpected errors — fall through to return originals
+
+    lastErrors = errors;
   }
 
-  return clues;
+  throw new Error(
+    `Clue rewriting failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!.join("\n")}`,
+  );
 }
