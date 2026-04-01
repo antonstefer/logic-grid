@@ -20,7 +20,7 @@ export function createAnthropicClient(apiKey?: string): AIClient {
         tools: [
           {
             name: "respond",
-            description: "Provide the themed categories",
+            description: "Provide the structured JSON result",
             input_schema: schema as Anthropic.Messages.Tool.InputSchema,
           },
         ],

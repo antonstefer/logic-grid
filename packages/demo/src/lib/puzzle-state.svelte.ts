@@ -104,6 +104,7 @@ export function createPuzzleState() {
             type: "error",
           };
           loading = false;
+          loadingMessage = "Generating…";
           return;
         }
         // grid[valueIndex][position] — one row per value across all categories
