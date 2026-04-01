@@ -243,7 +243,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Negative constraints grow O(n²) — cap each type independently.
+  // Cap negative pairwise types independently — a shared counter would starve not_next_to.
   const maxPerType = n * n;
   let notSameCount = 0;
   let notNextCount = 0;
@@ -296,7 +296,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
   // Between constraints (triples from different categories)
   // Cap loop iterations — O(n³) without bound
-  const maxBetween = maxPerType;
+  const maxBetween = n * n;
   let betweenCount = 0;
   outer: for (
     let i = 0;
