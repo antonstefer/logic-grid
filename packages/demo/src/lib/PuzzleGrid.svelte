@@ -145,7 +145,7 @@
     touch-action: manipulation;
   }
 
-  .category-header, .value-header, .position-header, .position-number {
+  .category-header, .value-header, .position-number {
     padding: 0.375rem 0.5rem;
     text-align: center;
     font-weight: 600;
@@ -171,7 +171,6 @@
     border: 1px solid #cbd5e1;
     border-bottom: 2px solid #94a3b8;
   }
-
 
   .category-label {
     padding: 0.375rem 0.75rem;
