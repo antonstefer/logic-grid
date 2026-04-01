@@ -162,23 +162,15 @@ describe("rewriteClues", () => {
     expect(called).toBe(false);
   });
 
-  it("trims whitespace from rewritten clue text", async () => {
-    const paddedResult: RewriteCluesResult = {
-      clues: [
-        "  Padded clue one.  ",
-        "\tTabbed clue two.\n",
-        "Clean clue three.",
-      ],
-    };
-
+  it("preserves clue text as-is from AI output", async () => {
     const result = await rewriteClues({
       clues: SAMPLE_CLUES,
-      client: mockClient(paddedResult),
+      client: mockClient(VALID_RESULT),
     });
 
-    expect(result[0].text).toBe("Padded clue one.");
-    expect(result[1].text).toBe("Tabbed clue two.");
-    expect(result[2].text).toBe("Clean clue three.");
+    expect(result[0].text).toBe(VALID_RESULT.clues[0]);
+    expect(result[1].text).toBe(VALID_RESULT.clues[1]);
+    expect(result[2].text).toBe(VALID_RESULT.clues[2]);
   });
 
   it("result integrates with generate() and deduce()", async () => {
