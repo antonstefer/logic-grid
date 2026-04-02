@@ -58,7 +58,7 @@ function buildSchema(size: number, categories: number): JSONSchema {
           comparators: {
             type: "object",
             description:
-              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a larger return than" }.',
+              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a lower return than" }.',
           },
         },
         description:
@@ -152,7 +152,7 @@ For a "hedge fund" theme with size 4 and 4 categories:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "" },
-    { "name": "YTD Return", "values": ["6%", "7%", "8%", "9%"], "noun": "fund", "isPosition": true, "numericValues": [6, 7, 8, 9], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a larger return than", "left_of": "has a return exactly one percentage point less than" } } },
+    { "name": "YTD Return", "values": ["6%", "7%", "8%", "9%"], "noun": "fund", "isPosition": true, "numericValues": [6, 7, 8, 9], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "left_of": "has a return exactly one percentage point less than" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "verb": ["uses", "does not use"] },
     { "name": "Founded", "values": ["2005", "2010", "2015", "2020"], "noun": "fund", "verb": ["was founded in", "was not founded in"] }
   ],
@@ -162,7 +162,7 @@ For a "hedge fund" theme with size 4 and 4 categories:
 
 This produces clues like:
 - "The fund with a return of 6% is run by Alice." (at_position with position category)
-- "Bob has a larger return than Clara." (before with custom comparator)
+- "Bob has a lower return than Clara." (before with custom comparator)
 - "The macro strategist is exactly two percentage points from the quant strategist." (exact_distance with unit)
 
 ## Your task

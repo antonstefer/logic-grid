@@ -3,7 +3,19 @@ import { deduce } from ".";
 import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
-import type { Grid, Constraint } from "../types";
+import type { Grid, Constraint, SpatialWords } from "../types";
+
+const POSITIONAL_WORDS: SpatialWords = {
+  verb: ["is", "is not"],
+  adjacency: "adjacent to",
+  direction: ["before", "after"],
+  atPosition: ["is at", "is not at"],
+  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
+  comparators: {
+    between: "is somewhere between",
+    not_between: "is not somewhere between",
+  },
+};
 
 const grid: Grid = {
   size: 4,
@@ -348,7 +360,7 @@ describe("deduce constraint types", () => {
     const unitGrid: Grid = {
       size: 4,
       categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
         {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
@@ -360,6 +372,11 @@ describe("deduce constraint types", () => {
           },
         },
       ],
+      spatialWords: {
+        ...POSITIONAL_WORDS,
+        distanceUnit: ["percentage point", "percentage points"],
+      },
+      positionLabels: ["6%", "7%", "8%", "9%"],
     };
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
@@ -375,7 +392,7 @@ describe("deduce constraint types", () => {
     const unitGrid: Grid = {
       size: 4,
       categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
         {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
@@ -387,6 +404,11 @@ describe("deduce constraint types", () => {
           },
         },
       ],
+      spatialWords: {
+        ...POSITIONAL_WORDS,
+        distanceUnit: ["percentage point", "percentage points"],
+      },
+      positionLabels: ["6%", "7%", "8%", "9%"],
     };
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },

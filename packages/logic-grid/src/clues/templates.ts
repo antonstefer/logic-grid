@@ -4,91 +4,9 @@ import type {
   Clue,
   Grid,
   OrderingComparatorType,
+  SpatialWords,
 } from "../types";
-import {
-  ORDINALS,
-  posNoun,
-  posNounPlural,
-  posPrep,
-  findPositionCategory,
-  positionLabel,
-} from "../grid-utils";
-
-const CARDINALS = [
-  "zero",
-  "one",
-  "two",
-  "three",
-  "four",
-  "five",
-  "six",
-  "seven",
-];
-
-function ordinalHouse(position: number, grid: Grid): string {
-  return `the ${ORDINALS[position]} ${posNoun(grid)}`;
-}
-
-/**
- * Look up a custom comparator phrase. Checks the shared category of the
- * given values first, then falls back to the position category.
- */
-function comparator(
-  grid: Grid,
-  type: OrderingComparatorType,
-  a: string,
-  b: string,
-): string | undefined {
-  // If both values share a category with ordering phrases, prefer that
-  const catA = findCategory(a, grid);
-  const catB = findCategory(b, grid);
-  if (catA === catB && catA.orderingPhrases?.comparators?.[type]) {
-    return catA.orderingPhrases.comparators[type];
-  }
-  return findPositionCategory(grid)?.orderingPhrases?.comparators?.[type];
-}
-
-/** Convert a constraint into a human-readable English clue. */
-export function renderClue(constraint: Constraint, grid: Grid): Clue {
-  const text = renderText(constraint, grid);
-  return { constraint, text };
-}
-
-/**
- * Maps category names to label nouns and verb phrases.
- * Empty string noun = person category (value used bare: "Alice").
- * Unlisted categories fall through to using the category name itself.
- */
-const CATEGORY_NOUN: Record<string, string> = {
-  name: "",
-  color: "house",
-  pet: "owner",
-  drink: "drinker",
-  food: "lover",
-  hobby: "enthusiast",
-  music: "fan",
-  sport: "player",
-};
-
-/**
- * Verb phrases for same-house clues, keyed by noun.
- * Used when this noun is the OBJECT: "{subject} {verb} {raw value}".
- * [positive, negative]
- */
-const NOUN_VERB: Record<string, [string, string]> = {
-  "": ["lives with", "does not live with"],
-  owner: ["owns the", "does not own the"],
-  drinker: ["drinks", "does not drink"],
-  lover: ["eats", "does not eat"],
-  enthusiast: ["enjoys", "does not enjoy"],
-  fan: ["listens to", "does not listen to"],
-  player: ["plays", "does not play"],
-};
-
-function posNounVerb(grid: Grid): [string, string] {
-  const prep = posPrep(grid);
-  return [`lives ${prep} the`, `does not live ${prep} the`];
-}
+import { posNoun, posNounPlural } from "../grid-utils";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -97,91 +15,73 @@ function findCategory(value: string, grid: Grid): Category {
   throw new Error(`Unknown value: ${value}`);
 }
 
-function nounOf(value: string, grid: Grid): string {
-  const cat = findCategory(value, grid);
-  if (cat.noun !== undefined) return cat.noun;
-  return CATEGORY_NOUN[cat.name.toLowerCase()] ?? cat.name.toLowerCase();
-}
-
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
-  const noun = nounOf(value, grid);
+  const noun = findCategory(value, grid).noun ?? "";
   if (noun === "") return value;
   return `the ${value.toLowerCase()} ${noun}`;
 }
 
-/** "lives" for classic puzzles, "is" for houses or when a position category exists. */
-function livesVerb(value: string, grid: Grid): string {
-  if (nounOf(value, grid) === "house") return "is";
-  if (findPositionCategory(grid)) return "is";
-  return "lives";
+/** Value as it appears in the object position of a same_position clue. */
+function objectValue(value: string, grid: Grid): string {
+  const cat = findCategory(value, grid);
+  const suffix = cat.positionAdjective?.suffix;
+  return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
-/** Label for positional clues: "the cat" instead of "the cat owner". */
-function positionalLabel(value: string, grid: Grid): string {
-  const noun = nounOf(value, grid);
-  if (noun === "owner") return `the ${value.toLowerCase()}`;
-  return label(value, grid);
+function comparator(
+  grid: Grid,
+  type: OrderingComparatorType,
+): string | undefined {
+  return grid.spatialWords?.comparators?.[type];
 }
 
-// --- Same-house rendering ---
-
-/** Subject priority: person > house > everything else. */
-function subjectPriority(noun: string): number {
-  if (noun === "") return 2; // person
-  if (noun === "house") return 1; // color
-  return 0;
+function sw(grid: Grid): SpatialWords {
+  return grid.spatialWords!;
 }
+
+/** Return [subject, object] ordered by subjectPriority (higher first). */
+function ordered(a: string, b: string, grid: Grid): [string, string] {
+  const pa = findCategory(a, grid).subjectPriority ?? 0;
+  const pb = findCategory(b, grid).subjectPriority ?? 0;
+  return pb > pa ? [b, a] : [a, b];
+}
+
+/** Convert a constraint into a human-readable English clue. */
+export function renderClue(constraint: Constraint, grid: Grid): Clue {
+  const text = renderText(constraint, grid);
+  return { constraint, text };
+}
+
+// --- Same-position rendering ---
 
 function renderSamePosition(
   constraint: { a: string; b: string },
   grid: Grid,
   negative: boolean,
 ): string {
-  const nounA = nounOf(constraint.a, grid);
-  const nounB = nounOf(constraint.b, grid);
+  const catA = findCategory(constraint.a, grid);
+  const catB = findCategory(constraint.b, grid);
 
-  // Pick subject (higher priority) and object
   let subj = constraint.a;
   let obj = constraint.b;
-  let objNoun = nounB;
-  if (subjectPriority(nounB) > subjectPriority(nounA)) {
+  let objCat = catB;
+  if ((catB.subjectPriority ?? 0) > (catA.subjectPriority ?? 0)) {
     subj = constraint.b;
     obj = constraint.a;
-    objNoun = nounA;
+    objCat = catA;
   }
 
   const idx = negative ? 1 : 0;
-
-  // Special: color + pet → "The cat lives in the red house"
-  if (nounOf(subj, grid) === "house" && objNoun === "owner") {
-    const article = negative ? "No" : "The";
-    return `${article} ${obj.toLowerCase()} lives ${posPrep(grid)} the ${subj.toLowerCase()} ${posNoun(grid)}.`;
-  }
-
-  // Look up verb: custom category verb first, then built-in noun mapping
-  const verb =
-    findCategory(obj, grid).verb ??
-    (objNoun === "house" ? posNounVerb(grid) : NOUN_VERB[objNoun]);
+  const verb = objCat.verb;
   if (verb) {
-    const subjNoun = nounOf(subj, grid);
-    // "house" subject + non-house object: insert "'s resident"
-    const subjLabel =
-      subjNoun === "house"
-        ? `The ${subj.toLowerCase()} ${posNoun(grid)}'s resident`
-        : capitalize(label(subj, grid));
-    // "house" object needs "house" suffix: "lives in the red house"
-    const suffix =
-      objNoun === "house"
-        ? ` ${obj.toLowerCase()} ${posNoun(grid)}`
-        : ` ${obj.toLowerCase()}`;
-    return `${subjLabel} ${verb[idx]}${suffix}.`;
+    return `${capitalize(label(subj, grid))} ${verb[idx]} ${objectValue(obj, grid)}.`;
   }
 
   // Generic fallback
   const la = label(constraint.a, grid);
   const lb = label(constraint.b, grid);
-  const prep = posPrep(grid);
+  const prep = grid.positionPreposition ?? "in";
   return negative
     ? `${capitalize(la)} and ${lb} are not ${prep} the same ${posNoun(grid)}.`
     : `${capitalize(la)} and ${lb} are ${prep} the same ${posNoun(grid)}.`;
@@ -190,153 +90,95 @@ function renderSamePosition(
 // --- Main renderer ---
 
 function renderText(constraint: Constraint, grid: Grid): string {
+  const w = sw(grid);
   switch (constraint.type) {
     case "same_position":
       return renderSamePosition(constraint, grid, false);
     case "not_same_position":
       return renderSamePosition(constraint, grid, true);
     case "next_to": {
-      const la = positionalLabel(constraint.a, grid);
-      const lb = positionalLabel(constraint.b, grid);
-      const comp = comparator(grid, "next_to", constraint.a, constraint.b);
-      if (comp) return `${capitalize(la)} ${comp} ${lb}.`;
-      const hasPos = !!findPositionCategory(grid);
-      const v = livesVerb(constraint.a, grid);
-      return hasPos
-        ? `${capitalize(la)} is adjacent to ${lb}.`
-        : `${capitalize(la)} ${v} next to ${lb}.`;
+      const [s, o] = ordered(constraint.a, constraint.b, grid);
+      const comp = comparator(grid, "next_to");
+      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[0]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "not_next_to": {
-      const la = positionalLabel(constraint.a, grid);
-      const lb = positionalLabel(constraint.b, grid);
-      const comp = comparator(grid, "not_next_to", constraint.a, constraint.b);
-      if (comp) return `${capitalize(la)} ${comp} ${lb}.`;
-      const hasPos = !!findPositionCategory(grid);
-      if (hasPos) return `${capitalize(la)} is not adjacent to ${lb}.`;
-      const neg =
-        livesVerb(constraint.a, grid) === "is" ? "is not" : "does not live";
-      return `${capitalize(la)} ${neg} next to ${lb}.`;
+      const [s, o] = ordered(constraint.a, constraint.b, grid);
+      const comp = comparator(grid, "not_next_to");
+      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[1]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "left_of": {
-      const comp = comparator(grid, "left_of", constraint.a, constraint.b);
+      const comp = comparator(grid, "left_of");
       if (comp) {
-        const la = positionalLabel(constraint.a, grid);
-        const lb = positionalLabel(constraint.b, grid);
-        return `${capitalize(la)} ${comp} ${lb}.`;
+        return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
       }
-      const hasPos = !!findPositionCategory(grid);
-      if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
-        return hasPos
-          ? `${capitalize(positionalLabel(constraint.a, grid))} is immediately before ${positionalLabel(constraint.b, grid)}.`
-          : `${capitalize(positionalLabel(constraint.a, grid))} ${livesVerb(constraint.a, grid)} directly left of ${positionalLabel(constraint.b, grid)}.`;
+      // Prefer higher-priority value as sentence subject
+      const pa = findCategory(constraint.a, grid).subjectPriority ?? 0;
+      const pb = findCategory(constraint.b, grid).subjectPriority ?? 0;
+      if (pb > pa) {
+        // b is preferred subject → use reverse phrasing
+        return `${capitalize(label(constraint.b, grid))} ${w.verb[0]} directly ${w.direction[1]} ${label(constraint.a, grid)}.`;
       }
-      return hasPos
-        ? `${capitalize(positionalLabel(constraint.b, grid))} is immediately after ${positionalLabel(constraint.a, grid)}.`
-        : `${capitalize(positionalLabel(constraint.b, grid))} ${livesVerb(constraint.b, grid)} directly right of ${positionalLabel(constraint.a, grid)}.`;
+      return `${capitalize(label(constraint.a, grid))} ${w.verb[0]} directly ${w.direction[0]} ${label(constraint.b, grid)}.`;
     }
     case "between": {
-      const lm = positionalLabel(constraint.middle, grid);
-      const lo1 = positionalLabel(constraint.outer1, grid);
-      const lo2 = positionalLabel(constraint.outer2, grid);
-      const comp = comparator(
-        grid,
-        "between",
-        constraint.outer1,
-        constraint.outer2,
-      );
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      return `${capitalize(lm)} is somewhere between ${lo1} and ${lo2}.`;
+      const lm = label(constraint.middle, grid);
+      const lo1 = label(constraint.outer1, grid);
+      const lo2 = label(constraint.outer2, grid);
+      return `${capitalize(lm)} ${comparator(grid, "between")!} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
-      const lm = positionalLabel(constraint.middle, grid);
-      const lo1 = positionalLabel(constraint.outer1, grid);
-      const lo2 = positionalLabel(constraint.outer2, grid);
-      const comp = comparator(
-        grid,
-        "not_between",
-        constraint.outer1,
-        constraint.outer2,
-      );
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      return `${capitalize(lm)} is not somewhere between ${lo1} and ${lo2}.`;
+      const lm = label(constraint.middle, grid);
+      const lo1 = label(constraint.outer1, grid);
+      const lo2 = label(constraint.outer2, grid);
+      return `${capitalize(lm)} ${comparator(grid, "not_between")!} ${lo1} and ${lo2}.`;
     }
     case "before": {
-      const comp = comparator(grid, "before", constraint.a, constraint.b);
+      const comp = comparator(grid, "before");
       if (comp) {
-        const la = positionalLabel(constraint.a, grid);
-        const lb = positionalLabel(constraint.b, grid);
-        return `${capitalize(la)} ${comp} ${lb}.`;
+        return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
       }
-      const hasPos = !!findPositionCategory(grid);
-      if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
-        return hasPos
-          ? `${capitalize(positionalLabel(constraint.a, grid))} is somewhere before ${positionalLabel(constraint.b, grid)}.`
-          : `${capitalize(positionalLabel(constraint.a, grid))} ${livesVerb(constraint.a, grid)} somewhere left of ${positionalLabel(constraint.b, grid)}.`;
+      const pa = findCategory(constraint.a, grid).subjectPriority ?? 0;
+      const pb = findCategory(constraint.b, grid).subjectPriority ?? 0;
+      if (pb > pa) {
+        return `${capitalize(label(constraint.b, grid))} ${w.verb[0]} somewhere ${w.direction[1]} ${label(constraint.a, grid)}.`;
       }
-      return hasPos
-        ? `${capitalize(positionalLabel(constraint.b, grid))} is somewhere after ${positionalLabel(constraint.a, grid)}.`
-        : `${capitalize(positionalLabel(constraint.b, grid))} ${livesVerb(constraint.b, grid)} somewhere right of ${positionalLabel(constraint.a, grid)}.`;
+      return `${capitalize(label(constraint.a, grid))} ${w.verb[0]} somewhere ${w.direction[0]} ${label(constraint.b, grid)}.`;
     }
     case "exact_distance": {
-      const la = positionalLabel(constraint.a, grid);
-      const lb = positionalLabel(constraint.b, grid);
-      // Check shared category first, then position category for unit
-      const catA = findCategory(constraint.a, grid);
-      const catB = findCategory(constraint.b, grid);
-      const sharedUnit = catA === catB ? catA.orderingPhrases?.unit : undefined;
-      const unit =
-        sharedUnit ?? findPositionCategory(grid)?.orderingPhrases?.unit;
-      const comp =
-        comparator(grid, "exact_distance", constraint.a, constraint.b) ??
-        "from";
+      const [s, o] = ordered(constraint.a, constraint.b, grid);
+      const la = label(s, grid);
+      const lb = label(o, grid);
+      const unit = w.distanceUnit;
+      const prefix =
+        comparator(grid, "exact_distance") ?? `${w.verb[0]} exactly`;
       if (unit) {
         const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
-        return `${capitalize(la)} is exactly ${constraint.distance} ${unitNoun} ${comp} ${lb}.`;
+        return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
       }
-      const v = livesVerb(constraint.a, grid);
-      const dist = CARDINALS[constraint.distance];
+      const dist = w.cardinals[constraint.distance];
       const noun =
         constraint.distance === 1 ? posNoun(grid) : posNounPlural(grid);
-      return `${capitalize(la)} ${v} exactly ${dist} ${noun} from ${lb}.`;
+      return `${capitalize(la)} ${prefix} ${dist} ${noun} from ${lb}.`;
     }
     case "at_position": {
-      const posCat = findPositionCategory(grid);
-      if (posCat) {
-        const posLabel = positionLabel(constraint.position, grid);
-        const la = positionalLabel(constraint.value, grid);
-        const prep = posPrep(grid);
-        return `${capitalize(la)} is ${prep} ${posLabel}.`;
+      const posLabel = grid.positionLabels![constraint.position];
+      const cat = findCategory(constraint.value, grid);
+      if (cat.positionAdjective?.atPosition) {
+        return `${capitalize(posLabel)} ${cat.positionAdjective?.atPosition[0]} ${constraint.value.toLowerCase()}.`;
       }
-      if (nounOf(constraint.value, grid) === "house") {
-        return `${capitalize(ordinalHouse(constraint.position, grid))} is ${constraint.value.toLowerCase()}.`;
-      }
-      return `${capitalize(positionalLabel(constraint.value, grid))} ${livesVerb(constraint.value, grid)} ${posPrep(grid)} ${ordinalHouse(constraint.position, grid)}.`;
+      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} ${posLabel}.`;
     }
     case "not_at_position": {
-      const posCat = findPositionCategory(grid);
-      if (posCat) {
-        const posLabel = positionLabel(constraint.position, grid);
-        const la = positionalLabel(constraint.value, grid);
-        const prep = posPrep(grid);
-        return `${capitalize(la)} is not ${prep} ${posLabel}.`;
+      const posLabel = grid.positionLabels![constraint.position];
+      const cat = findCategory(constraint.value, grid);
+      if (cat.positionAdjective?.atPosition) {
+        return `${capitalize(posLabel)} ${cat.positionAdjective?.atPosition[1]} ${constraint.value.toLowerCase()}.`;
       }
-      if (nounOf(constraint.value, grid) === "house") {
-        return `${capitalize(ordinalHouse(constraint.position, grid))} is not ${constraint.value.toLowerCase()}.`;
-      }
-      const negV =
-        livesVerb(constraint.value, grid) === "is" ? "is not" : "does not live";
-      return `${capitalize(positionalLabel(constraint.value, grid))} ${negV} ${posPrep(grid)} ${ordinalHouse(constraint.position, grid)}.`;
+      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} ${posLabel}.`;
     }
   }
 }
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Deterministic hash — same constraint always renders the same way. */
-function simpleHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return h >>> 0;
 }

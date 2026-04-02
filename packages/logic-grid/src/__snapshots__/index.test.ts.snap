@@ -9,7 +9,7 @@ exports[`public API integration > generate with custom noun/verb produces correc
   "The rose grower is somewhere between Luna and the piano player.",
   "Theo speaks italian.",
   "The lily grower lives in the fourth house.",
-  "The german speaker lives directly right of the rose grower.",
+  "The rose grower lives directly left of the german speaker.",
   "Nora grows the tulip.",
   "The violin player does not live in the third house.",
   "The italian speaker lives in the first house.",

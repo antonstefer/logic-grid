@@ -1,4 +1,4 @@
-export { generate } from "./generator";
+export { generate, DEFAULT_CONFIG } from "./generator";
 export { solve, hasUniqueSolution } from "./solver";
 export { classify } from "./difficulty";
 export { deduce } from "./deduce";
@@ -24,6 +24,7 @@ export type {
   Category,
   OrderingPhrases,
   OrderingComparatorType,
+  SpatialWords,
   Grid,
   Assignment,
   Solution,

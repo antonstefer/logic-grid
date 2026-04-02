@@ -8,12 +8,30 @@ export type OrderingComparatorType =
   | "not_between"
   | "exact_distance";
 
-/** Domain-specific phrasing for ordering constraints on a position category. */
+/** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {
   /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
   unit?: [string, string];
   /** Custom comparator phrases keyed by constraint type. */
   comparators?: Partial<Record<OrderingComparatorType, string>>;
+}
+
+/** Configurable words for composing ordering clue sentences. */
+export interface SpatialWords {
+  /** [positive, negative] verb. E.g. `["lives", "does not live"]` or `["is", "is not"]`. */
+  verb: [string, string];
+  /** Adjacency word for next_to / not_next_to. E.g. `"next to"` or `"adjacent to"`. */
+  adjacency: string;
+  /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
+  direction: [string, string];
+  /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]` or `["has an appointment at", "does not have an appointment at"]`. */
+  atPosition: [string, string];
+  /** Spelled-out cardinal numbers for exact_distance. */
+  cardinals: string[];
+  /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
+  comparators?: Partial<Record<OrderingComparatorType, string>>;
+  /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
+  distanceUnit?: [string, string];
 }
 
 /** A named group of values that occupy positions in the grid. */
@@ -22,8 +40,17 @@ export interface Category {
   values: string[];
   /** Noun for clue phrases. `"owner"` → "the cat owner". Empty string = bare value ("Alice"). */
   noun?: string;
-  /** Verb phrases for same-house clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
+  /** Verb phrases for same-position clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
   verb?: [string, string];
+  /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
+  subjectPriority?: number;
+  /** Set when this category's values describe the position noun (e.g. Color describes "house": "the red house", "The first house is red."). */
+  positionAdjective?: {
+    /** Appended to value in same-position clues. E.g. `"house"` → "red house". */
+    suffix: string;
+    /** [positive, negative] verb for at_position. E.g. `["is", "is not"]` → "The first house is red." */
+    atPosition: [string, string];
+  };
   /** When true, this category defines position labels. Assignment is identity (value[i] → position i). */
   isPosition?: boolean;
   /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length. */
@@ -40,6 +67,10 @@ export interface Grid {
   positionNoun?: [string, string];
   /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". Default: `"in"`. */
   positionPreposition?: string;
+  /** Configurable words for composing ordering clue sentences. Populated by the generator. */
+  spatialWords?: SpatialWords;
+  /** Human-readable position labels. E.g. `["the first house", ...]` or `["6%", "7%", ...]`. */
+  positionLabels?: string[];
 }
 
 /** Maps each value name to its 0-indexed position. One per category. */

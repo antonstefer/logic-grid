@@ -16,85 +16,163 @@ import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
 
-const DEFAULT_CATEGORIES: Category[] = [
-  {
-    name: "Name",
-    values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"],
-  },
-  {
-    name: "Color",
-    values: [
-      "Red",
-      "Blue",
-      "Green",
-      "Yellow",
-      "White",
-      "Orange",
-      "Purple",
-      "Pink",
-    ],
-  },
-  {
-    name: "Pet",
-    values: [
-      "Cat",
-      "Dog",
-      "Fish",
-      "Bird",
-      "Rabbit",
-      "Turtle",
-      "Hamster",
-      "Snake",
-    ],
-  },
-  {
-    name: "Drink",
-    values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"],
-  },
-  {
-    name: "Food",
-    values: [
-      "Pizza",
-      "Pasta",
-      "Sushi",
-      "Tacos",
-      "Salad",
-      "Steak",
-      "Curry",
-      "Soup",
-    ],
-  },
-  {
-    name: "Hobby",
-    values: [
-      "Reading",
-      "Painting",
-      "Knitting",
-      "Gardening",
-      "Photography",
-      "Origami",
-      "Pottery",
-      "Woodwork",
-    ],
-  },
-  {
-    name: "Music",
-    values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"],
-  },
-  {
-    name: "Sport",
-    values: [
-      "Soccer",
-      "Tennis",
-      "Golf",
-      "Baseball",
-      "Rugby",
-      "Cricket",
-      "Hockey",
-      "Basketball",
-    ],
-  },
+const ORDINALS = [
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+  "sixth",
+  "seventh",
+  "eighth",
 ];
+
+/** Complete default grid configuration for the classic Einstein's riddle style. */
+export const DEFAULT_CONFIG: Omit<Grid, "size"> = {
+  categories: [
+    {
+      name: "Name",
+      noun: "",
+      subjectPriority: 2,
+      values: [
+        "Alice",
+        "Bob",
+        "Carol",
+        "Dave",
+        "Eve",
+        "Frank",
+        "Grace",
+        "Hank",
+      ],
+    },
+    {
+      name: "Color",
+      noun: "house",
+      verb: ["lives in the", "does not live in the"],
+      subjectPriority: -1,
+      positionAdjective: { suffix: "house", atPosition: ["is", "is not"] },
+      values: [
+        "Red",
+        "Blue",
+        "Green",
+        "Yellow",
+        "White",
+        "Orange",
+        "Purple",
+        "Pink",
+      ],
+    },
+    {
+      name: "Pet",
+      noun: "owner",
+      verb: ["owns the", "does not own the"],
+      subjectPriority: 1,
+      values: [
+        "Cat",
+        "Dog",
+        "Fish",
+        "Bird",
+        "Rabbit",
+        "Turtle",
+        "Hamster",
+        "Snake",
+      ],
+    },
+    {
+      name: "Drink",
+      noun: "drinker",
+      verb: ["drinks", "does not drink"],
+      subjectPriority: 1,
+      values: [
+        "Tea",
+        "Coffee",
+        "Water",
+        "Milk",
+        "Juice",
+        "Soda",
+        "Wine",
+        "Beer",
+      ],
+    },
+    {
+      name: "Food",
+      noun: "lover",
+      verb: ["eats", "does not eat"],
+      subjectPriority: 1,
+      values: [
+        "Pizza",
+        "Pasta",
+        "Sushi",
+        "Tacos",
+        "Salad",
+        "Steak",
+        "Curry",
+        "Soup",
+      ],
+    },
+    {
+      name: "Hobby",
+      noun: "enthusiast",
+      verb: ["enjoys", "does not enjoy"],
+      subjectPriority: 1,
+      values: [
+        "Reading",
+        "Painting",
+        "Knitting",
+        "Gardening",
+        "Photography",
+        "Origami",
+        "Pottery",
+        "Woodwork",
+      ],
+    },
+    {
+      name: "Music",
+      noun: "fan",
+      verb: ["listens to", "does not listen to"],
+      subjectPriority: 1,
+      values: [
+        "Jazz",
+        "Rock",
+        "Pop",
+        "Blues",
+        "Folk",
+        "Reggae",
+        "Metal",
+        "Punk",
+      ],
+    },
+    {
+      name: "Sport",
+      noun: "player",
+      verb: ["plays", "does not play"],
+      subjectPriority: 1,
+      values: [
+        "Soccer",
+        "Tennis",
+        "Golf",
+        "Baseball",
+        "Rugby",
+        "Cricket",
+        "Hockey",
+        "Basketball",
+      ],
+    },
+  ],
+  positionNoun: ["house", "houses"],
+  positionPreposition: "in",
+  spatialWords: {
+    verb: ["lives", "does not live"],
+    adjacency: "next to",
+    direction: ["left of", "right of"],
+    atPosition: ["lives in", "does not live in"],
+    cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
+    comparators: {
+      between: "is somewhere between",
+      not_between: "is not somewhere between",
+    },
+  },
+};
 
 const MAX_RETRIES = 100;
 
@@ -196,22 +274,52 @@ function buildGrid(
       values: c.values.slice(0, size),
       noun: c.noun,
       verb: c.verb,
+      subjectPriority: c.subjectPriority,
+      positionAdjective: c.positionAdjective,
       isPosition: c.isPosition,
       numericValues: c.numericValues?.slice(0, size),
       orderingPhrases: c.orderingPhrases,
     }));
   } else {
-    categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
-      name: c.name,
+    categories = DEFAULT_CONFIG.categories.slice(0, numCategories).map((c) => ({
+      ...c,
       values: c.values.slice(0, size),
     }));
   }
 
+  const posNoun = options?.positionNoun ?? DEFAULT_CONFIG.positionNoun;
+  const posPrep =
+    options?.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
+  const posCat = categories.find((c) => c.isPosition);
+
   return {
     size,
     categories,
-    positionNoun: options?.positionNoun,
-    positionPreposition: options?.positionPreposition,
+    positionNoun: posNoun,
+    positionPreposition: posPrep,
+    spatialWords: posCat
+      ? {
+          verb: ["is", "is not"] as [string, string],
+          adjacency: "adjacent to",
+          direction: ["before", "after"] as [string, string],
+          atPosition:
+            posCat.verb ??
+            ([`is ${posPrep}`, `is not ${posPrep}`] as [string, string]),
+          cardinals: DEFAULT_CONFIG.spatialWords!.cardinals,
+          comparators: {
+            between: "is somewhere between",
+            not_between: "is not somewhere between",
+            ...posCat.orderingPhrases?.comparators,
+          },
+          distanceUnit: posCat.orderingPhrases?.unit,
+        }
+      : DEFAULT_CONFIG.spatialWords!,
+    positionLabels: posCat
+      ? posCat.values.slice()
+      : Array.from(
+          { length: size },
+          (_, i) => `the ${ORDINALS[i]} ${posNoun![0]}`,
+        ),
   };
 }
 

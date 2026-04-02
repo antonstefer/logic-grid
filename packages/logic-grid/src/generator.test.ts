@@ -332,7 +332,7 @@ describe("generate", () => {
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"],
-            comparators: { before: "has a larger return than" },
+            comparators: { before: "has a lower return than" },
           },
         },
         {
