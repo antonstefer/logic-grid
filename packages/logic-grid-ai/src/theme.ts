@@ -32,6 +32,38 @@ function buildSchema(size: number, categories: number): JSONSchema {
         description:
           'Optional [positive, negative] verb phrases for same-house clues. E.g. ["sails the", "does not sail the"]. Include "the" if appropriate.',
       },
+      isPosition: {
+        type: "boolean",
+        description:
+          "If true, this category defines the positional axis. Its values are the position labels (e.g. sorted returns, years, times). At most one category can be isPosition. Its assignment is identity (value[0] → position 0, etc.), so it is not a mystery.",
+      },
+      numericValues: {
+        type: "array",
+        items: { type: "number" },
+        minItems: size,
+        maxItems: size,
+        description: `Optional numeric values for categories with ordered values. Enables value-based distance clues (e.g. "exactly 11 years apart"). Must be ${size} numbers in ascending order matching the values array.`,
+      },
+      orderingPhrases: {
+        type: "object",
+        properties: {
+          unit: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 2,
+            maxItems: 2,
+            description:
+              'Singular and plural unit for distance clues, e.g. ["percentage point", "percentage points"] or ["year", "years"].',
+          },
+          comparators: {
+            type: "object",
+            description:
+              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a larger return than" }.',
+          },
+        },
+        description:
+          "Domain-specific phrasing for ordering clues. Use on any category with ordered values for natural clue phrasing.",
+      },
     },
     required: ["name", "values", "noun"],
   };
@@ -83,9 +115,21 @@ Clues use the category's noun and verb to form natural sentences. Here's how:
 
 The position noun labels the ordered slots. Default is "house" with preposition "in": "lives in the first house". You should pick a thematic alternative. For example, a cooking theme might use ["station", "stations"] with preposition "at": "lives at the first station".
 
+## Position categories (optional)
 
-## Example
+You may mark ONE category as a position category by setting "isPosition": true. This category defines the positional axis — its values ARE the positions (e.g. times, years, percentages). Its assignment is identity (value[0] = position 0), so it's not a mystery the solver needs to figure out. It reduces the number of mystery categories by one but enables rich domain-specific clue phrasing.
 
+When using a position category:
+- Its values must be in sorted order and represent the ordered axis
+- Add "numericValues" with the actual numeric values (enables distance clues like "exactly 2 hours apart")
+- Add "orderingPhrases" with a "unit" (singular/plural) and "comparators" for natural phrasing
+- The positionNoun/positionPreposition are still needed but will be secondary to the position category's phrasing
+
+Use a position category when the theme has a natural ordering axis (times, prices, rankings, years, distances).
+
+## Examples
+
+### Standard puzzle (no position category)
 For a "cooking competition" theme with size 4 and 4 categories:
 {
   "categories": [
@@ -103,6 +147,24 @@ This produces clues like:
 - "The truffle specialist is at the first station." (at_position)
 - "The wok user is directly left of the blowtorch user." (left_of)
 
+### Position category puzzle
+For a "hedge fund" theme with size 4 and 4 categories:
+{
+  "categories": [
+    { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "" },
+    { "name": "YTD Return", "values": ["6%", "7%", "8%", "9%"], "noun": "fund", "isPosition": true, "numericValues": [6, 7, 8, 9], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a larger return than", "left_of": "has a return exactly one percentage point less than" } } },
+    { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "verb": ["uses", "does not use"] },
+    { "name": "Founded", "values": ["2005", "2010", "2015", "2020"], "noun": "fund", "verb": ["was founded in", "was not founded in"] }
+  ],
+  "positionNoun": ["fund", "funds"],
+  "positionPreposition": "at"
+}
+
+This produces clues like:
+- "The fund with a return of 6% is run by Alice." (at_position with position category)
+- "Bob has a larger return than Clara." (before with custom comparator)
+- "The macro strategist is exactly two percentage points from the quant strategist." (exact_distance with unit)
+
 ## Your task
 
 Generate themed categories for: "${theme}"
@@ -111,7 +173,8 @@ Generate themed categories for: "${theme}"
 - All values must be globally unique across all categories
 - Values should be single words or short phrases (max ~3 words)
 - Verb pairs must read naturally in sentences like "{person} {positive verb} {value}"
-- Pick a thematic position noun and preposition`;
+- Pick a thematic position noun and preposition
+- If the theme has a natural ordering axis, consider using a position category (isPosition: true) with numericValues and orderingPhrases`;
 
   if (constraints && constraints.length > 0) {
     prompt += `\n- Additional constraints: ${constraints.join(", ")}`;

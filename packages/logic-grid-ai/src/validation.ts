@@ -34,6 +34,7 @@ export function validateThemeResult(
   const seenValues = new Map<string, string>();
   const seenNouns = new Set<string>();
   let personCount = 0;
+  let positionCount = 0;
 
   for (const cat of result.categories) {
     const name = cat.name ?? "";
@@ -114,6 +115,33 @@ export function validateThemeResult(
         errors.push(`Category "${cat.name}" has empty verb strings.`);
       }
     }
+
+    // Position category check
+    if (cat.isPosition) {
+      positionCount++;
+    }
+
+    // numericValues / orderingPhrases (valid on any category)
+    if (cat.numericValues !== undefined) {
+      if (
+        !Array.isArray(cat.numericValues) ||
+        cat.numericValues.length !== expectedSize
+      ) {
+        errors.push(
+          `Category "${name}" numericValues must have exactly ${expectedSize} numbers.`,
+        );
+      } else if (
+        cat.numericValues.some((v: unknown) => typeof v !== "number")
+      ) {
+        errors.push(`Category "${name}" numericValues must all be numbers.`);
+      }
+    }
+    if (
+      cat.orderingPhrases !== undefined &&
+      typeof cat.orderingPhrases !== "object"
+    ) {
+      errors.push(`Category "${name}" orderingPhrases must be an object.`);
+    }
   }
 
   if (personCount === 0) {
@@ -123,6 +151,12 @@ export function validateThemeResult(
   } else if (personCount > 1) {
     errors.push(
       'Multiple person categories found. Exactly one must have noun: "".',
+    );
+  }
+
+  if (positionCount > 1) {
+    errors.push(
+      "Multiple position categories found. At most one category can have isPosition: true.",
     );
   }
 

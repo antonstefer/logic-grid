@@ -28,7 +28,7 @@ export interface Category {
   isPosition?: boolean;
   /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length. */
   numericValues?: number[];
-  /** Domain-specific phrasing for ordering constraints. Only meaningful on position categories. */
+  /** Domain-specific phrasing for ordering constraints. */
   orderingPhrases?: OrderingPhrases;
 }
 
