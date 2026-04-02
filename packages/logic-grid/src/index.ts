@@ -18,9 +18,12 @@ export {
 } from "./clues/constraints";
 
 export { renderClue } from "./clues/templates";
+export { findPositionCategory, positionLabel } from "./grid-utils";
 
 export type {
   Category,
+  OrderingPhrases,
+  OrderingComparatorType,
   Grid,
   Assignment,
   Solution,

@@ -1,3 +1,21 @@
+/** Custom comparator phrases for ordering constraints. */
+export type OrderingComparatorType =
+  | "left_of"
+  | "before"
+  | "next_to"
+  | "not_next_to"
+  | "between"
+  | "not_between"
+  | "exact_distance";
+
+/** Domain-specific phrasing for ordering constraints on a position category. */
+export interface OrderingPhrases {
+  /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
+  unit?: [string, string];
+  /** Custom comparator phrases keyed by constraint type. */
+  comparators?: Partial<Record<OrderingComparatorType, string>>;
+}
+
 /** A named group of values that occupy positions in the grid. */
 export interface Category {
   name: string;
@@ -6,6 +24,12 @@ export interface Category {
   noun?: string;
   /** Verb phrases for same-house clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
   verb?: [string, string];
+  /** When true, this category defines position labels. Assignment is identity (value[i] → position i). */
+  isPosition?: boolean;
+  /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length. */
+  numericValues?: number[];
+  /** Domain-specific phrasing for ordering constraints. Only meaningful on position categories. */
+  orderingPhrases?: OrderingPhrases;
 }
 
 /** The puzzle board: `size` positions and one or more categories. */

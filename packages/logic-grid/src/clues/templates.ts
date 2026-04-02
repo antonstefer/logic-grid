@@ -1,5 +1,18 @@
-import type { Category, Constraint, Clue, Grid } from "../types";
-import { ORDINALS, posNoun, posNounPlural, posPrep } from "../grid-utils";
+import type {
+  Category,
+  Constraint,
+  Clue,
+  Grid,
+  OrderingComparatorType,
+} from "../types";
+import {
+  ORDINALS,
+  posNoun,
+  posNounPlural,
+  posPrep,
+  findPositionCategory,
+  positionLabel,
+} from "../grid-utils";
 
 const CARDINALS = [
   "zero",
@@ -14,6 +27,14 @@ const CARDINALS = [
 
 function ordinalHouse(position: number, grid: Grid): string {
   return `the ${ORDINALS[position]} ${posNoun(grid)}`;
+}
+
+/** Look up a custom comparator phrase from the position category. */
+function comparator(
+  grid: Grid,
+  type: OrderingComparatorType,
+): string | undefined {
+  return findPositionCategory(grid)?.orderingPhrases?.comparators?.[type];
 }
 
 /** Convert a constraint into a human-readable English clue. */
@@ -164,17 +185,27 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "next_to": {
       const la = positionalLabel(constraint.a, grid);
       const lb = positionalLabel(constraint.b, grid);
+      const comp = comparator(grid, "next_to");
+      if (comp) return `${capitalize(la)} is ${comp} ${lb}.`;
       const v = livesVerb(constraint.a, grid);
       return `${capitalize(la)} ${v} next to ${lb}.`;
     }
     case "not_next_to": {
       const la = positionalLabel(constraint.a, grid);
       const lb = positionalLabel(constraint.b, grid);
+      const comp = comparator(grid, "not_next_to");
+      if (comp) return `${capitalize(la)} is ${comp} ${lb}.`;
       const neg =
         nounOf(constraint.a, grid) === "house" ? "is not" : "does not live";
       return `${capitalize(la)} ${neg} next to ${lb}.`;
     }
     case "left_of": {
+      const comp = comparator(grid, "left_of");
+      if (comp) {
+        const la = positionalLabel(constraint.a, grid);
+        const lb = positionalLabel(constraint.b, grid);
+        return `${capitalize(la)} is ${comp} ${lb}.`;
+      }
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
         const v = livesVerb(constraint.a, grid);
         return `${capitalize(positionalLabel(constraint.a, grid))} ${v} directly left of ${positionalLabel(constraint.b, grid)}.`;
@@ -186,6 +217,8 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = positionalLabel(constraint.middle, grid);
       const lo1 = positionalLabel(constraint.outer1, grid);
       const lo2 = positionalLabel(constraint.outer2, grid);
+      const comp = comparator(grid, "between");
+      if (comp) return `${capitalize(lm)} is ${comp} ${lo1} and ${lo2}.`;
       const v = livesVerb(constraint.middle, grid);
       return `${capitalize(lm)} ${v} somewhere between ${lo1} and ${lo2}.`;
     }
@@ -193,6 +226,8 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = positionalLabel(constraint.middle, grid);
       const lo1 = positionalLabel(constraint.outer1, grid);
       const lo2 = positionalLabel(constraint.outer2, grid);
+      const comp = comparator(grid, "not_between");
+      if (comp) return `${capitalize(lm)} is ${comp} ${lo1} and ${lo2}.`;
       const neg =
         nounOf(constraint.middle, grid) === "house"
           ? "is not"
@@ -200,6 +235,12 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(lm)} ${neg} somewhere between ${lo1} and ${lo2}.`;
     }
     case "before": {
+      const comp = comparator(grid, "before");
+      if (comp) {
+        const la = positionalLabel(constraint.a, grid);
+        const lb = positionalLabel(constraint.b, grid);
+        return `${capitalize(la)} is ${comp} ${lb}.`;
+      }
       if (simpleHash(constraint.a + constraint.b) % 2 === 0) {
         const v = livesVerb(constraint.a, grid);
         return `${capitalize(positionalLabel(constraint.a, grid))} ${v} somewhere left of ${positionalLabel(constraint.b, grid)}.`;
@@ -210,6 +251,13 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "exact_distance": {
       const la = positionalLabel(constraint.a, grid);
       const lb = positionalLabel(constraint.b, grid);
+      const posCat = findPositionCategory(grid);
+      const unit = posCat?.orderingPhrases?.unit;
+      const comp = comparator(grid, "exact_distance") ?? "from";
+      if (unit) {
+        const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
+        return `${capitalize(la)} is exactly ${constraint.distance} ${unitNoun} ${comp} ${lb}.`;
+      }
       const v = livesVerb(constraint.a, grid);
       const dist = CARDINALS[constraint.distance];
       const noun =
@@ -217,12 +265,26 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} ${v} exactly ${dist} ${noun} from ${lb}.`;
     }
     case "at_position": {
+      const posCat = findPositionCategory(grid);
+      if (posCat) {
+        const posLabel = positionLabel(constraint.position, grid);
+        const la = positionalLabel(constraint.value, grid);
+        const prep = posPrep(grid);
+        return `${capitalize(la)} is ${prep} ${posLabel}.`;
+      }
       if (nounOf(constraint.value, grid) === "house") {
         return `${capitalize(ordinalHouse(constraint.position, grid))} is ${constraint.value.toLowerCase()}.`;
       }
       return `${capitalize(positionalLabel(constraint.value, grid))} lives ${posPrep(grid)} ${ordinalHouse(constraint.position, grid)}.`;
     }
     case "not_at_position": {
+      const posCat = findPositionCategory(grid);
+      if (posCat) {
+        const posLabel = positionLabel(constraint.position, grid);
+        const la = positionalLabel(constraint.value, grid);
+        const prep = posPrep(grid);
+        return `${capitalize(la)} is not ${prep} ${posLabel}.`;
+      }
       if (nounOf(constraint.value, grid) === "house") {
         return `${capitalize(ordinalHouse(constraint.position, grid))} is not ${constraint.value.toLowerCase()}.`;
       }

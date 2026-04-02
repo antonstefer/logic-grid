@@ -196,6 +196,9 @@ function buildGrid(
       values: c.values.slice(0, size),
       noun: c.noun,
       verb: c.verb,
+      isPosition: c.isPosition,
+      numericValues: c.numericValues?.slice(0, size),
+      orderingPhrases: c.orderingPhrases,
     }));
   } else {
     categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
@@ -214,6 +217,14 @@ function buildGrid(
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
   return grid.categories.map((cat) => {
+    if (cat.isPosition) {
+      // Identity mapping: value[i] → position i
+      const assignment: Assignment = {};
+      for (let i = 0; i < cat.values.length; i++) {
+        assignment[cat.values[i]] = i;
+      }
+      return assignment;
+    }
     const positions = Array.from({ length: grid.size }, (_, i) => i);
     shuffle(positions, rng);
     const assignment: Assignment = {};
@@ -227,6 +238,9 @@ function randomSolution(grid: Grid, rng: () => number): Solution {
 function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const constraints: Constraint[] = [];
   const n = grid.size;
+
+  // Find position category index (if any)
+  const posCatIndex = grid.categories.findIndex((c) => c.isPosition);
 
   // Build indexed arrays for fast access (avoid Map lookups in hot loops)
   const allValues: string[] = [];
@@ -248,6 +262,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   let notSameCount = 0;
   let notNextCount = 0;
 
+  const numVals =
+    posCatIndex >= 0 ? grid.categories[posCatIndex].numericValues : undefined;
+
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
     const posA = posArr[i];
@@ -255,6 +272,8 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
     for (let j = i + 1; j < allValues.length; j++) {
       if (catArr[j] === catA) continue;
+      // Skip pairs where both values are from the position category
+      if (catA === posCatIndex && catArr[j] === posCatIndex) continue;
       const b = allValues[j];
       const posB = posArr[j];
 
@@ -287,9 +306,18 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       }
 
       // exact_distance: for distances 2+ (distance 1 is next_to)
-      const dist = Math.abs(posA - posB);
-      if (dist >= 2) {
-        constraints.push({ type: "exact_distance", a, b, distance: dist });
+      if (numVals) {
+        // Value-based distance using numeric values
+        const valDist = Math.abs(numVals[posA] - numVals[posB]);
+        // Skip distance 0 (same position) and distances that match next_to (adjacent positions)
+        if (valDist > 0 && Math.abs(posA - posB) !== 1) {
+          constraints.push({ type: "exact_distance", a, b, distance: valDist });
+        }
+      } else {
+        const dist = Math.abs(posA - posB);
+        if (dist >= 2) {
+          constraints.push({ type: "exact_distance", a, b, distance: dist });
+        }
       }
     }
   }
@@ -351,8 +379,11 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // Position constraints
+  // Position constraints (skip position category values — their assignments are trivially known)
+  const posCatValues =
+    posCatIndex >= 0 ? new Set(grid.categories[posCatIndex].values) : undefined;
   for (const [val, pos] of posOf) {
+    if (posCatValues?.has(val)) continue;
     constraints.push({ type: "at_position", value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
