@@ -221,4 +221,58 @@ describe("validateThemeResult", () => {
     const errors = validateThemeResult(r, 3, 3);
     expect(errors.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("accepts a valid position category", () => {
+    const r = validResult();
+    r.categories[1].isPosition = true;
+    r.categories[1].numericValues = [1, 2, 3];
+    r.categories[1].orderingPhrases = {
+      unit: ["point", "points"],
+      comparators: { before: "scores higher than" },
+    };
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("rejects multiple position categories", () => {
+    const r = validResult();
+    r.categories[1].isPosition = true;
+    r.categories[2].isPosition = true;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("Multiple position categories"),
+    );
+  });
+
+  it("rejects numericValues with wrong count", () => {
+    const r = validResult();
+    r.categories[1].numericValues = [1, 2];
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("numericValues must have exactly 3 numbers"),
+    );
+  });
+
+  it("rejects non-numeric numericValues", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[1].numericValues = [1, "two", 3] as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("numericValues must all be numbers"),
+    );
+  });
+
+  it("accepts numericValues on non-position category", () => {
+    const r = validResult();
+    r.categories[1].numericValues = [10, 20, 30];
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("accepts orderingPhrases on non-position category", () => {
+    const r = validResult();
+    r.categories[1].orderingPhrases = {
+      unit: ["point", "points"],
+    };
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
 });

@@ -451,3 +451,139 @@ describe("custom positionNoun / positionPreposition", () => {
     ).toThrow(RangeError);
   });
 });
+
+describe("position category", () => {
+  const posGrid: Grid = {
+    size: 3,
+    categories: [
+      { name: "Manager", values: ["Alice", "Bob", "Carol"], noun: "" },
+      {
+        name: "Return",
+        values: ["6%", "7%", "8%"],
+        noun: "fund",
+        isPosition: true,
+        numericValues: [6, 7, 8],
+        orderingPhrases: {
+          unit: ["percentage point", "percentage points"],
+          comparators: {
+            before: "has a larger return than",
+            left_of: "has a return exactly one percentage point less than",
+          },
+        },
+      },
+      {
+        name: "Strategy",
+        values: ["Long/Short", "Macro", "Quant"],
+        noun: "strategist",
+      },
+    ],
+    positionNoun: ["fund", "funds"],
+    positionPreposition: "at",
+  };
+
+  it("at_position uses position category label", () => {
+    const clue = renderClue(
+      { type: "at_position", value: "Alice", position: 0 },
+      posGrid,
+    );
+    expect(clue.text).toBe("Alice is at 6%.");
+  });
+
+  it("not_at_position uses position category label", () => {
+    const clue = renderClue(
+      { type: "not_at_position", value: "Alice", position: 2 },
+      posGrid,
+    );
+    expect(clue.text).toBe("Alice is not at 8%.");
+  });
+
+  it("before uses custom comparator", () => {
+    const clue = renderClue({ type: "before", a: "Alice", b: "Bob" }, posGrid);
+    expect(clue.text).toBe("Alice is has a larger return than Bob.");
+  });
+
+  it("left_of uses custom comparator", () => {
+    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, posGrid);
+    expect(clue.text).toBe(
+      "Alice is has a return exactly one percentage point less than Bob.",
+    );
+  });
+
+  it("exact_distance uses unit from position category", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+      posGrid,
+    );
+    expect(clue.text).toBe("Alice is exactly 2 percentage points from Bob.");
+  });
+
+  it("exact_distance singular unit", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
+      posGrid,
+    );
+    expect(clue.text).toBe("Alice is exactly 1 percentage point from Bob.");
+  });
+
+  it("next_to falls back to default when no comparator", () => {
+    const clue = renderClue({ type: "next_to", a: "Alice", b: "Bob" }, posGrid);
+    expect(clue.text).toBe("Alice lives next to Bob.");
+  });
+});
+
+describe("ordering phrases on non-position category", () => {
+  const orderedGrid: Grid = {
+    size: 3,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+      {
+        name: "Duration",
+        values: ["2h", "4h", "6h"],
+        noun: "flight",
+        numericValues: [2, 4, 6],
+        orderingPhrases: {
+          unit: ["hour", "hours"],
+          comparators: {
+            before: "has a shorter flight than",
+          },
+        },
+      },
+      { name: "Color", values: ["Red", "Blue", "Green"] },
+    ],
+  };
+
+  it("before uses comparator from shared category", () => {
+    const clue = renderClue({ type: "before", a: "2h", b: "6h" }, orderedGrid);
+    expect(clue.text).toBe(
+      "The 2h flight is has a shorter flight than the 6h flight.",
+    );
+  });
+
+  it("before falls back to default for cross-category values", () => {
+    const clue = renderClue(
+      { type: "before", a: "Alice", b: "Red" },
+      orderedGrid,
+    );
+    expect(clue.text).toMatch(/somewhere (left|right) of/);
+  });
+
+  it("exact_distance uses unit from shared category", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "2h", b: "6h", distance: 2 },
+      orderedGrid,
+    );
+    expect(clue.text).toBe(
+      "The 2h flight is exactly 2 hours from the 6h flight.",
+    );
+  });
+
+  it("exact_distance falls back to houses for cross-category values", () => {
+    const clue = renderClue(
+      { type: "exact_distance", a: "Alice", b: "Red", distance: 2 },
+      orderedGrid,
+    );
+    expect(clue.text).toBe(
+      "Alice lives exactly two houses from the red house.",
+    );
+  });
+});

@@ -241,6 +241,40 @@ describe("encodeConstraint", () => {
     }
   });
 
+  it("exact_distance with numericValues uses value distance", () => {
+    const numGrid: Grid = {
+      size: 3,
+      categories: [
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+        {
+          name: "Year",
+          values: ["1980", "1990", "2005"],
+          noun: "car",
+          isPosition: true,
+          numericValues: [1980, 1990, 2005],
+        },
+      ],
+    };
+    const ctx = createContext(numGrid);
+    // distance=10 means |numericValues[p1]-numericValues[p2]|=10, i.e. positions 0,1
+    const clauses = encodePuzzle(ctx, [
+      { type: "exact_distance", a: "Red", b: "Blue", distance: 10 },
+    ]);
+    const solutions = solveAllSAT(clauses, 100);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const p1 = decoded["Red"];
+      const p2 = decoded["Blue"];
+      expect(
+        Math.abs(
+          numGrid.categories[1].numericValues![p1] -
+            numGrid.categories[1].numericValues![p2],
+        ),
+      ).toBe(10);
+    }
+  });
+
   it("combined constraints produce unique solution", () => {
     // Pin everything for a 3x3
     const ctx = createContext(grid3x3);

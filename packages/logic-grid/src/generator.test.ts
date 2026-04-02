@@ -317,4 +317,61 @@ describe("generate", () => {
       }),
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
+
+  it("position category gets identity assignment", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 42,
+      categoryNames: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: { before: "has a larger return than" },
+          },
+        },
+        {
+          name: "Strategy",
+          values: ["Long/Short", "Macro", "Quant", "Event"],
+          noun: "strategist",
+        },
+      ],
+    });
+
+    // Position category should have identity mapping
+    const returnAssignment = puzzle.solution.find((a) => "6%" in a)!;
+    expect(returnAssignment["6%"]).toBe(0);
+    expect(returnAssignment["7%"]).toBe(1);
+    expect(returnAssignment["8%"]).toBe(2);
+    expect(returnAssignment["9%"]).toBe(3);
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  });
+
+  it("position category is preserved in grid", () => {
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        {
+          name: "Time",
+          values: ["9am", "10am", "11am"],
+          noun: "slot",
+          isPosition: true,
+        },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+      ],
+    });
+
+    const posCat = puzzle.grid.categories.find((c) => c.isPosition);
+    expect(posCat).toBeDefined();
+    expect(posCat!.name).toBe("Time");
+    expect(posCat!.isPosition).toBe(true);
+  });
 });
