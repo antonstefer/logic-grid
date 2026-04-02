@@ -664,6 +664,38 @@ describe("position category", () => {
     ).toBe(true);
   });
 
+  it("left_of uses grid comparator when set", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords!,
+        comparators: {
+          ...posGrid.spatialWords!.comparators,
+          left_of: "has a return exactly one point less than",
+        },
+      },
+    };
+    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, g);
+    expect(clue.text).toBe(
+      "Alice has a return exactly one point less than Bob.",
+    );
+  });
+
+  it("before uses grid comparator when set", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords!,
+        comparators: {
+          ...posGrid.spatialWords!.comparators,
+          before: "has a lower return than",
+        },
+      },
+    };
+    const clue = renderClue({ type: "before", a: "Alice", b: "Bob" }, g);
+    expect(clue.text).toBe("Alice has a lower return than Bob.");
+  });
+
   it("exact_distance uses unit from ordering templates", () => {
     const clue = renderClue(
       { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
