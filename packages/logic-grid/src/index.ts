@@ -4,8 +4,8 @@ export { classify } from "./difficulty";
 export { deduce } from "./deduce";
 
 export {
-  sameHouse,
-  notSameHouse,
+  samePosition,
+  notSamePosition,
   nextTo,
   notNextTo,
   leftOf,

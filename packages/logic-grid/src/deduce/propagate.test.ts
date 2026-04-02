@@ -39,8 +39,8 @@ describe("propagateToFixpoint", () => {
     expect([...getPossible(state, "Red")]).toEqual([0]);
   });
 
-  it("same_house propagates via chain links", () => {
-    // Red pinned at 0, same_house(Red, Alice) + same_house(Red, Cat)
+  it("same_position propagates via chain links", () => {
+    // Red pinned at 0, same_position(Red, Alice) + same_position(Red, Cat)
     // → both Alice and Cat should be pinned at 0 via chain propagation.
     const grid3cat: Grid = {
       size: 4,
@@ -53,8 +53,8 @@ describe("propagateToFixpoint", () => {
     const state = createState(grid3cat);
     propagateToFixpoint(state, [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "same_house", a: "Red", b: "Cat" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Red", b: "Cat" },
     ]);
     expect([...getPossible(state, "Alice")]).toEqual([0]);
     expect([...getPossible(state, "Cat")]).toEqual([0]);

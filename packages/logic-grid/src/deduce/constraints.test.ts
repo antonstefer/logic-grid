@@ -37,24 +37,24 @@ describe("deduce constraint types", () => {
     expect(assigns).toContainEqual({ value: "Alice", position: 3 });
   });
 
-  it("same_house intersects possible positions", () => {
+  it("same_position intersects possible positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "same_house", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "same_house");
+    const step = result.steps.find((s) => s.technique === "same_position");
     expect(step).toBeDefined();
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 0 });
   });
 
-  it("not_same_house eliminates when one value is pinned", () => {
+  it("not_same_position eliminates when one value is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "not_same_house", a: "Red", b: "Alice" },
+      { type: "not_same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "not_same_house");
+    const step = result.steps.find((s) => s.technique === "not_same_position");
     expect(step).toBeDefined();
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 0 });
   });

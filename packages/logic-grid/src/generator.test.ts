@@ -40,10 +40,10 @@ describe("generate", () => {
 
     for (const c of puzzle.constraints) {
       switch (c.type) {
-        case "same_house":
+        case "same_position":
           expect(posOf.get(c.a)).toBe(posOf.get(c.b));
           break;
-        case "not_same_house":
+        case "not_same_position":
           expect(posOf.get(c.a)).not.toBe(posOf.get(c.b));
           break;
         case "next_to":
@@ -192,7 +192,7 @@ describe("generate", () => {
     }
     const atPos = types["at_position"] ?? 0;
     const relational =
-      (types["same_house"] ?? 0) +
+      (types["same_position"] ?? 0) +
       (types["next_to"] ?? 0) +
       (types["left_of"] ?? 0) +
       (types["between"] ?? 0);
@@ -213,8 +213,8 @@ describe("generate", () => {
     expect(puzzle.difficulty).toBe("easy");
     for (const c of puzzle.constraints) {
       expect([
-        "same_house",
-        "not_same_house",
+        "same_position",
+        "not_same_position",
         "at_position",
         "not_at_position",
       ]).toContain(c.type);
@@ -231,8 +231,8 @@ describe("generate", () => {
     expect(puzzle.difficulty).toBe("medium");
     for (const c of puzzle.constraints) {
       expect([
-        "same_house",
-        "not_same_house",
+        "same_position",
+        "not_same_position",
         "at_position",
         "not_at_position",
         "next_to",

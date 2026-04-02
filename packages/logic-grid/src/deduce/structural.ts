@@ -84,8 +84,8 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
   return null;
 }
 
-// same_house transitivity (A→M→B) and not_same_house chains are handled by the
-// iterative constraint loop. same_house(M,A) and same_house(M,B) are applied in
+// same_position transitivity (A→M→B) and not_same_position chains are handled by the
+// iterative constraint loop. same_position(M,A) and same_position(M,B) are applied in
 // alternating passes until fixpoint, so A, M, and B reach the same possible set
 // before any structural technique gets to run.
 

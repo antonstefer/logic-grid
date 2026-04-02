@@ -2,6 +2,7 @@ import {
   generate,
   deduce,
   findPositionCategory,
+  type Category,
   type Puzzle,
   type Difficulty,
   type DeductionStep,
@@ -29,6 +30,9 @@ export function createPuzzleState() {
     difficulty?: Difficulty,
     theme?: string,
     clueStyle?: string,
+    categoryNames?: Category[],
+    positionNoun?: [string, string],
+    positionPreposition?: string,
   ) {
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
@@ -71,6 +75,9 @@ export function createPuzzleState() {
               categories,
               difficulty,
               seed: Date.now(),
+              categoryNames,
+              positionNoun,
+              positionPreposition,
             });
           }
           if (clueStyle && puzzle) {

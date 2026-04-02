@@ -186,12 +186,12 @@ describe("deduce structural techniques", () => {
     expect(step!.eliminations).toContainEqual({ value: "Green", position: 5 });
   });
 
-  it("same_house transitivity: A linked to M linked to B all reach same position", () => {
-    // same_house(Red, Alice) and same_house(Alice, Blue) handled by the iterative
+  it("same_position transitivity: A linked to M linked to B all reach same position", () => {
+    // same_position(Red, Alice) and same_position(Alice, Blue) handled by the iterative
     // constraint loop — no dedicated chain step needed.
     const constraints: Constraint[] = [
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "same_house", a: "Alice", b: "Blue" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Alice", b: "Blue" },
       { type: "at_position", value: "Red", position: 0 },
     ];
     const result = deduce(constraints, grid);
@@ -199,12 +199,12 @@ describe("deduce structural techniques", () => {
     expect(allAssigns).toContainEqual({ value: "Blue", position: 0 });
   });
 
-  it("not_same_house with same_house peer: exclusion propagates via direct constraints", () => {
-    // same_house(Red, Alice): co-located. not_same_house(Red, Bob): different houses.
-    // Alice pinned at 0 → Red at 0 (via same_house) → Bob not at 0 (via not_same_house).
+  it("not_same_position with same_position peer: exclusion propagates via direct constraints", () => {
+    // same_position(Red, Alice): co-located. not_same_position(Red, Bob): different houses.
+    // Alice pinned at 0 → Red at 0 (via same_position) → Bob not at 0 (via not_same_position).
     const constraints: Constraint[] = [
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "not_same_house", a: "Red", b: "Bob" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "not_same_position", a: "Red", b: "Bob" },
       { type: "at_position", value: "Alice", position: 0 },
     ];
     const result = deduce(constraints, grid);
@@ -225,8 +225,8 @@ describe("deduce structural techniques", () => {
     const constraints: Constraint[] = [
       { type: "not_next_to", a: "Bob", b: "Green" },
       { type: "left_of", a: "Carol", b: "Blue" },
-      { type: "same_house", a: "Carol", b: "Fish" },
-      { type: "same_house", a: "Red", b: "Dog" },
+      { type: "same_position", a: "Carol", b: "Fish" },
+      { type: "same_position", a: "Red", b: "Dog" },
     ];
     const result = deduce(constraints, small);
     expect(result.complete).toBe(true);

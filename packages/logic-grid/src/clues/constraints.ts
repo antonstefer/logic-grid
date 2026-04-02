@@ -1,13 +1,13 @@
 import type { Constraint } from "../types";
 
 /** `a` and `b` are at the same position. */
-export function sameHouse(a: string, b: string): Constraint {
-  return { type: "same_house", a, b };
+export function samePosition(a: string, b: string): Constraint {
+  return { type: "same_position", a, b };
 }
 
 /** `a` and `b` are at different positions. */
-export function notSameHouse(a: string, b: string): Constraint {
-  return { type: "not_same_house", a, b };
+export function notSamePosition(a: string, b: string): Constraint {
+  return { type: "not_same_position", a, b };
 }
 
 /** `a` and `b` are at adjacent positions. */

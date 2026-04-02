@@ -276,9 +276,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       const posB = posArr[j];
 
       if (posA === posB) {
-        constraints.push({ type: "same_house", a, b });
+        constraints.push({ type: "same_position", a, b });
       } else if (notSameCount < maxPerType) {
-        constraints.push({ type: "not_same_house", a, b });
+        constraints.push({ type: "not_same_position", a, b });
         notSameCount++;
       }
 
@@ -409,8 +409,8 @@ function filterByDifficulty(
 }
 
 // How many slots each type gets per round-robin cycle.
-// same_house gets 4 to ensure it dominates (~40% of final puzzle).
-const TYPE_SLOTS: Record<string, number> = { same_house: 4 };
+// same_position gets 4 to ensure it dominates (~40% of final puzzle).
+const TYPE_SLOTS: Record<string, number> = { same_position: 4 };
 
 interface IncSolverCtx {
   solver: IncrementalSolver;

@@ -91,7 +91,7 @@ export function encodeConstraint(
   const n = ctx.numPositions;
 
   switch (constraint.type) {
-    case "same_house": {
+    case "same_position": {
       const { a, b } = constraint;
       const clauses: number[][] = [];
       for (let p = 0; p < n; p++) {
@@ -101,7 +101,7 @@ export function encodeConstraint(
       return clauses;
     }
 
-    case "not_same_house": {
+    case "not_same_position": {
       const { a, b } = constraint;
       const clauses: number[][] = [];
       for (let p = 0; p < n; p++) {

@@ -10,7 +10,7 @@ describe("error handling", () => {
       categories: [{ name: "Color", values: ["Red", "Blue", "Green"] }],
     };
     expect(() =>
-      deduce([{ type: "same_house", a: "Red", b: "Purple" }], g),
+      deduce([{ type: "same_position", a: "Red", b: "Purple" }], g),
     ).toThrow("Unknown value: Purple");
   });
 });
@@ -42,10 +42,10 @@ const grid3x3: Grid = {
 
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },
-  { type: "same_house", a: "Red", b: "Cat" },
+  { type: "same_position", a: "Red", b: "Cat" },
   { type: "left_of", a: "Blue", b: "Green" },
-  { type: "same_house", a: "Blue", b: "Dog" },
-  { type: "same_house", a: "Dog", b: "Coffee" },
+  { type: "same_position", a: "Blue", b: "Dog" },
+  { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "at_position", value: "Tea", position: 0 },
 ];
 

@@ -1,28 +1,99 @@
 <script lang="ts">
-  import type { Difficulty } from "logic-grid";
+  import type { Category, Difficulty } from "logic-grid";
   import PuzzleGrid from "$lib/PuzzleGrid.svelte";
   import ClueList from "$lib/ClueList.svelte";
   import { createPuzzleState } from "$lib/puzzle-state.svelte";
 
   const puzzleState = createPuzzleState();
 
+  interface Preset {
+    label: string;
+    size: number;
+    categories: Category[];
+    positionNoun: [string, string];
+    positionPreposition: string;
+  }
+
+  const presets: Record<string, Preset> = {
+    "hedge-fund": {
+      label: "Hedge Fund Returns",
+      size: 4,
+      categories: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "YTD Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: { before: "has a higher return than", left_of: "has a return exactly one percentage point less than" },
+          },
+        },
+        { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", verb: ["uses", "does not use"] },
+        { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", verb: ["is based in", "is not based in"] },
+      ],
+      positionNoun: ["fund", "funds"],
+      positionPreposition: "at",
+    },
+    "morning-schedule": {
+      label: "Morning Schedule",
+      size: 4,
+      categories: [
+        { name: "Person", values: ["Emma", "Liam", "Noah", "Olivia"], noun: "" },
+        {
+          name: "Time",
+          values: ["7am", "8am", "9am", "10am"],
+          noun: "slot",
+          isPosition: true,
+          numericValues: [7, 8, 9, 10],
+          orderingPhrases: {
+            unit: ["hour", "hours"],
+            comparators: { before: "has an earlier appointment than" },
+          },
+        },
+        { name: "Activity", values: ["Yoga", "Dentist", "Interview", "Brunch"], noun: "attendee", verb: ["is going to", "is not going to"] },
+        { name: "Transport", values: ["Bus", "Bike", "Car", "Walk"], noun: "commuter", verb: ["takes the", "does not take the"] },
+      ],
+      positionNoun: ["slot", "slots"],
+      positionPreposition: "at",
+    },
+  };
+
   let size = $state(4);
   let categories = $state(4);
   let difficulty = $state<Difficulty | "any">("any");
   let theme = $state("");
   let clueStyle = $state("");
+  let preset = $state("none");
 
   function handleNewPuzzle() {
-    puzzleState.newPuzzle(
-      size,
-      categories,
-      difficulty === "any" ? undefined : difficulty,
-      theme.trim() || undefined,
-      clueStyle.trim() || undefined,
-    );
+    const p = presets[preset];
+    if (p) {
+      puzzleState.newPuzzle(
+        p.size,
+        p.categories.length,
+        difficulty === "any" ? undefined : difficulty,
+        undefined,
+        clueStyle.trim() || undefined,
+        p.categories,
+        p.positionNoun,
+        p.positionPreposition,
+      );
+    } else {
+      puzzleState.newPuzzle(
+        size,
+        categories,
+        difficulty === "any" ? undefined : difficulty,
+        theme.trim() || undefined,
+        clueStyle.trim() || undefined,
+      );
+    }
   }
 
-  // Generate initial puzzle
+  // Generate initial puzzle with hedge fund preset to showcase position categories
+  preset = "hedge-fund";
   handleNewPuzzle();
 </script>
 
@@ -36,22 +107,34 @@
 
   <div class="controls">
     <label>
-      Size
-      <select bind:value={size}>
-        {#each [3, 4, 5, 6, 7, 8] as s}
-          <option value={s}>{s}</option>
+      Preset
+      <select bind:value={preset}>
+        <option value="none">Default</option>
+        {#each Object.entries(presets) as [key, p]}
+          <option value={key}>{p.label}</option>
         {/each}
       </select>
     </label>
 
-    <label>
-      Categories
-      <select bind:value={categories}>
-        {#each [3, 4, 5, 6, 7, 8] as c}
-          <option value={c}>{c}</option>
-        {/each}
-      </select>
-    </label>
+    {#if preset === "none"}
+      <label>
+        Size
+        <select bind:value={size}>
+          {#each [3, 4, 5, 6, 7, 8] as s}
+            <option value={s}>{s}</option>
+          {/each}
+        </select>
+      </label>
+
+      <label>
+        Categories
+        <select bind:value={categories}>
+          {#each [3, 4, 5, 6, 7, 8] as c}
+            <option value={c}>{c}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
 
     <label>
       Difficulty
@@ -64,10 +147,12 @@
       </select>
     </label>
 
-    <label>
-      Theme
-      <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
-    </label>
+    {#if preset === "none"}
+      <label>
+        Theme
+        <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
+      </label>
+    {/if}
 
     <label>
       Clue style

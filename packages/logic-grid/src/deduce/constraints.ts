@@ -40,10 +40,10 @@ export function tryConstraint(
       return tryAtPosition(state, constraint, ci);
     case "not_at_position":
       return tryNotAtPosition(state, constraint, ci);
-    case "same_house":
-      return trySameHouse(state, constraint, ci);
-    case "not_same_house":
-      return tryNotSameHouse(state, constraint, ci);
+    case "same_position":
+      return trySamePosition(state, constraint, ci);
+    case "not_same_position":
+      return tryNotSamePosition(state, constraint, ci);
     case "next_to":
       return tryNextTo(state, constraint, ci);
     case "not_next_to":
@@ -108,7 +108,7 @@ function tryNotAtPosition(
   );
 }
 
-function trySameHouse(
+function trySamePosition(
   state: DeduceState,
   c: { a: string; b: string },
   ci: number,
@@ -151,10 +151,10 @@ function trySameHouse(
   } else {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
   }
-  return step("same_house", [ci], elims, assigns, explanation);
+  return step("same_position", [ci], elims, assigns, explanation);
 }
 
-function tryNotSameHouse(
+function tryNotSamePosition(
   state: DeduceState,
   c: { a: string; b: string },
   ci: number,
@@ -187,7 +187,7 @@ function tryNotSameHouse(
       ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
       : "";
   return step(
-    "not_same_house",
+    "not_same_position",
     [ci],
     elims,
     assigns,

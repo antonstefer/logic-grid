@@ -7,7 +7,7 @@ import * as clientModule from "./client";
 
 const SAMPLE_CLUES: Clue[] = [
   {
-    constraint: { type: "same_house", a: "Alice", b: "Coffee" },
+    constraint: { type: "same_position", a: "Alice", b: "Coffee" },
     text: "Alice drinks coffee.",
   },
   {
@@ -99,7 +99,7 @@ describe("rewriteClues", () => {
 
     await rewriteClues({ clues: SAMPLE_CLUES, client });
 
-    expect(capturedPrompt).toContain('"type":"same_house"');
+    expect(capturedPrompt).toContain('"type":"same_position"');
     expect(capturedPrompt).toContain('"type":"next_to"');
     expect(capturedPrompt).toContain('"type":"at_position"');
   });

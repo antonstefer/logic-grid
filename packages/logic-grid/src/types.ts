@@ -56,8 +56,8 @@ export type ConstraintType = Constraint["type"];
  * Positions are 0-indexed.
  */
 export type Constraint =
-  | { type: "same_house"; a: string; b: string }
-  | { type: "not_same_house"; a: string; b: string }
+  | { type: "same_position"; a: string; b: string }
+  | { type: "not_same_position"; a: string; b: string }
   | { type: "next_to"; a: string; b: string }
   | { type: "not_next_to"; a: string; b: string }
   | { type: "left_of"; a: string; b: string }
@@ -90,8 +90,8 @@ export interface Puzzle {
 export type DeductionTechnique =
   | "direct"
   | "elimination"
-  | "same_house"
-  | "not_same_house"
+  | "same_position"
+  | "not_same_position"
   | "next_to"
   | "not_next_to"
   | "left_of"

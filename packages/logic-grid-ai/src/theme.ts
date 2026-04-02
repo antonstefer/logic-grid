@@ -143,7 +143,7 @@ For a "cooking competition" theme with size 4 and 4 categories:
 }
 
 This produces clues like:
-- "Gordon prepares the risotto." (same_house: Chef=Gordon, Dish=Risotto)
+- "Gordon prepares the risotto." (same_position: Chef=Gordon, Dish=Risotto)
 - "The truffle specialist is at the first station." (at_position)
 - "The wok user is directly left of the blowtorch user." (left_of)
 

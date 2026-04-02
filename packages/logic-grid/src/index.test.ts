@@ -4,7 +4,7 @@ import {
   solve,
   hasUniqueSolution,
   classify,
-  sameHouse,
+  samePosition,
   nextTo,
   leftOf,
   atPosition,
@@ -46,7 +46,7 @@ describe("public API integration", () => {
     };
     const constraints = [
       atPosition("Red", 0),
-      sameHouse("Red", "Cat"),
+      samePosition("Red", "Cat"),
       leftOf("Blue", "Green"),
     ];
     const solution = solve(constraints, grid);
@@ -64,7 +64,7 @@ describe("public API integration", () => {
   });
 
   it("all constraint factories are exported", () => {
-    expect(typeof sameHouse).toBe("function");
+    expect(typeof samePosition).toBe("function");
     expect(typeof nextTo).toBe("function");
     expect(typeof leftOf).toBe("function");
     expect(typeof atPosition).toBe("function");

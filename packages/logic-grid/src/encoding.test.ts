@@ -99,10 +99,10 @@ describe("encodeBase", () => {
 });
 
 describe("encodeConstraint", () => {
-  it("same_house forces two values to same position", () => {
+  it("same_position forces two values to same position", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "same_house", a: "Red", b: "Cat" },
+      { type: "same_position", a: "Red", b: "Cat" },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     for (const sol of solutions) {
@@ -111,10 +111,10 @@ describe("encodeConstraint", () => {
     }
   });
 
-  it("not_same_house prevents two values at same position", () => {
+  it("not_same_position prevents two values at same position", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "not_same_house", a: "Red", b: "Cat" },
+      { type: "not_same_position", a: "Red", b: "Cat" },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     for (const sol of solutions) {
@@ -282,10 +282,10 @@ describe("encodeConstraint", () => {
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 1 },
       { type: "at_position", value: "Green", position: 2 },
-      { type: "same_house", a: "Red", b: "Cat" },
-      { type: "same_house", a: "Blue", b: "Dog" },
-      { type: "same_house", a: "Red", b: "Tea" },
-      { type: "same_house", a: "Blue", b: "Coffee" },
+      { type: "same_position", a: "Red", b: "Cat" },
+      { type: "same_position", a: "Blue", b: "Dog" },
+      { type: "same_position", a: "Red", b: "Tea" },
+      { type: "same_position", a: "Blue", b: "Coffee" },
     ];
     const clauses = encodePuzzle(ctx, constraints);
     const solutions = solveAllSAT(clauses, 2);
