@@ -1,6 +1,7 @@
 import {
   generate,
   deduce,
+  findPositionCategory,
   type Puzzle,
   type Difficulty,
   type DeductionStep,
@@ -115,6 +116,17 @@ export function createPuzzleState() {
         grid = Array.from({ length: totalValues }, () =>
           Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
         );
+        // Pre-confirm position category (identity assignment, not a mystery)
+        const posCat = findPositionCategory(puzzle.grid);
+        if (posCat) {
+          const posCatIdx = puzzle.grid.categories.indexOf(posCat);
+          for (let vi = 0; vi < posCat.values.length; vi++) {
+            const valueIdx = getValueIndex(posCatIdx, vi);
+            for (let p = 0; p < puzzle.grid.size; p++) {
+              grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
+            }
+          }
+        }
         hintSteps = [];
         loading = false;
         loadingMessage = "Generating…";
