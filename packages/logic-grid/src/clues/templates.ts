@@ -36,15 +36,14 @@ function ordinalHouse(position: number, grid: Grid): string {
 function comparator(
   grid: Grid,
   type: OrderingComparatorType,
-  ...values: string[]
+  a: string,
+  b: string,
 ): string | undefined {
   // If both values share a category with ordering phrases, prefer that
-  if (values.length >= 2) {
-    const catA = findCategory(values[0], grid);
-    const catB = findCategory(values[1], grid);
-    if (catA === catB && catA.orderingPhrases?.comparators?.[type]) {
-      return catA.orderingPhrases.comparators[type];
-    }
+  const catA = findCategory(a, grid);
+  const catB = findCategory(b, grid);
+  if (catA === catB && catA.orderingPhrases?.comparators?.[type]) {
+    return catA.orderingPhrases.comparators[type];
   }
   return findPositionCategory(grid)?.orderingPhrases?.comparators?.[type];
 }

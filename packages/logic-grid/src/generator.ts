@@ -272,8 +272,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
     for (let j = i + 1; j < allValues.length; j++) {
       if (catArr[j] === catA) continue;
-      // Skip pairs where both values are from the position category
-      if (catA === posCatIndex && catArr[j] === posCatIndex) continue;
       const b = allValues[j];
       const posB = posArr[j];
 

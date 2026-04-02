@@ -468,6 +468,11 @@ describe("position category", () => {
           comparators: {
             before: "has a larger return than",
             left_of: "has a return exactly one percentage point less than",
+            next_to: "has a return within one percentage point of",
+            not_next_to:
+              "does not have a return within one percentage point of",
+            between: "has a return between",
+            not_between: "does not have a return between",
           },
         },
       },
@@ -525,9 +530,39 @@ describe("position category", () => {
     expect(clue.text).toBe("Alice is exactly 1 percentage point from Bob.");
   });
 
-  it("next_to falls back to default when no comparator", () => {
+  it("next_to uses custom comparator", () => {
     const clue = renderClue({ type: "next_to", a: "Alice", b: "Bob" }, posGrid);
-    expect(clue.text).toBe("Alice lives next to Bob.");
+    expect(clue.text).toBe(
+      "Alice is has a return within one percentage point of Bob.",
+    );
+  });
+
+  it("not_next_to uses custom comparator", () => {
+    const clue = renderClue(
+      { type: "not_next_to", a: "Alice", b: "Bob" },
+      posGrid,
+    );
+    expect(clue.text).toBe(
+      "Alice is does not have a return within one percentage point of Bob.",
+    );
+  });
+
+  it("between uses custom comparator", () => {
+    const clue = renderClue(
+      { type: "between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
+      posGrid,
+    );
+    expect(clue.text).toBe("Bob is has a return between Alice and Carol.");
+  });
+
+  it("not_between uses custom comparator", () => {
+    const clue = renderClue(
+      { type: "not_between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
+      posGrid,
+    );
+    expect(clue.text).toBe(
+      "Bob is does not have a return between Alice and Carol.",
+    );
   });
 });
 

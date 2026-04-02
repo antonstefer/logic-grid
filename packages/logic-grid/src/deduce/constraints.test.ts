@@ -344,6 +344,60 @@ describe("deduce constraint types", () => {
     expect(step!.explanation).toContain("1 house apart");
   });
 
+  it("exact_distance explanation uses unit from position category", () => {
+    const unitGrid: Grid = {
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+          },
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+    ];
+    const result = deduce(constraints, unitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 percentage points apart");
+  });
+
+  it("exact_distance explanation uses singular unit", () => {
+    const unitGrid: Grid = {
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+          },
+        },
+      ],
+    };
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
+    ];
+    const result = deduce(constraints, unitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("1 percentage point apart");
+  });
+
   it("between constrains middle position", () => {
     const grid5: Grid = {
       size: 5,
