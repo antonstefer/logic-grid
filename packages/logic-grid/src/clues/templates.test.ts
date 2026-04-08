@@ -741,4 +741,3 @@ describe("position category", () => {
     expect(clue.text).toBe("Bob is not somewhere between Alice and Carol.");
   });
 });
-
