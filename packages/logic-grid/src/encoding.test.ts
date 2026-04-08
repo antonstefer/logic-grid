@@ -1,16 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { createContext, variable, encodeBase, encodePuzzle } from "./encoding";
 import { solveSAT, solveAllSAT } from "./sat";
-import type { Grid, Constraint } from "./types";
+import { makeGrid } from "./test-helpers";
+import type { Constraint } from "./types";
 
-const grid3x3: Grid = {
+const grid3x3 = makeGrid({
   size: 3,
   categories: [
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
-};
+});
 
 function decodeSolution(
   ctx: ReturnType<typeof createContext>,
@@ -242,7 +243,7 @@ describe("encodeConstraint", () => {
   });
 
   it("exact_distance with numericValues uses value distance", () => {
-    const numGrid: Grid = {
+    const numGrid = makeGrid({
       size: 3,
       categories: [
         { name: "Color", values: ["Red", "Blue", "Green"] },
@@ -254,7 +255,7 @@ describe("encodeConstraint", () => {
           numericValues: [1980, 1990, 2005],
         },
       ],
-    };
+    });
     const ctx = createContext(numGrid);
     // distance=10 means |numericValues[p1]-numericValues[p2]|=10, i.e. positions 0,1
     const clauses = encodePuzzle(ctx, [

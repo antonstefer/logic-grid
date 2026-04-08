@@ -9,6 +9,7 @@ import {
   leftOf,
   atPosition,
 } from "./index";
+import { makeGrid } from "./test-helpers";
 
 describe("public API integration", () => {
   it("generate → solve → verify solution matches", () => {
@@ -37,13 +38,13 @@ describe("public API integration", () => {
   });
 
   it("constraint factories work with solve", () => {
-    const grid = {
+    const grid = makeGrid({
       size: 3,
       categories: [
         { name: "Color", values: ["Red", "Blue", "Green"] },
         { name: "Pet", values: ["Cat", "Dog", "Fish"] },
       ],
-    };
+    });
     const constraints = [
       atPosition("Red", 0),
       samePosition("Red", "Cat"),

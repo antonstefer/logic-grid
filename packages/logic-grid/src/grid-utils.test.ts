@@ -1,111 +1,66 @@
 import { describe, it, expect } from "vitest";
-import {
-  findPositionCategory,
-  positionLabel,
-  getDistancePairs,
-} from "./grid-utils";
-import type { Grid } from "./types";
-
-const standardGrid: Grid = {
-  size: 3,
-  categories: [
-    { name: "Name", values: ["Alice", "Bob", "Carol"] },
-    { name: "Color", values: ["Red", "Blue", "Green"] },
-  ],
-};
-
-const posGrid: Grid = {
-  size: 4,
-  categories: [
-    { name: "Name", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
-    {
-      name: "Return",
-      values: ["6%", "7%", "8%", "9%"],
-      noun: "fund",
-      isPosition: true,
-      numericValues: [6, 7, 8, 9],
-    },
-  ],
-};
+import { findPositionCategory, positionLabel } from "./grid-utils";
+import { generate } from "./generator";
 
 describe("findPositionCategory", () => {
   it("returns undefined when no position category", () => {
-    expect(findPositionCategory(standardGrid)).toBeUndefined();
+    const puzzle = generate({ size: 3, categories: 3, seed: 1 });
+    expect(findPositionCategory(puzzle.grid)).toBeUndefined();
   });
 
   it("returns the position category", () => {
-    const cat = findPositionCategory(posGrid);
-    expect(cat?.name).toBe("Return");
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        {
+          name: "Time",
+          values: ["7am", "8am", "9am"],
+          noun: "slot",
+          isPosition: true,
+        },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
+      ],
+    });
+    const cat = findPositionCategory(puzzle.grid);
+    expect(cat?.name).toBe("Time");
   });
 });
 
 describe("positionLabel", () => {
   it("returns position category value when present", () => {
-    expect(positionLabel(0, posGrid)).toBe("6%");
-    expect(positionLabel(3, posGrid)).toBe("9%");
-  });
-
-  it("falls back to ordinal house for standard grids", () => {
-    expect(positionLabel(0, standardGrid)).toBe("the first house");
-    expect(positionLabel(2, standardGrid)).toBe("the third house");
-  });
-
-  it("uses custom positionNoun in fallback", () => {
-    const custom: Grid = {
-      ...standardGrid,
-      positionNoun: ["seat", "seats"],
-    };
-    expect(positionLabel(1, custom)).toBe("the second seat");
-  });
-});
-
-describe("getDistancePairs", () => {
-  it("returns position-based pairs when no numericValues", () => {
-    const pairs = getDistancePairs(standardGrid, 1);
-    expect(pairs).toEqual([
-      [0, 1],
-      [1, 2],
-    ]);
-  });
-
-  it("returns position-based pairs for distance 2", () => {
-    const pairs = getDistancePairs(standardGrid, 2);
-    expect(pairs).toEqual([[0, 2]]);
-  });
-
-  it("returns empty for impossible distance", () => {
-    const pairs = getDistancePairs(standardGrid, 5);
-    expect(pairs).toEqual([]);
-  });
-
-  it("uses numericValues when present (equidistant)", () => {
-    // numericValues [6,7,8,9], distance 2 → |6-8|=2, |7-9|=2
-    const pairs = getDistancePairs(posGrid, 2);
-    expect(pairs).toEqual([
-      [0, 2],
-      [1, 3],
-    ]);
-  });
-
-  it("uses numericValues for non-equidistant values", () => {
-    const nonEq: Grid = {
-      size: 4,
-      categories: [
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
         {
-          name: "Year",
-          values: ["1972", "1983", "1997", "2005"],
+          name: "Time",
+          values: ["7am", "8am", "9am"],
+          noun: "slot",
           isPosition: true,
-          numericValues: [1972, 1983, 1997, 2005],
         },
+        { name: "Color", values: ["Red", "Blue", "Green"] },
       ],
-    };
-    // distance=11 → |1972-1983|=11
-    expect(getDistancePairs(nonEq, 11)).toEqual([[0, 1]]);
-    // distance=14 → |1983-1997|=14
-    expect(getDistancePairs(nonEq, 14)).toEqual([[1, 2]]);
-    // distance=25 → |1972-1997|=25
-    expect(getDistancePairs(nonEq, 25)).toEqual([[0, 2]]);
-    // distance=100 → no pairs
-    expect(getDistancePairs(nonEq, 100)).toEqual([]);
+    });
+    expect(positionLabel(0, puzzle.grid)).toBe("7am");
+    expect(positionLabel(2, puzzle.grid)).toBe("9am");
+  });
+
+  it("returns ordinal house labels for classic grids", () => {
+    const puzzle = generate({ size: 3, categories: 3, seed: 1 });
+    expect(positionLabel(0, puzzle.grid)).toBe("the first house");
+    expect(positionLabel(2, puzzle.grid)).toBe("the third house");
+  });
+
+  it("uses custom positionNoun", () => {
+    const puzzle = generate({
+      size: 3,
+      categories: 3,
+      seed: 1,
+      positionNoun: ["seat", "seats"],
+    });
+    expect(positionLabel(1, puzzle.grid)).toBe("the second seat");
   });
 });

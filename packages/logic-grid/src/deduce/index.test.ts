@@ -1,14 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { deduce } from ".";
 import { generate } from "../generator";
-import type { Grid, Constraint } from "../types";
+import { makeGrid } from "../test-helpers";
+import type { Constraint } from "../types";
 
 describe("error handling", () => {
   it("throws when a constraint references an unknown value", () => {
-    const g: Grid = {
+    const g = makeGrid({
       size: 3,
       categories: [{ name: "Color", values: ["Red", "Blue", "Green"] }],
-    };
+    });
     expect(() =>
       deduce([{ type: "same_position", a: "Red", b: "Purple" }], g),
     ).toThrow("Unknown value: Purple");
@@ -17,13 +18,13 @@ describe("error handling", () => {
 
 describe("edge cases", () => {
   it("returns no steps and incomplete for empty constraints", () => {
-    const g: Grid = {
+    const g = makeGrid({
       size: 3,
       categories: [
         { name: "Color", values: ["Red", "Blue", "Green"] },
         { name: "Pet", values: ["Cat", "Dog", "Fish"] },
       ],
-    };
+    });
     const result = deduce([], g);
     expect(result.steps).toEqual([]);
     expect(result.complete).toBe(false);
@@ -31,14 +32,14 @@ describe("edge cases", () => {
 });
 
 // Same 3x3 puzzle from solver.test.ts — known solvable by deduction
-const grid3x3: Grid = {
+const grid3x3 = makeGrid({
   size: 3,
   categories: [
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
-};
+});
 
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },

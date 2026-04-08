@@ -2,21 +2,19 @@ import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
 import { posPrep } from "../grid-utils";
 import { DEFAULT_CONFIG } from "../generator";
+import { makeGrid } from "../test-helpers";
 import type { Grid, SpatialWords } from "../types";
 
 const POSITIONAL_WORDS: SpatialWords = {
   verb: ["is", "is not"],
   adjacency: "adjacent to",
   direction: ["before", "after"],
+  between: ["is somewhere between", "is not somewhere between"],
   atPosition: ["is at", "is not at"],
   cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-  comparators: {
-    between: "is somewhere between",
-    not_between: "is not somewhere between",
-  },
 };
 
-const grid: Grid = {
+const grid = makeGrid({
   size: 3,
   categories: [
     {
@@ -48,9 +46,9 @@ const grid: Grid = {
       subjectPriority: 1,
     },
   ],
-  spatialWords: DEFAULT_CONFIG.spatialWords!,
+  spatialWords: DEFAULT_CONFIG.spatialWords,
   positionLabels: ["the first house", "the second house", "the third house"],
-};
+});
 
 describe("renderClue", () => {
   it("same_position: color + pet", () => {
@@ -269,7 +267,7 @@ describe("renderClue", () => {
 });
 
 describe("custom category noun/verb", () => {
-  const customGrid: Grid = {
+  const customGrid = makeGrid({
     size: 3,
     categories: [
       { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
@@ -285,9 +283,9 @@ describe("custom category noun/verb", () => {
         noun: "lover",
       },
     ],
-    spatialWords: DEFAULT_CONFIG.spatialWords!,
+    spatialWords: DEFAULT_CONFIG.spatialWords,
     positionLabels: ["the first house", "the second house", "the third house"],
-  };
+  });
 
   it("same_position with custom verb", () => {
     const clue = renderClue(
@@ -323,7 +321,7 @@ describe("custom category noun/verb", () => {
   });
 
   it("empty-string noun renders bare value", () => {
-    const bareGrid: Grid = {
+    const bareGrid = makeGrid({
       size: 3,
       categories: [
         {
@@ -340,13 +338,13 @@ describe("custom category noun/verb", () => {
           positionAdjective: { suffix: "house", atPosition: ["is", "is not"] },
         },
       ],
-      spatialWords: DEFAULT_CONFIG.spatialWords!,
+      spatialWords: DEFAULT_CONFIG.spatialWords,
       positionLabels: [
         "the first house",
         "the second house",
         "the third house",
       ],
-    };
+    });
     const clue = renderClue(
       { type: "same_position", a: "Alice", b: "Red" },
       bareGrid,
@@ -365,7 +363,7 @@ describe("custom category noun/verb", () => {
 });
 
 describe("custom positionNoun / positionPreposition", () => {
-  const seatGrid: Grid = {
+  const seatGrid = makeGrid({
     size: 3,
     categories: [
       {
@@ -400,11 +398,11 @@ describe("custom positionNoun / positionPreposition", () => {
     positionNoun: ["seat", "seats"],
     positionPreposition: "at",
     spatialWords: {
-      ...DEFAULT_CONFIG.spatialWords!,
+      ...DEFAULT_CONFIG.spatialWords,
       atPosition: ["lives at", "does not live at"],
     },
     positionLabels: ["the first seat", "the second seat", "the third seat"],
-  };
+  });
 
   it("at_position uses custom noun and preposition", () => {
     const clue = renderClue(
@@ -489,7 +487,7 @@ describe("custom positionNoun / positionPreposition", () => {
   });
 
   it("same_position fallback uses custom noun and preposition", () => {
-    const minGrid: Grid = {
+    const minGrid = makeGrid({
       size: 3,
       categories: [
         {
@@ -501,9 +499,9 @@ describe("custom positionNoun / positionPreposition", () => {
       ],
       positionNoun: ["slot", "slots"],
       positionPreposition: "at",
-      spatialWords: DEFAULT_CONFIG.spatialWords!,
+      spatialWords: DEFAULT_CONFIG.spatialWords,
       positionLabels: ["the first slot", "the second slot", "the third slot"],
-    };
+    });
     const clue = renderClue(
       { type: "same_position", a: "Circle", b: "Small" },
       minGrid,
@@ -514,7 +512,7 @@ describe("custom positionNoun / positionPreposition", () => {
   });
 
   it("not_same_position fallback (negative branch)", () => {
-    const minGrid: Grid = {
+    const minGrid = makeGrid({
       size: 3,
       categories: [
         {
@@ -524,13 +522,13 @@ describe("custom positionNoun / positionPreposition", () => {
         },
         { name: "Size", values: ["Small", "Medium", "Large"], noun: "size" },
       ],
-      spatialWords: DEFAULT_CONFIG.spatialWords!,
+      spatialWords: DEFAULT_CONFIG.spatialWords,
       positionLabels: [
         "the first house",
         "the second house",
         "the third house",
       ],
-    };
+    });
     const clue = renderClue(
       { type: "not_same_position", a: "Circle", b: "Small" },
       minGrid,
@@ -541,7 +539,7 @@ describe("custom positionNoun / positionPreposition", () => {
   });
 
   it("throws on empty positionNoun singular", () => {
-    const badGrid: Grid = {
+    const badGrid = makeGrid({
       size: 3,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
@@ -551,10 +549,11 @@ describe("custom positionNoun / positionPreposition", () => {
         verb: ["is", "is not"],
         adjacency: "next to",
         direction: ["left of", "right of"],
+        between: ["is somewhere between", "is not somewhere between"],
         atPosition: ["is in", "is not in"],
         cardinals: ["zero", "one", "two", "three"],
       },
-    };
+    });
     expect(() =>
       renderClue(
         { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
@@ -564,7 +563,7 @@ describe("custom positionNoun / positionPreposition", () => {
   });
 
   it("throws on empty positionNoun plural", () => {
-    const badGrid: Grid = {
+    const badGrid = makeGrid({
       size: 3,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
@@ -574,10 +573,11 @@ describe("custom positionNoun / positionPreposition", () => {
         verb: ["is", "is not"],
         adjacency: "next to",
         direction: ["left of", "right of"],
+        between: ["is somewhere between", "is not somewhere between"],
         atPosition: ["is at", "is not at"],
         cardinals: ["zero", "one", "two", "three"],
       },
-    };
+    });
     expect(() =>
       renderClue(
         { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
@@ -587,17 +587,17 @@ describe("custom positionNoun / positionPreposition", () => {
   });
 
   it("throws on empty positionPreposition", () => {
-    const badGrid: Grid = {
+    const badGrid = makeGrid({
       size: 3,
       categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
       positionPreposition: "",
-    };
+    });
     expect(() => posPrep(badGrid)).toThrow(RangeError);
   });
 });
 
 describe("position category", () => {
-  const posGrid: Grid = {
+  const posGrid = makeGrid({
     size: 3,
     categories: [
       { name: "Manager", values: ["Alice", "Bob", "Carol"], noun: "" },
@@ -633,7 +633,7 @@ describe("position category", () => {
       distanceUnit: ["percentage point", "percentage points"],
     },
     positionLabels: ["6%", "7%", "8%"],
-  };
+  });
 
   it("at_position uses position category label", () => {
     const clue = renderClue(
@@ -668,9 +668,9 @@ describe("position category", () => {
     const g: Grid = {
       ...posGrid,
       spatialWords: {
-        ...posGrid.spatialWords!,
+        ...posGrid.spatialWords,
         comparators: {
-          ...posGrid.spatialWords!.comparators,
+          ...posGrid.spatialWords.comparators,
           left_of: "has a return exactly one point less than",
         },
       },
@@ -685,9 +685,9 @@ describe("position category", () => {
     const g: Grid = {
       ...posGrid,
       spatialWords: {
-        ...posGrid.spatialWords!,
+        ...posGrid.spatialWords,
         comparators: {
-          ...posGrid.spatialWords!.comparators,
+          ...posGrid.spatialWords.comparators,
           before: "has a lower return than",
         },
       },

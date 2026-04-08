@@ -24,6 +24,8 @@ export interface SpatialWords {
   adjacency: string;
   /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
   direction: [string, string];
+  /** [positive, negative] for between / not_between. E.g. `["is somewhere between", "is not somewhere between"]`. */
+  between: [string, string];
   /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]` or `["has an appointment at", "does not have an appointment at"]`. */
   atPosition: [string, string];
   /** Spelled-out cardinal numbers for exact_distance. */
@@ -63,14 +65,14 @@ export interface Category {
 export interface Grid {
   size: number;
   categories: Category[];
-  /** Singular and plural position noun, e.g. `["house", "houses"]`. Default: `["house", "houses"]`. */
-  positionNoun?: [string, string];
-  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". Default: `"in"`. */
-  positionPreposition?: string;
-  /** Configurable words for composing ordering clue sentences. Populated by the generator. */
-  spatialWords?: SpatialWords;
+  /** Singular and plural position noun, e.g. `["house", "houses"]`. */
+  positionNoun: [string, string];
+  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". */
+  positionPreposition: string;
+  /** Configurable words for composing ordering clue sentences. */
+  spatialWords: SpatialWords;
   /** Human-readable position labels. E.g. `["the first house", ...]` or `["6%", "7%", ...]`. */
-  positionLabels?: string[];
+  positionLabels: string[];
 }
 
 /** Maps each value name to its 0-indexed position. One per category. */

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { solve, hasUniqueSolution } from "./solver";
-import type { Grid, Constraint } from "./types";
+import { makeGrid } from "./test-helpers";
+import type { Constraint } from "./types";
 
 /**
  * 3x3 puzzle: 3 houses, 3 categories
@@ -18,14 +19,14 @@ import type { Grid, Constraint } from "./types";
  *   - Dog and Coffee share a house → Coffee=1
  *   - Tea is at position 0 (at_position) → Water=2
  */
-const grid3x3: Grid = {
+const grid3x3 = makeGrid({
   size: 3,
   categories: [
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
-};
+});
 
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },
@@ -90,7 +91,7 @@ describe("solve", () => {
  *  11. Alice≠Bird (not_same_position) → Bird≠0 → Bird=3, Cat=0
  *      Remaining: Water=3
  */
-const grid4x4: Grid = {
+const grid4x4 = makeGrid({
   size: 4,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
@@ -98,7 +99,7 @@ const grid4x4: Grid = {
     { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird"] },
     { name: "Drink", values: ["Tea", "Coffee", "Milk", "Water"] },
   ],
-};
+});
 
 const puzzle4x4: Constraint[] = [
   { type: "at_position", value: "Alice", position: 0 },

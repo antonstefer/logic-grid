@@ -1,15 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { classify } from "./difficulty";
-import type { Constraint, Grid } from "./types";
+import { makeGrid } from "./test-helpers";
+import type { Constraint } from "./types";
 
-const grid3x3: Grid = {
+const grid3x3 = makeGrid({
   size: 3,
   categories: [
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
-};
+});
 
 describe("classify by constraint types only", () => {
   it("returns easy for only easy types", () => {

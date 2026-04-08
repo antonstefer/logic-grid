@@ -28,7 +28,7 @@ const ORDINALS = [
 ];
 
 /** Complete default grid configuration for the classic Einstein's riddle style. */
-export const DEFAULT_CONFIG: Omit<Grid, "size"> = {
+export const DEFAULT_CONFIG: Omit<Grid, "size" | "positionLabels"> = {
   categories: [
     {
       name: "Name",
@@ -165,12 +165,9 @@ export const DEFAULT_CONFIG: Omit<Grid, "size"> = {
     verb: ["lives", "does not live"],
     adjacency: "next to",
     direction: ["left of", "right of"],
+    between: ["is somewhere between", "is not somewhere between"],
     atPosition: ["lives in", "does not live in"],
     cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-    comparators: {
-      between: "is somewhere between",
-      not_between: "is not somewhere between",
-    },
   },
 };
 
@@ -302,23 +299,23 @@ function buildGrid(
           verb: ["is", "is not"] as [string, string],
           adjacency: "adjacent to",
           direction: ["before", "after"] as [string, string],
+          between: ["is somewhere between", "is not somewhere between"] as [
+            string,
+            string,
+          ],
           atPosition:
             posCat.verb ??
             ([`is ${posPrep}`, `is not ${posPrep}`] as [string, string]),
-          cardinals: DEFAULT_CONFIG.spatialWords!.cardinals,
-          comparators: {
-            between: "is somewhere between",
-            not_between: "is not somewhere between",
-            ...posCat.orderingPhrases?.comparators,
-          },
+          cardinals: DEFAULT_CONFIG.spatialWords.cardinals,
+          comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,
         }
-      : DEFAULT_CONFIG.spatialWords!,
+      : DEFAULT_CONFIG.spatialWords,
     positionLabels: posCat
       ? posCat.values.slice()
       : Array.from(
           { length: size },
-          (_, i) => `the ${ORDINALS[i]} ${posNoun![0]}`,
+          (_, i) => `the ${ORDINALS[i]} ${posNoun[0]}`,
         ),
   };
 }

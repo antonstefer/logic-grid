@@ -4,7 +4,6 @@ import type {
   Clue,
   Grid,
   OrderingComparatorType,
-  SpatialWords,
 } from "../types";
 import { posNoun, posNounPlural } from "../grid-utils";
 
@@ -33,11 +32,7 @@ function comparator(
   grid: Grid,
   type: OrderingComparatorType,
 ): string | undefined {
-  return grid.spatialWords?.comparators?.[type];
-}
-
-function sw(grid: Grid): SpatialWords {
-  return grid.spatialWords!;
+  return grid.spatialWords.comparators?.[type];
 }
 
 /** Return [subject, object] ordered by subjectPriority (higher first). */
@@ -78,10 +73,10 @@ function renderSamePosition(
     return `${capitalize(label(subj, grid))} ${verb[idx]} ${objectValue(obj, grid)}.`;
   }
 
-  // Generic fallback
+  // Generic fallback when object category has no verb
   const la = label(constraint.a, grid);
   const lb = label(constraint.b, grid);
-  const prep = grid.positionPreposition ?? "in";
+  const prep = grid.positionPreposition;
   return negative
     ? `${capitalize(la)} and ${lb} are not ${prep} the same ${posNoun(grid)}.`
     : `${capitalize(la)} and ${lb} are ${prep} the same ${posNoun(grid)}.`;
@@ -90,7 +85,7 @@ function renderSamePosition(
 // --- Main renderer ---
 
 function renderText(constraint: Constraint, grid: Grid): string {
-  const w = sw(grid);
+  const w = grid.spatialWords;
   switch (constraint.type) {
     case "same_position":
       return renderSamePosition(constraint, grid, false);
@@ -111,38 +106,32 @@ function renderText(constraint: Constraint, grid: Grid): string {
       if (comp) {
         return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
       }
-      // Prefer higher-priority value as sentence subject
-      const pa = findCategory(constraint.a, grid).subjectPriority ?? 0;
-      const pb = findCategory(constraint.b, grid).subjectPriority ?? 0;
-      if (pb > pa) {
-        // b is preferred subject → use reverse phrasing
-        return `${capitalize(label(constraint.b, grid))} ${w.verb[0]} directly ${w.direction[1]} ${label(constraint.a, grid)}.`;
-      }
-      return `${capitalize(label(constraint.a, grid))} ${w.verb[0]} directly ${w.direction[0]} ${label(constraint.b, grid)}.`;
+      const [s, o] = ordered(constraint.a, constraint.b, grid);
+      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
+      return `${capitalize(label(s, grid))} ${w.verb[0]} directly ${dir} ${label(o, grid)}.`;
     }
     case "between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      return `${capitalize(lm)} ${comparator(grid, "between")!} ${lo1} and ${lo2}.`;
+      const comp = comparator(grid, "between");
+      return `${capitalize(lm)} ${comp ?? w.between[0]} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      return `${capitalize(lm)} ${comparator(grid, "not_between")!} ${lo1} and ${lo2}.`;
+      const comp = comparator(grid, "not_between");
+      return `${capitalize(lm)} ${comp ?? w.between[1]} ${lo1} and ${lo2}.`;
     }
     case "before": {
       const comp = comparator(grid, "before");
       if (comp) {
         return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
       }
-      const pa = findCategory(constraint.a, grid).subjectPriority ?? 0;
-      const pb = findCategory(constraint.b, grid).subjectPriority ?? 0;
-      if (pb > pa) {
-        return `${capitalize(label(constraint.b, grid))} ${w.verb[0]} somewhere ${w.direction[1]} ${label(constraint.a, grid)}.`;
-      }
-      return `${capitalize(label(constraint.a, grid))} ${w.verb[0]} somewhere ${w.direction[0]} ${label(constraint.b, grid)}.`;
+      const [s, o] = ordered(constraint.a, constraint.b, grid);
+      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
+      return `${capitalize(label(s, grid))} ${w.verb[0]} somewhere ${dir} ${label(o, grid)}.`;
     }
     case "exact_distance": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
@@ -161,18 +150,18 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} ${prefix} ${dist} ${noun} from ${lb}.`;
     }
     case "at_position": {
-      const posLabel = grid.positionLabels![constraint.position];
+      const posLabel = grid.positionLabels[constraint.position];
       const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective?.atPosition) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective?.atPosition[0]} ${constraint.value.toLowerCase()}.`;
+      if (cat.positionAdjective) {
+        return `${capitalize(posLabel)} ${cat.positionAdjective.atPosition[0]} ${constraint.value.toLowerCase()}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} ${posLabel}.`;
     }
     case "not_at_position": {
-      const posLabel = grid.positionLabels![constraint.position];
+      const posLabel = grid.positionLabels[constraint.position];
       const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective?.atPosition) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective?.atPosition[1]} ${constraint.value.toLowerCase()}.`;
+      if (cat.positionAdjective) {
+        return `${capitalize(posLabel)} ${cat.positionAdjective.atPosition[1]} ${constraint.value.toLowerCase()}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} ${posLabel}.`;
     }
