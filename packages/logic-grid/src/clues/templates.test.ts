@@ -9,7 +9,7 @@ const POSITIONAL_WORDS: SpatialWords = {
   verb: ["is", "is not"],
   adjacency: "adjacent to",
   direction: ["before", "after"],
-  between: ["is somewhere between", "is not somewhere between"],
+  between: "somewhere between",
   atPosition: ["is at", "is not at"],
   cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
 };
@@ -216,7 +216,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The red house does not live somewhere between Alice and the cat owner.",
+      "The red house is not somewhere between Alice and the cat owner.",
     );
   });
 
@@ -549,7 +549,7 @@ describe("custom positionNoun / positionPreposition", () => {
         verb: ["is", "is not"],
         adjacency: "next to",
         direction: ["left of", "right of"],
-        between: ["is somewhere between", "is not somewhere between"],
+        between: "somewhere between",
         atPosition: ["is in", "is not in"],
         cardinals: ["zero", "one", "two", "three"],
       },
@@ -573,7 +573,7 @@ describe("custom positionNoun / positionPreposition", () => {
         verb: ["is", "is not"],
         adjacency: "next to",
         direction: ["left of", "right of"],
-        between: ["is somewhere between", "is not somewhere between"],
+        between: "somewhere between",
         atPosition: ["is at", "is not at"],
         cardinals: ["zero", "one", "two", "three"],
       },
@@ -739,5 +739,43 @@ describe("position category", () => {
       posGrid,
     );
     expect(clue.text).toBe("Bob is not somewhere between Alice and Carol.");
+  });
+
+  it("between uses grid comparator when set", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords,
+        comparators: {
+          ...posGrid.spatialWords.comparators,
+          between: "has a return between",
+        },
+      },
+    };
+    const clue = renderClue(
+      { type: "between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
+      g,
+    );
+    expect(clue.text).toBe("Bob has a return between Alice and Carol.");
+  });
+
+  it("not_between uses grid comparator when set", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords,
+        comparators: {
+          ...posGrid.spatialWords.comparators,
+          not_between: "does not have a return between",
+        },
+      },
+    };
+    const clue = renderClue(
+      { type: "not_between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
+      g,
+    );
+    expect(clue.text).toBe(
+      "Bob does not have a return between Alice and Carol.",
+    );
   });
 });

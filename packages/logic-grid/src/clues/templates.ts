@@ -115,14 +115,22 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
       const comp = comparator(grid, "between");
-      return `${capitalize(lm)} ${comp ?? w.between[0]} ${lo1} and ${lo2}.`;
+      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
+      const middleVerb =
+        findCategory(constraint.middle, grid).positionAdjective
+          ?.atPosition[0] ?? w.verb[0];
+      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
       const comp = comparator(grid, "not_between");
-      return `${capitalize(lm)} ${comp ?? w.between[1]} ${lo1} and ${lo2}.`;
+      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
+      const middleVerb =
+        findCategory(constraint.middle, grid).positionAdjective
+          ?.atPosition[1] ?? w.verb[1];
+      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "before": {
       const comp = comparator(grid, "before");

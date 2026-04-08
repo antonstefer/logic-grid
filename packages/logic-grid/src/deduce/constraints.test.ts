@@ -10,7 +10,7 @@ const POSITIONAL_WORDS: SpatialWords = {
   verb: ["is", "is not"],
   adjacency: "adjacent to",
   direction: ["before", "after"],
-  between: ["is somewhere between", "is not somewhere between"],
+  between: "somewhere between",
   atPosition: ["is at", "is not at"],
   cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
 };

@@ -5,7 +5,7 @@ const CLASSIC_SPATIAL_WORDS: SpatialWords = {
   verb: ["lives", "does not live"],
   adjacency: "next to",
   direction: ["left of", "right of"],
-  between: ["is somewhere between", "is not somewhere between"],
+  between: "somewhere between",
   atPosition: ["lives in", "does not live in"],
   cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
 };

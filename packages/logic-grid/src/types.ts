@@ -24,8 +24,8 @@ export interface SpatialWords {
   adjacency: string;
   /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
   direction: [string, string];
-  /** [positive, negative] for between / not_between. E.g. `["is somewhere between", "is not somewhere between"]`. */
-  between: [string, string];
+  /** Suffix for between / not_between, composed with verb. E.g. `"somewhere between"` → "lives somewhere between". */
+  between: string;
   /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]` or `["has an appointment at", "does not have an appointment at"]`. */
   atPosition: [string, string];
   /** Spelled-out cardinal numbers for exact_distance. */
