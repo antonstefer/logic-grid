@@ -24,16 +24,28 @@ export function createPuzzleState() {
   } | null>(null);
   let hintSteps = $state<DeductionStep[]>([]);
 
-  function newPuzzle(
-    size: number,
-    categories: number,
-    difficulty?: Difficulty,
-    theme?: string,
-    clueStyle?: string,
-    customCategories?: Category[],
-    positionNoun?: [string, string],
-    positionPreposition?: string,
-  ) {
+  interface NewPuzzleOptions {
+    size: number;
+    categories: number;
+    difficulty?: Difficulty;
+    theme?: string;
+    clueStyle?: string;
+    customCategories?: Category[];
+    positionNoun?: [string, string];
+    positionPreposition?: string;
+  }
+
+  function newPuzzle(opts: NewPuzzleOptions) {
+    const {
+      size,
+      categories,
+      difficulty,
+      theme,
+      clueStyle,
+      customCategories,
+      positionNoun,
+      positionPreposition,
+    } = opts;
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;

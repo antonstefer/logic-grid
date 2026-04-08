@@ -58,7 +58,7 @@ function buildSchema(size: number, categories: number): JSONSchema {
           comparators: {
             type: "object",
             description:
-              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a lower return than" }.',
+              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a lower return than" }. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
           },
         },
         description:

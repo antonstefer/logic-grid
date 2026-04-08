@@ -138,7 +138,7 @@ export function validateThemeResult(
     }
     if (
       cat.orderingPhrases !== undefined &&
-      typeof cat.orderingPhrases !== "object"
+      (cat.orderingPhrases === null || typeof cat.orderingPhrases !== "object")
     ) {
       errors.push(`Category "${name}" orderingPhrases must be an object.`);
     }

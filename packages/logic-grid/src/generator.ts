@@ -165,7 +165,7 @@ export const DEFAULT_CONFIG: Omit<Grid, "size" | "positionLabels"> = {
     verb: ["lives", "does not live"],
     adjacency: "next to",
     direction: ["left of", "right of"],
-    between: ["is somewhere between", "is not somewhere between"],
+    between: ["lives somewhere between", "does not live somewhere between"],
     atPosition: ["lives in", "does not live in"],
     cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
   },
@@ -265,6 +265,16 @@ function buildGrid(
           `Category "${c.name}" has ${c.values.length} values but size is ${size}`,
         );
       }
+      if (c.numericValues) {
+        const nv = c.numericValues.slice(0, size);
+        for (let i = 1; i < nv.length; i++) {
+          if (nv[i] <= nv[i - 1]) {
+            throw new RangeError(
+              `Category "${c.name}" numericValues must be in ascending order`,
+            );
+          }
+        }
+      }
     }
     categories = categoryNames.map((c) => ({
       name: c.name,
@@ -296,17 +306,12 @@ function buildGrid(
     positionPreposition: posPrep,
     spatialWords: posCat
       ? {
-          verb: ["is", "is not"] as [string, string],
+          ...DEFAULT_CONFIG.spatialWords,
+          verb: ["is", "is not"],
           adjacency: "adjacent to",
-          direction: ["before", "after"] as [string, string],
-          between: ["is somewhere between", "is not somewhere between"] as [
-            string,
-            string,
-          ],
-          atPosition:
-            posCat.verb ??
-            ([`is ${posPrep}`, `is not ${posPrep}`] as [string, string]),
-          cardinals: DEFAULT_CONFIG.spatialWords.cardinals,
+          direction: ["before", "after"],
+          between: ["is somewhere between", "is not somewhere between"],
+          atPosition: posCat.verb ?? [`is ${posPrep}`, `is not ${posPrep}`],
           comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,
         }

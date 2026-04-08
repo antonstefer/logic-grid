@@ -175,7 +175,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The cat owner is somewhere between the red house and the blue house.",
+      "The cat owner lives somewhere between the red house and the blue house.",
     );
   });
 
@@ -206,7 +206,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The cat owner is not somewhere between the red house and the blue house.",
+      "The cat owner does not live somewhere between the red house and the blue house.",
     );
   });
 
@@ -216,7 +216,7 @@ describe("renderClue", () => {
       grid,
     );
     expect(clue.text).toBe(
-      "The red house is not somewhere between Alice and the cat owner.",
+      "The red house does not live somewhere between Alice and the cat owner.",
     );
   });
 

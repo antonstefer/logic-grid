@@ -90,25 +90,26 @@
 
   function handleNewPuzzle() {
     const p = presets[preset];
+    const diff = difficulty === "any" ? undefined : difficulty;
+    const style = clueStyle.trim() || undefined;
     if (p) {
-      puzzleState.newPuzzle(
-        p.size,
-        p.categories.length,
-        difficulty === "any" ? undefined : difficulty,
-        undefined,
-        clueStyle.trim() || undefined,
-        p.categories,
-        p.positionNoun,
-        p.positionPreposition,
-      );
+      puzzleState.newPuzzle({
+        size: p.size,
+        categories: p.categories.length,
+        difficulty: diff,
+        clueStyle: style,
+        customCategories: p.categories,
+        positionNoun: p.positionNoun,
+        positionPreposition: p.positionPreposition,
+      });
     } else {
-      puzzleState.newPuzzle(
+      puzzleState.newPuzzle({
         size,
         categories,
-        difficulty === "any" ? undefined : difficulty,
-        theme.trim() || undefined,
-        clueStyle.trim() || undefined,
-      );
+        difficulty: diff,
+        theme: theme.trim() || undefined,
+        clueStyle: style,
+      });
     }
   }
 

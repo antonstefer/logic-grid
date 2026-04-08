@@ -318,6 +318,63 @@ describe("generate", () => {
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
 
+  it("throws when numericValues are not in ascending order", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            isPosition: true,
+            numericValues: [9, 7, 8],
+          },
+          { name: "Color", values: ["Red", "Blue", "Green"] },
+        ],
+      }),
+    ).toThrow("numericValues must be in ascending order");
+  });
+
+  it("non-equidistant numericValues produce value-based exact_distance", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 7,
+      categoryNames: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+          orderingPhrases: { unit: ["percentage point", "percentage points"] },
+        },
+        {
+          name: "Strategy",
+          values: ["Long", "Short", "Macro", "Quant"],
+          noun: "strategist",
+        },
+      ],
+    });
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+
+    // Verify all exact_distance constraints use value-based distances (not positional)
+    const validValueDistances = new Set<number>();
+    const numVals = [3, 5, 8, 12];
+    for (let i = 0; i < numVals.length; i++) {
+      for (let j = i + 1; j < numVals.length; j++) {
+        validValueDistances.add(Math.abs(numVals[i] - numVals[j]));
+      }
+    }
+    for (const c of puzzle.constraints) {
+      if (c.type === "exact_distance") {
+        expect(validValueDistances.has(c.distance)).toBe(true);
+      }
+    }
+  });
+
   it("position category gets identity assignment", () => {
     const puzzle = generate({
       size: 4,
