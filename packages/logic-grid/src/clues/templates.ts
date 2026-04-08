@@ -24,7 +24,7 @@ function label(value: string, grid: Grid): string {
 /** Value as it appears in the object position of a same_position clue. */
 function objectValue(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
-  const suffix = cat.positionAdjective?.suffix;
+  const suffix = cat.valueSuffix;
   return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
@@ -117,8 +117,8 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const comp = comparator(grid, "between");
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective
-          ?.atPosition[0] ?? w.verb[0];
+        findCategory(constraint.middle, grid).positionAdjective?.[0] ??
+        w.verb[0];
       return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
@@ -128,8 +128,8 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const comp = comparator(grid, "not_between");
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective
-          ?.atPosition[1] ?? w.verb[1];
+        findCategory(constraint.middle, grid).positionAdjective?.[1] ??
+        w.verb[1];
       return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "before": {
@@ -161,7 +161,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const posLabel = grid.positionLabels[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective.atPosition[0]} ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(posLabel)} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} ${posLabel}.`;
     }
@@ -169,7 +169,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const posLabel = grid.positionLabels[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective.atPosition[1]} ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(posLabel)} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} ${posLabel}.`;
     }

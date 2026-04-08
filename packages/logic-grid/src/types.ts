@@ -46,13 +46,10 @@ export interface Category {
   verb?: [string, string];
   /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
   subjectPriority?: number;
-  /** Set when this category's values describe the position noun (e.g. Color describes "house": "the red house", "The first house is red."). */
-  positionAdjective?: {
-    /** Appended to value in same-position clues. E.g. `"house"` → "red house". */
-    suffix: string;
-    /** [positive, negative] verb for at_position. E.g. `["is", "is not"]` → "The first house is red." */
-    atPosition: [string, string];
-  };
+  /** Suffix appended to the value in object position. E.g. `"strategy"` → "the event-driven strategy", `"house"` → "red house". */
+  valueSuffix?: string;
+  /** When this category's values describe the position noun directly (e.g. Color → "The first house is red"), provide the [positive, negative] verb pair for at_position inversion. */
+  positionAdjective?: [string, string];
   /** When true, this category defines position labels. Assignment is identity (value[i] → position i). */
   isPosition?: boolean;
   /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length. */

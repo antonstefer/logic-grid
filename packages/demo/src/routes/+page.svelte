@@ -41,7 +41,7 @@
             },
           },
         },
-        { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses", "does not use"] },
+        { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses the", "does not use the"], valueSuffix: "strategy" },
         { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", subjectPriority: 1, verb: ["is based in", "is not based in"] },
       ],
       positionNoun: ["fund", "funds"],

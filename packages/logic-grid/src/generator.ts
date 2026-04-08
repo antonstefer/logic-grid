@@ -50,7 +50,8 @@ export const DEFAULT_CONFIG: Omit<Grid, "size" | "positionLabels"> = {
       noun: "house",
       verb: ["lives in the", "does not live in the"],
       subjectPriority: -1,
-      positionAdjective: { suffix: "house", atPosition: ["is", "is not"] },
+      valueSuffix: "house",
+      positionAdjective: ["is", "is not"],
       values: [
         "Red",
         "Blue",
@@ -282,6 +283,7 @@ function buildGrid(
       noun: c.noun,
       verb: c.verb,
       subjectPriority: c.subjectPriority,
+      valueSuffix: c.valueSuffix,
       positionAdjective: c.positionAdjective,
       isPosition: c.isPosition,
       numericValues: c.numericValues?.slice(0, size),
