@@ -30,7 +30,7 @@ export function createPuzzleState() {
     difficulty?: Difficulty,
     theme?: string,
     clueStyle?: string,
-    categoryNames?: Category[],
+    customCategories?: Category[],
     positionNoun?: [string, string],
     positionPreposition?: string,
   ) {
@@ -75,7 +75,7 @@ export function createPuzzleState() {
               categories,
               difficulty,
               seed: Date.now(),
-              categoryNames,
+              categoryNames: customCategories,
               positionNoun,
               positionPreposition,
             });
