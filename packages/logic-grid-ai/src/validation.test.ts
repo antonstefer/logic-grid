@@ -275,4 +275,75 @@ describe("validateThemeResult", () => {
     };
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
+
+  it("rejects null orderingPhrases", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[1].orderingPhrases = null as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("orderingPhrases must be an object"),
+    );
+  });
+
+  it("accepts valid valueSuffix", () => {
+    const r = validResult();
+    r.categories[1].valueSuffix = "strategy";
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("rejects non-string valueSuffix", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[1].valueSuffix = 42 as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("valueSuffix must be a string"),
+    );
+  });
+
+  it("accepts valid positionAdjective with valueSuffix", () => {
+    const r = validResult();
+    r.categories[1].valueSuffix = "house";
+    r.categories[1].positionAdjective = ["is", "is not"];
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("rejects positionAdjective without valueSuffix", () => {
+    const r = validResult();
+    r.categories[1].positionAdjective = ["is", "is not"];
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("positionAdjective but no valueSuffix"),
+    );
+  });
+
+  it("rejects malformed positionAdjective", () => {
+    const r = validResult();
+    r.categories[1].valueSuffix = "house";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[1].positionAdjective = ["only one"] as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining(
+        "positionAdjective must be a [positive, negative]",
+      ),
+    );
+  });
+
+  it("accepts valid subjectPriority", () => {
+    const r = validResult();
+    r.categories[1].subjectPriority = -1;
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("rejects non-number subjectPriority", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    r.categories[1].subjectPriority = "high" as any;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("subjectPriority must be a number"),
+    );
+  });
 });

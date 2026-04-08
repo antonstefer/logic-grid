@@ -142,6 +142,36 @@ export function validateThemeResult(
     ) {
       errors.push(`Category "${name}" orderingPhrases must be an object.`);
     }
+
+    // valueSuffix / positionAdjective
+    if (cat.valueSuffix !== undefined && typeof cat.valueSuffix !== "string") {
+      errors.push(`Category "${name}" valueSuffix must be a string.`);
+    }
+    if (cat.positionAdjective !== undefined) {
+      if (
+        !Array.isArray(cat.positionAdjective) ||
+        cat.positionAdjective.length !== 2 ||
+        typeof cat.positionAdjective[0] !== "string" ||
+        typeof cat.positionAdjective[1] !== "string"
+      ) {
+        errors.push(
+          `Category "${name}" positionAdjective must be a [positive, negative] string pair.`,
+        );
+      }
+      if (cat.valueSuffix === undefined) {
+        errors.push(
+          `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
+        );
+      }
+    }
+
+    // subjectPriority
+    if (
+      cat.subjectPriority !== undefined &&
+      typeof cat.subjectPriority !== "number"
+    ) {
+      errors.push(`Category "${name}" subjectPriority must be a number.`);
+    }
   }
 
   if (personCount === 0) {

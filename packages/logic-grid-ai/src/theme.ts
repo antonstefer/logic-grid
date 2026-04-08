@@ -30,7 +30,25 @@ function buildSchema(size: number, categories: number): JSONSchema {
         minItems: 2,
         maxItems: 2,
         description:
-          'Optional [positive, negative] verb phrases for same-house clues. E.g. ["sails the", "does not sail the"]. Include "the" if appropriate.',
+          'Optional [positive, negative] verb phrases for same-position clues. The verb is used when this category appears as the OBJECT: "{subject} {verb} {value}". Include "the" if needed: ["owns the", "does not own the"] → "Alice owns the cat". Use ["sails", "does not sail"] when the value already reads naturally without an article.',
+      },
+      subjectPriority: {
+        type: "number",
+        description:
+          'Priority for sentence subject selection in same-position clues. Higher = more likely to be the subject. Use 2 for the person category, 1 for animate categories that act on things (drinker, player, owner), 0 for neutral categories, -1 for inanimate "describer" categories like Color whose values describe the position noun. Default: 0.',
+      },
+      valueSuffix: {
+        type: "string",
+        description:
+          'Optional noun appended to the value when it appears as an object. E.g. valueSuffix "strategy" makes "event-driven" render as "event-driven strategy" → "Alice uses the event-driven strategy". Use this when the value alone is an adjective or short label that needs a clarifying noun. Required for categories whose values describe the position noun (e.g. Color: valueSuffix "house" → "red house").',
+      },
+      positionAdjective: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 2,
+        maxItems: 2,
+        description:
+          'Optional [positive, negative] verb pair for at_position inversion. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Inverts at_position to "{posLabel} {verb} {value}" → "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix and subjectPriority -1.',
       },
       isPosition: {
         type: "boolean",
@@ -101,80 +119,91 @@ function buildPrompt(options: ThemeOptions, previousErrors?: string[]): string {
 
   let prompt = `You are generating themed categories for a logic grid puzzle (like Einstein's riddle).
 
-## How the puzzle works
+## How clues are rendered
 
-The puzzle has ${size} positions in a row, labeled "first", "second", etc. Each position has one value from each category. The solver deduces which values go in which position using clues.
+The puzzle has ${size} positions. Clues are generated mechanically from categories using these fields per category:
 
-Clues use the category's noun and verb to form natural sentences. Here's how:
+**\`noun\`** — labels the value: "the cat owner", "the red house". Empty string "" means bare value ("Alice"). There must be exactly one person category with noun: "".
 
-- A category with noun: "" is the PERSON category. Values are used bare: "Alice", "Bob". There must be exactly one person category.
-- A category with noun: "owner" creates labels like "the cat owner". Verb: ["owns the", "does not own the"] produces clues like "Alice owns the cat."
-- A category with noun: "house" creates labels like "the red house". Verb is optional — defaults are used if omitted.
+**\`verb\`** — \`[positive, negative]\` verb pair used when this category appears as the OBJECT in a same-position clue: \`{subject} {verb} {value}\`.
+- Pet (noun: "owner", verb: ["owns the", "does not own the"]) → "Alice owns the cat."
+- Drink (noun: "drinker", verb: ["drinks", "does not drink"]) → "Alice drinks tea."
+
+**\`subjectPriority\`** — controls which value becomes the sentence subject when two categories meet. Higher = more likely subject.
+- 2: person category (always subject when present)
+- 1: animate categories that DO things (drinker, owner, attendee, player, fan, lover, ...)
+- 0: neutral categories (default)
+- -1: inanimate "describer" categories whose values describe the position noun (Color → house)
+
+**\`valueSuffix\`** — appends a clarifying noun after the value when it appears as an object. Use this when the value alone is an adjective or short label that needs a noun.
+- Strategy (valueSuffix: "strategy", verb: ["uses the", "does not use the"]) → "Alice uses the event-driven strategy."
+- Color (valueSuffix: "house") → "Alice lives in the red house."
+
+**\`positionAdjective\`** — set ONLY for categories whose values describe the position noun directly (like Color → house). Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1.
 
 ## Position noun
 
-The position noun labels the ordered slots. Default is "house" with preposition "in": "lives in the first house". You should pick a thematic alternative. For example, a cooking theme might use ["station", "stations"] with preposition "at": "lives at the first station".
+The position noun labels ordered slots. Default ["house", "houses"] with preposition "in" → "lives in the first house". Pick a thematic alternative: ["station", "stations"] preposition "at", ["dock", "docks"] preposition "at", etc.
 
-## Position categories (optional)
+## Position categories (optional, advanced)
 
-You may mark ONE category as a position category by setting "isPosition": true. This category defines the positional axis — its values ARE the positions (e.g. times, years, percentages). Its assignment is identity (value[0] = position 0), so it's not a mystery the solver needs to figure out. It reduces the number of mystery categories by one but enables rich domain-specific clue phrasing.
-
-When using a position category:
-- Its values must be in sorted order and represent the ordered axis
-- Add "numericValues" with the actual numeric values (enables distance clues like "exactly 2 hours apart")
-- Add "orderingPhrases" with a "unit" (singular/plural) and "comparators" for natural phrasing
-- The positionNoun/positionPreposition are still needed but will be secondary to the position category's phrasing
-
-Use a position category when the theme has a natural ordering axis (times, prices, rankings, years, distances).
+Mark ONE category isPosition: true to define the positional axis. Its values ARE the positions (sorted). Use this when the theme has a natural numeric ordering (returns, times, years, prices). The position category should also have:
+- noun, verb (used for at_position rendering)
+- subjectPriority: -1 (always object)
+- numericValues: ascending numbers matching the values
+- orderingPhrases.unit: [singular, plural] for distance clues
+- orderingPhrases.comparators: full-phrase overrides describing the positional ordering. Apply to ALL ordering clues in the puzzle, not just clues involving position values.
 
 ## Examples
 
-### Standard puzzle (no position category)
-For a "cooking competition" theme with size 4 and 4 categories:
+### Classic puzzle with a position-adjective category (Color)
+For a "pirate adventure" theme with size 4 and 4 categories:
 {
   "categories": [
-    { "name": "Chef", "values": ["Gordon", "Julia", "Marco", "Nigella"], "noun": "" },
-    { "name": "Dish", "values": ["Risotto", "Soufflé", "Tartare", "Ramen"], "noun": "chef", "verb": ["prepares the", "does not prepare the"] },
-    { "name": "Ingredient", "values": ["Truffle", "Saffron", "Wagyu", "Caviar"], "noun": "specialist", "verb": ["uses", "does not use"] },
-    { "name": "Tool", "values": ["Wok", "Blowtorch", "Mandoline", "Cleaver"], "noun": "user", "verb": ["wields the", "does not wield the"] }
+    { "name": "Pirate", "values": ["Anne", "Blackbeard", "Calico", "Drake"], "noun": "", "subjectPriority": 2 },
+    { "name": "Ship Color", "values": ["Crimson", "Indigo", "Emerald", "Onyx"], "noun": "ship", "subjectPriority": -1, "verb": ["sails the", "does not sail the"], "valueSuffix": "ship", "positionAdjective": ["is", "is not"] },
+    { "name": "Treasure", "values": ["Gold", "Pearls", "Rubies", "Maps"], "noun": "hoarder", "subjectPriority": 1, "verb": ["hoards", "does not hoard"] },
+    { "name": "Hideout", "values": ["Tortuga", "Nassau", "Madagascar", "Cuba"], "noun": "captain", "subjectPriority": 1, "verb": ["hides in", "does not hide in"] }
   ],
-  "positionNoun": ["station", "stations"],
+  "positionNoun": ["dock", "docks"],
   "positionPreposition": "at"
 }
 
-This produces clues like:
-- "Gordon prepares the risotto." (same_position: Chef=Gordon, Dish=Risotto)
-- "The truffle specialist is at the first station." (at_position)
-- "The wok user is directly left of the blowtorch user." (left_of)
+Note: Hideout has plain values ("Tortuga"), no valueSuffix needed because "hides in Tortuga" reads naturally. If values were "tortuga bay" they'd need valueSuffix: "hideout" → "hides in the tortuga bay hideout."
 
-### Position category puzzle
-For a "hedge fund" theme with size 4 and 4 categories:
+### Position-category puzzle (numeric axis)
+For a "hedge fund" theme:
 {
   "categories": [
-    { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "" },
-    { "name": "YTD Return", "values": ["6%", "7%", "8%", "9%"], "noun": "fund", "isPosition": true, "numericValues": [6, 7, 8, 9], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "left_of": "has a return exactly one percentage point less than" } } },
-    { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "verb": ["uses", "does not use"] },
-    { "name": "Founded", "values": ["2005", "2010", "2015", "2020"], "noun": "fund", "verb": ["was founded in", "was not founded in"] }
+    { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "next_to": "has an adjacent return to", "between": "has a return between", "exact_distance": "is exactly" } } },
+    { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
+    { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
   "positionNoun": ["fund", "funds"],
   "positionPreposition": "at"
 }
 
-This produces clues like:
-- "The fund with a return of 6% is run by Alice." (at_position with position category)
-- "Bob has a lower return than Clara." (before with custom comparator)
-- "The macro strategist is exactly two percentage points from the quant strategist." (exact_distance with unit)
+## Decision guide
+
+For each category, ask:
+1. Is it the person? → noun: "", subjectPriority: 2
+2. Are its values multi-word labels that describe the position noun (like "Crimson" describes "ship")? → set valueSuffix to the position noun, positionAdjective to ["is", "is not"], subjectPriority -1
+3. Are its values short labels needing a clarifying noun (like "Event-Driven" → "event-driven strategy")? → set valueSuffix, subjectPriority 1
+4. Does the value read naturally without a suffix in "{subject} {verb} {value}" form (like "Alice owns the cat", "Bob drinks tea", "Carol hides in tortuga")? → no valueSuffix needed, subjectPriority 1
+5. Does the theme have a numeric ordering axis (returns, times, years)? → mark ONE category isPosition with numericValues and orderingPhrases
 
 ## Your task
 
 Generate themed categories for: "${theme}"
 - ${categories} categories with ${size} values each
-- Exactly one person category with noun: ""
+- Exactly one person category with noun: "" and subjectPriority: 2
 - All values must be globally unique across all categories
 - Values should be single words or short phrases (max ~3 words)
-- Verb pairs must read naturally in sentences like "{person} {positive verb} {value}"
-- Pick a thematic position noun and preposition
-- If the theme has a natural ordering axis, consider using a position category (isPosition: true) with numericValues and orderingPhrases`;
+- Set subjectPriority on EVERY category (2 person, 1 animate, 0 neutral, -1 describer)
+- Set valueSuffix when values need a clarifying noun in object position
+- Verb pairs MUST read naturally in "{subject} {positive verb} {value}{valueSuffix?}"
+- Pick a thematic position noun and preposition`;
 
   if (constraints && constraints.length > 0) {
     prompt += `\n- Additional constraints: ${constraints.join(", ")}`;
