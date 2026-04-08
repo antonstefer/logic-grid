@@ -125,9 +125,13 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 
 **\`noun\`** — labels the value: "the cat owner", "the red house". Empty string "" means bare value ("Alice"). There must be exactly one person category with noun: "".
 
-**\`verb\`** — \`[positive, negative]\` verb pair used when this category appears as the OBJECT in a same-position clue: \`{subject} {verb} {value}\`.
-- Pet (noun: "owner", verb: ["owns the", "does not own the"]) → "Alice owns the cat."
-- Drink (noun: "drinker", verb: ["drinks", "does not drink"]) → "Alice drinks tea."
+**\`verb\`** — \`[positive, negative]\` verb pair used when this category appears as the OBJECT in a same-position clue: \`{subject} {verb} {value}\`. MUST read grammatically when concatenated with the lowercased value.
+- Pet (noun: "owner", verb: ["owns the", "does not own the"]) → "Alice owns the cat." ✓
+- Drink (noun: "drinker", verb: ["drinks", "does not drink"]) → "Alice drinks tea." ✓ (mass noun, no article)
+- Treasure with values like "Cursed Idol", "Gold Bar" → verb MUST include "the": ["plunders the", "does not plunder the"] → "Alice plunders the cursed idol." ✓
+- Wrong: ["plunders", "does not plunder"] + value "Cursed Idol" → "Alice plunders cursed idol." ✗ (missing article)
+- Rule: if the value is a count noun (you'd say "a/the X"), the verb must include "the". Bare verbs only work with mass nouns ("tea", "water"), plural count nouns ("gold coins", "pearls"), or proper nouns ("Madagascar").
+- CRITICAL: all values in a category must be grammatically the same shape so one verb works for all. Don't mix singular count nouns ("Cursed Idol") with plural/mass nouns ("Gold Coins") in the same category — pick verb + values that all read consistently.
 
 **\`subjectPriority\`** — controls which value becomes the sentence subject when two categories meet. Higher = more likely subject.
 - 2: person category (always subject when present)
@@ -139,7 +143,7 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 - Strategy (valueSuffix: "strategy", verb: ["uses the", "does not use the"]) → "Alice uses the event-driven strategy."
 - Color (valueSuffix: "house") → "Alice lives in the red house."
 
-**\`positionAdjective\`** — set ONLY for categories whose values describe the position noun directly (like Color → house). Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1.
+**\`positionAdjective\`** — set ONLY when the position noun is naturally modified by an adjective category, like a HOUSE has a color ("the red house"). DO NOT use this for position nouns like "dock", "ship", "fund", "station", "slot", "year" — these aren't naturally characterized by an adjective from another category. Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1. Use sparingly — when in doubt, don't.
 
 ## Position noun
 
