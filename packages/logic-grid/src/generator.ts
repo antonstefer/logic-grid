@@ -84,7 +84,6 @@ function validateCategories(categories: Category[]): void {
   }
 }
 
-
 /**
  * Generate a logic grid puzzle with a unique solution and minimal constraint set.
  * Throws if generation fails after 100 retries (e.g. impossible difficulty for grid size).
