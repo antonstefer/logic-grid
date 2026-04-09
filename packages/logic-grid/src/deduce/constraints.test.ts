@@ -341,6 +341,64 @@ describe("deduce constraint types", () => {
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 2 });
   });
 
+  it("exact_distance with non-equidistant numericValues uses value-based partners", () => {
+    // numericValues [3, 5, 8, 12] — only positions (0,1) have value gap 2.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    // Alice pinned to position 0; exact_distance 2 means Alice and Bob must be
+    // at positions (0,1) — so Bob is at position 1.
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+    ];
+    const result = deduce(constraints, numGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.assignments).toContainEqual({ value: "Bob", position: 1 });
+  });
+
+  it("exact_distance with non-equidistant numericValues rules out impossible distances", () => {
+    // No pair has value gap 6 with [3, 5, 8, 12], so distance 6 is unsatisfiable.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 6 },
+    ];
+    const result = deduce(constraints, numGrid);
+    // Bob has no valid position; this should be detected as inconsistent
+    // (all positions eliminated for Bob).
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    const bobElims = allElims.filter((e) => e.value === "Bob").length;
+    expect(bobElims).toBeGreaterThan(0);
+  });
+
   it("exact_distance distance=1 explanation uses singular noun", () => {
     // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
     const constraints: Constraint[] = [

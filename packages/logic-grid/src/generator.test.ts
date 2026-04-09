@@ -164,6 +164,20 @@ describe("generate", () => {
     );
   });
 
+  it("custom positionPreposition derives atPosition without a position category", () => {
+    const puzzle = generate({
+      size: 3,
+      categories: 3,
+      seed: 1,
+      positionNoun: ["seat", "seats"],
+      positionPreposition: "at",
+    });
+    expect(puzzle.grid.spatialWords.atPosition).toEqual([
+      "lives at",
+      "does not live at",
+    ]);
+  });
+
   it("rejects empty positionPreposition", () => {
     expect(() => generate({ size: 3, positionPreposition: "" })).toThrow(
       RangeError,

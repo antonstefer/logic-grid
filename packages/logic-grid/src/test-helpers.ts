@@ -1,14 +1,6 @@
 import type { Category, Grid, SpatialWords } from "./types";
 import { ORDINALS } from "./grid-utils";
-
-const CLASSIC_SPATIAL_WORDS: SpatialWords = {
-  verb: ["lives", "does not live"],
-  adjacency: "next to",
-  direction: ["left of", "right of"],
-  between: "somewhere between",
-  atPosition: ["lives in", "does not live in"],
-  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-};
+import { DEFAULT_CONFIG } from "./default-config";
 
 /**
  * Build a Grid from a minimal description, filling in default rendering fields.
@@ -22,8 +14,9 @@ export function makeGrid(partial: {
   spatialWords?: SpatialWords;
   positionLabels?: string[];
 }): Grid {
-  const positionNoun = partial.positionNoun ?? ["house", "houses"];
-  const positionPreposition = partial.positionPreposition ?? "in";
+  const positionNoun = partial.positionNoun ?? DEFAULT_CONFIG.positionNoun;
+  const positionPreposition =
+    partial.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
   const positionLabels =
     partial.positionLabels ??
     Array.from(
@@ -35,7 +28,7 @@ export function makeGrid(partial: {
     categories: partial.categories,
     positionNoun,
     positionPreposition,
-    spatialWords: partial.spatialWords ?? CLASSIC_SPATIAL_WORDS,
+    spatialWords: partial.spatialWords ?? DEFAULT_CONFIG.spatialWords,
     positionLabels,
   };
 }

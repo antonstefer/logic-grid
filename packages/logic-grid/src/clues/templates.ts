@@ -101,18 +101,8 @@ function renderSamePosition(
   grid: Grid,
   negative: boolean,
 ): string {
-  const catA = findCategory(constraint.a, grid);
-  const catB = findCategory(constraint.b, grid);
-
-  let subj = constraint.a;
-  let obj = constraint.b;
-  let objCat = catB;
-  if ((catB.subjectPriority ?? 0) > (catA.subjectPriority ?? 0)) {
-    subj = constraint.b;
-    obj = constraint.a;
-    objCat = catA;
-  }
-
+  const [subj, obj] = ordered(constraint.a, constraint.b, grid);
+  const objCat = findCategory(obj, grid);
   const idx = negative ? 1 : 0;
   const verb = objCat.verb;
   if (!verb) {

@@ -47,13 +47,13 @@ function checkComparators(
 }
 
 /**
- * Validate a fully constructed grid. Catches invariant violations regardless
- * of how the grid was built (default config, custom categories, manual fields).
- * Called automatically by buildGrid; templates.ts can rely on its invariants.
+ * Validate per-category invariants. Called by buildGrid before constructing
+ * dependent fields (e.g. spatialWords.atPosition from posCat.verb), so
+ * downstream code can rely on these invariants.
  */
-function validateGrid(grid: Grid): void {
+function validateCategories(categories: Category[]): void {
   let positionCount = 0;
-  for (const c of grid.categories) {
+  for (const c of categories) {
     if (c.isPosition) positionCount++;
     if (c.numericValues) {
       for (let i = 1; i < c.numericValues.length; i++) {
@@ -82,8 +82,8 @@ function validateGrid(grid: Grid): void {
   if (positionCount > 1) {
     throw new RangeError("At most one category can have isPosition: true");
   }
-  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
 }
+
 
 /**
  * Generate a logic grid puzzle with a unique solution and minimal constraint set.
@@ -207,6 +207,9 @@ function buildGrid(
     options?.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
   const posCat = categories.find((c) => c.isPosition);
 
+  // Validate per-category invariants before constructing dependent fields.
+  validateCategories(categories);
+
   const grid: Grid = {
     size,
     categories,
@@ -218,13 +221,19 @@ function buildGrid(
           verb: ["is", "is not"],
           adjacency: "adjacent to",
           direction: ["before", "after"],
-          // Position categories require a verb (validated by validateGrid),
-          // so the non-null assertion is safe.
-          atPosition: posCat.verb!,
+          atPosition: posCat.verb as [string, string],
           comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,
         }
-      : DEFAULT_CONFIG.spatialWords,
+      : {
+          ...DEFAULT_CONFIG.spatialWords,
+          // Derive atPosition from positionPreposition so custom prepositions
+          // ("at" → "lives at") work without a position category.
+          atPosition: [
+            `${DEFAULT_CONFIG.spatialWords.verb[0]} ${posPrep}`,
+            `${DEFAULT_CONFIG.spatialWords.verb[1]} ${posPrep}`,
+          ],
+        },
     positionLabels: posCat
       ? posCat.values.slice()
       : Array.from(
@@ -232,7 +241,7 @@ function buildGrid(
           (_, i) => `the ${ORDINALS[i]} ${posNoun[0]}`,
         ),
   };
-  validateGrid(grid);
+  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
   return grid;
 }
 

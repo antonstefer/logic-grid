@@ -134,11 +134,38 @@ describe("renderClue", () => {
   });
 
   it("not_same_position: pet + drink", () => {
+    // Equal priority (Pet 1, Drink 1) → hash tiebreaker picks subject
     const clue = renderClue(
       { type: "not_same_position", a: "Dog", b: "Water" },
       grid,
     );
-    expect(clue.text).toBe("The dog owner does not drink water.");
+    expect(clue.text).toBe("The water drinker does not own the dog.");
+  });
+
+  it("same_position tiebreak is deterministic across pairs", () => {
+    // Equal priority (both Pet+Drink, priority 1). Hash gives consistent
+    // results per value pair, but different pairs may get different subjects.
+    const clueA = renderClue(
+      { type: "same_position", a: "Dog", b: "Water" },
+      grid,
+    );
+    const clueB = renderClue(
+      { type: "same_position", a: "Cat", b: "Tea" },
+      grid,
+    );
+    // Both should be valid grammatical sentences
+    expect(clueA.text).toMatch(
+      /^(The dog owner drinks water|The water drinker owns the dog)\.$/,
+    );
+    expect(clueB.text).toMatch(
+      /^(The cat owner drinks tea|The tea drinker owns the cat)\.$/,
+    );
+    // Same input → same output (deterministic)
+    const clueA2 = renderClue(
+      { type: "same_position", a: "Dog", b: "Water" },
+      grid,
+    );
+    expect(clueA2.text).toBe(clueA.text);
   });
 
   it("next_to", () => {
