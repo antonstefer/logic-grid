@@ -193,6 +193,7 @@ describe("generate", () => {
           values: ["A", "B", "C"],
           noun: "house",
           verb: ["lives in", "does not live in"],
+          ordered: true,
         },
         {
           name: "Owner",
@@ -369,54 +370,6 @@ describe("generate", () => {
     ).toThrow("requires a verb");
   });
 
-  it("throws when position category lacks verb", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "", // person noun bypasses non-person check, but isPosition check should fire
-            isPosition: true,
-          },
-          {
-            name: "Color",
-            values: ["Red", "Blue", "Green"],
-            noun: "house",
-            verb: ["lives in the", "does not live in the"],
-          },
-        ],
-      }),
-    ).toThrow("Position category");
-  });
-
-  it("throws when more than one category is isPosition", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "slot",
-            verb: ["is at", "is not at"],
-            isPosition: true,
-          },
-          {
-            name: "Year",
-            values: ["2020", "2021", "2022"],
-            noun: "year",
-            verb: ["was in", "was not in"],
-            isPosition: true,
-          },
-        ],
-      }),
-    ).toThrow("At most one category can have isPosition");
-  });
-
   it("throws when symmetric comparator is a tuple", () => {
     expect(() =>
       generate({
@@ -428,10 +381,10 @@ describe("generate", () => {
             values: ["7am", "8am", "9am"],
             noun: "slot",
             verb: ["is at", "is not at"],
-            isPosition: true,
+            ordered: true,
             orderingPhrases: {
               comparators: {
-                next_to: ["fwd", "rev"],
+                next_to: ["fwd", "rev"] as [string, string],
               },
             },
           },
@@ -446,25 +399,6 @@ describe("generate", () => {
     ).toThrow('comparator "next_to" is symmetric');
   });
 
-  it("throws when category has both isPosition and positionAdjective", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            isPosition: true,
-            valueSuffix: "slot",
-            positionAdjective: ["is", "is not"],
-          },
-          { name: "Color", values: ["Red", "Blue", "Green"] },
-        ],
-      }),
-    ).toThrow("cannot be both isPosition and positionAdjective");
-  });
-
   it("throws when numericValues are not in ascending order", () => {
     expect(() =>
       generate({
@@ -474,7 +408,9 @@ describe("generate", () => {
           {
             name: "Time",
             values: ["7am", "8am", "9am"],
-            isPosition: true,
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            ordered: true,
             numericValues: [9, 7, 8],
           },
           { name: "Color", values: ["Red", "Blue", "Green"] },
@@ -494,9 +430,11 @@ describe("generate", () => {
           values: ["3%", "5%", "8%", "12%"],
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
-          orderingPhrases: { unit: ["percentage point", "percentage points"] },
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"] as [string, string],
+          },
         },
         {
           name: "Strategy",
@@ -509,7 +447,8 @@ describe("generate", () => {
 
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
 
-    // Verify all exact_distance constraints use value-based distances (not positional)
+    // Phase 1: exact_distance constraints are emitted for value pairs whose
+    // numeric gap matches. The emitted distance should be in the valid set.
     const validValueDistances = new Set<number>();
     const numVals = [3, 5, 8, 12];
     for (let i = 0; i < numVals.length; i++) {
@@ -524,7 +463,7 @@ describe("generate", () => {
     }
   });
 
-  it("position category gets identity assignment", () => {
+  it("first ordered category gets identity assignment (Phase 1)", () => {
     const puzzle = generate({
       size: 4,
       seed: 42,
@@ -535,10 +474,10 @@ describe("generate", () => {
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
-          isPosition: true,
+          ordered: true,
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
-            unit: ["percentage point", "percentage points"],
+            unit: ["percentage point", "percentage points"] as [string, string],
             comparators: { before: "has a lower return than" },
           },
         },
@@ -551,7 +490,7 @@ describe("generate", () => {
       ],
     });
 
-    // Position category should have identity mapping
+    // First ordered category (Return) gets identity mapping in Phase 1.
     const returnAssignment = puzzle.solution.find((a) => "6%" in a)!;
     expect(returnAssignment["6%"]).toBe(0);
     expect(returnAssignment["7%"]).toBe(1);
@@ -561,7 +500,7 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it("position category is preserved in grid", () => {
+  it("ordered category is preserved in grid", () => {
     const puzzle = generate({
       size: 3,
       seed: 1,
@@ -572,7 +511,7 @@ describe("generate", () => {
           values: ["9am", "10am", "11am"],
           noun: "slot",
           verb: ["is at", "is not at"],
-          isPosition: true,
+          ordered: true,
         },
         {
           name: "Color",
@@ -583,9 +522,8 @@ describe("generate", () => {
       ],
     });
 
-    const posCat = puzzle.grid.categories.find((c) => c.isPosition);
-    expect(posCat).toBeDefined();
-    expect(posCat!.name).toBe("Time");
-    expect(posCat!.isPosition).toBe(true);
+    const orderedCat = puzzle.grid.categories.find((c) => c.ordered === true);
+    expect(orderedCat).toBeDefined();
+    expect(orderedCat!.name).toBe("Time");
   });
 });

@@ -15,6 +15,7 @@ function validResult(): ThemeResult {
         values: ["Risotto", "Soufflé", "Ramen"],
         noun: "chef",
         verb: ["prepares the", "does not prepare the"],
+        ordered: true,
       },
       {
         name: "Tool",
@@ -223,9 +224,8 @@ describe("validateThemeResult", () => {
     expect(errors.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("accepts a valid position category", () => {
+  it("accepts an ordered category with numericValues and orderingPhrases", () => {
     const r = validResult();
-    r.categories[1].isPosition = true;
     r.categories[1].numericValues = [1, 2, 3];
     r.categories[1].orderingPhrases = {
       unit: ["point", "points"],
@@ -234,14 +234,10 @@ describe("validateThemeResult", () => {
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
 
-  it("rejects multiple position categories", () => {
+  it("accepts multiple ordered categories", () => {
     const r = validResult();
-    r.categories[1].isPosition = true;
-    r.categories[2].isPosition = true;
-    const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("Multiple position categories"),
-    );
+    r.categories[2].ordered = true;
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
 
   it("rejects numericValues with wrong count", () => {
@@ -378,19 +374,6 @@ describe("validateThemeResult", () => {
       },
     };
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
-  });
-
-  it("rejects positionAdjective with isPosition", () => {
-    const r = validResult();
-    r.categories[1].isPosition = true;
-    r.categories[1].valueSuffix = "house";
-    r.categories[1].positionAdjective = ["is", "is not"];
-    const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining(
-        "cannot be both isPosition and positionAdjective",
-      ),
-    );
   });
 
   it("rejects non-number subjectPriority", () => {

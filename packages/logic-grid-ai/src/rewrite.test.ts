@@ -11,7 +11,7 @@ const SAMPLE_CLUES: Clue[] = [
     text: "Alice drinks coffee.",
   },
   {
-    constraint: { type: "next_to", a: "Cat", b: "Red" },
+    constraint: { type: "next_to", a: "Cat", b: "Red", axis: "House" },
     text: "The cat lives next to the red house.",
   },
   {

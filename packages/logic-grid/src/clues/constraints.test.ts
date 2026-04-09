@@ -9,8 +9,6 @@ import {
   notBetween,
   before,
   exactDistance,
-  atPosition,
-  notAtPosition,
 } from "./constraints";
 
 describe("constraint factories", () => {
@@ -31,77 +29,68 @@ describe("constraint factories", () => {
   });
 
   it("nextTo", () => {
-    expect(nextTo("Red", "Cat")).toEqual({
+    expect(nextTo("Red", "Cat", "House")).toEqual({
       type: "next_to",
       a: "Red",
       b: "Cat",
+      axis: "House",
     });
   });
 
   it("notNextTo", () => {
-    expect(notNextTo("Red", "Cat")).toEqual({
+    expect(notNextTo("Red", "Cat", "House")).toEqual({
       type: "not_next_to",
       a: "Red",
       b: "Cat",
+      axis: "House",
     });
   });
 
   it("leftOf", () => {
-    expect(leftOf("Blue", "Green")).toEqual({
+    expect(leftOf("Blue", "Green", "House")).toEqual({
       type: "left_of",
       a: "Blue",
       b: "Green",
+      axis: "House",
     });
   });
 
   it("between", () => {
-    expect(between("Red", "Cat", "Blue")).toEqual({
+    expect(between("Red", "Cat", "Blue", "House")).toEqual({
       type: "between",
       outer1: "Red",
       middle: "Cat",
       outer2: "Blue",
-    });
-  });
-
-  it("atPosition", () => {
-    expect(atPosition("Red", 0)).toEqual({
-      type: "at_position",
-      value: "Red",
-      position: 0,
+      axis: "House",
     });
   });
 
   it("notBetween", () => {
-    expect(notBetween("Red", "Cat", "Blue")).toEqual({
+    expect(notBetween("Red", "Cat", "Blue", "House")).toEqual({
       type: "not_between",
       outer1: "Red",
       middle: "Cat",
       outer2: "Blue",
+      axis: "House",
     });
   });
 
   it("before", () => {
-    expect(before("Blue", "Green")).toEqual({
+    expect(before("Blue", "Green", "House")).toEqual({
       type: "before",
       a: "Blue",
       b: "Green",
+      axis: "House",
     });
   });
 
   it("exactDistance", () => {
-    expect(exactDistance("Red", "Cat", 2)).toEqual({
+    expect(exactDistance("Red", "Cat", 2, "House")).toEqual({
       type: "exact_distance",
       a: "Red",
       b: "Cat",
       distance: 2,
-    });
-  });
-
-  it("notAtPosition", () => {
-    expect(notAtPosition("Red", 2)).toEqual({
-      type: "not_at_position",
-      value: "Red",
-      position: 2,
+      axis: "House",
     });
   });
 });

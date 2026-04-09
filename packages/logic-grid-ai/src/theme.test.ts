@@ -22,6 +22,7 @@ const VALID_THEME: ThemeResult = {
       values: ["Galleon", "Brigantine", "Sloop", "Frigate"],
       noun: "captain",
       verb: ["sails the", "does not sail the"],
+      ordered: true,
     },
     {
       name: "Treasure",

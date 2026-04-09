@@ -82,6 +82,16 @@ export function createState(grid: Grid): DeduceState {
       valueInfo.set(grid.categories[ci].values[vi], [ci, vi]);
     }
   }
+  // Phase 1: identity-pin the first ordered category to match randomSolution
+  // and encodeBase behavior. Phase 2 removes this.
+  const firstOrderedIdx = grid.categories.findIndex((c) => c.ordered === true);
+  if (firstOrderedIdx >= 0) {
+    const cat = grid.categories[firstOrderedIdx];
+    for (let vi = 0; vi < cat.values.length; vi++) {
+      possible[firstOrderedIdx][vi].clear();
+      possible[firstOrderedIdx][vi].add(vi);
+    }
+  }
   return { grid, n, possible, valueInfo, silent: false };
 }
 

@@ -6,6 +6,7 @@ import type {
   OrderingComparatorType,
 } from "../types";
 import { posNoun, posNounPlural } from "../grid-utils";
+import { orderedCategories } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -101,9 +102,23 @@ function renderSamePosition(
   grid: Grid,
   negative: boolean,
 ): string {
+  const catA = findCategory(constraint.a, grid);
+  const catB = findCategory(constraint.b, grid);
+  const idx = negative ? 1 : 0;
+
+  // Position-adjective path: if one side has positionAdjective and the other
+  // is an ordered category, render the ordered value as subject with the
+  // adjective verb. Recovers the classical Color+House idiom:
+  // `same_position(Red, "1st")` → "The 1st house is red."
+  if (catA.positionAdjective && catB.ordered === true) {
+    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${constraint.a.toLowerCase()}.`;
+  }
+  if (catB.positionAdjective && catA.ordered === true) {
+    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${constraint.b.toLowerCase()}.`;
+  }
+
   const [subj, obj] = ordered(constraint.a, constraint.b, grid);
   const objCat = findCategory(obj, grid);
-  const idx = negative ? 1 : 0;
   const verb = objCat.verb;
   if (!verb) {
     throw new Error(
@@ -189,7 +204,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} ${prefix} ${dist} ${noun} from ${lb}.`;
     }
     case "at_position": {
-      const posLabel = grid.positionLabels[constraint.position];
+      const posLabel = positionLabel(grid, constraint.position);
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
         return `${capitalize(posLabel)} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
@@ -197,7 +212,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} ${posLabel}.`;
     }
     case "not_at_position": {
-      const posLabel = grid.positionLabels[constraint.position];
+      const posLabel = positionLabel(grid, constraint.position);
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
         return `${capitalize(posLabel)} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
@@ -205,6 +220,19 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} ${posLabel}.`;
     }
   }
+}
+
+/**
+ * Derive a human-readable label for row `position`. Reads from the first
+ * ordered category's value at that index (identity-assigned in Phase 1).
+ * Falls back to a generic "the Nth <positionNoun>" phrasing.
+ */
+function positionLabel(grid: Grid, position: number): string {
+  const axis = orderedCategories(grid)[0];
+  if (axis) {
+    return label(axis.values[position], grid);
+  }
+  return `the ${capitalize(posNoun(grid))} at position ${position + 1}`;
 }
 
 function capitalize(s: string): string {

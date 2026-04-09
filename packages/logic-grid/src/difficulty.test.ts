@@ -25,14 +25,14 @@ describe("classify by constraint types only", () => {
   it("returns medium when next_to is present", () => {
     const constraints: Constraint[] = [
       { type: "same_position", a: "Red", b: "Cat" },
-      { type: "next_to", a: "Blue", b: "Dog" },
+      { type: "next_to", a: "Blue", b: "Dog", axis: "House" },
     ];
     expect(classify(constraints)).toBe("medium");
   });
 
   it("returns medium when left_of is present", () => {
     const constraints: Constraint[] = [
-      { type: "left_of", a: "Red", b: "Blue" },
+      { type: "left_of", a: "Red", b: "Blue", axis: "House" },
     ];
     expect(classify(constraints)).toBe("medium");
   });
@@ -40,33 +40,53 @@ describe("classify by constraint types only", () => {
   it("returns hard when between is present", () => {
     const constraints: Constraint[] = [
       { type: "same_position", a: "Red", b: "Cat" },
-      { type: "between", outer1: "Red", middle: "Dog", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Dog",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     expect(classify(constraints)).toBe("hard");
   });
 
   it("returns medium when before is present", () => {
-    const constraints: Constraint[] = [{ type: "before", a: "Red", b: "Blue" }];
+    const constraints: Constraint[] = [
+      { type: "before", a: "Red", b: "Blue", axis: "House" },
+    ];
     expect(classify(constraints)).toBe("medium");
   });
 
   it("returns hard when not_next_to is present", () => {
     const constraints: Constraint[] = [
-      { type: "not_next_to", a: "Red", b: "Cat" },
+      { type: "not_next_to", a: "Red", b: "Cat", axis: "House" },
     ];
     expect(classify(constraints)).toBe("hard");
   });
 
   it("returns hard when not_between is present", () => {
     const constraints: Constraint[] = [
-      { type: "not_between", outer1: "Red", middle: "Cat", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     expect(classify(constraints)).toBe("hard");
   });
 
   it("returns hard when exact_distance is present", () => {
     const constraints: Constraint[] = [
-      { type: "exact_distance", a: "Red", b: "Cat", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Cat",
+        distance: 2,
+        axis: "House",
+      },
     ];
     expect(classify(constraints)).toBe("hard");
   });
@@ -116,18 +136,24 @@ describe("classify with grid (deduction depth)", () => {
 
   it("returns expert for medium types that require contradiction", () => {
     const constraints: Constraint[] = [
-      { type: "next_to", a: "Red", b: "Cat" },
-      { type: "next_to", a: "Red", b: "Dog" },
-      { type: "left_of", a: "Blue", b: "Tea" },
-      { type: "before", a: "Cat", b: "Coffee" },
+      { type: "next_to", a: "Red", b: "Cat", axis: "House" },
+      { type: "next_to", a: "Red", b: "Dog", axis: "House" },
+      { type: "left_of", a: "Blue", b: "Tea", axis: "House" },
+      { type: "before", a: "Cat", b: "Coffee", axis: "House" },
     ];
     expect(classify(constraints, grid3x3)).toBe("expert");
   });
 
   it("returns expert for hard types that require contradiction", () => {
     const constraints: Constraint[] = [
-      { type: "not_next_to", a: "Red", b: "Cat" },
-      { type: "exact_distance", a: "Blue", b: "Dog", distance: 2 },
+      { type: "not_next_to", a: "Red", b: "Cat", axis: "House" },
+      {
+        type: "exact_distance",
+        a: "Blue",
+        b: "Dog",
+        distance: 2,
+        axis: "House",
+      },
     ];
     expect(classify(constraints, grid3x3)).toBe("expert");
   });

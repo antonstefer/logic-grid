@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { findPositionCategory, type Grid } from "logic-grid";
+  import { displayAxisCategory, type Grid } from "logic-grid";
   import type { CellState } from "./puzzle-state.svelte";
 
   let {
@@ -16,13 +16,15 @@
     onEliminate: (valueIdx: number, position: number) => void;
   } = $props();
 
-  const posCat = $derived(findPositionCategory(puzzleGrid));
+  // The display-axis category provides column headers. Phase 1 identity-pins
+  // it, so its values are excluded from the mystery rows.
+  const posCat = $derived(displayAxisCategory(puzzleGrid));
 
-  /** Categories to display as rows (excludes position category). */
+  /** Categories to display as rows (excludes display-axis category). */
   const displayCategories = $derived(
     puzzleGrid.categories
       .map((cat, idx) => ({ cat, idx }))
-      .filter(({ cat }) => !cat.isPosition),
+      .filter(({ cat }) => cat !== posCat),
   );
 
   /** Compute the flat value index using the full categories array. */

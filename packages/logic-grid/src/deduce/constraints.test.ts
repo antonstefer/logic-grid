@@ -72,7 +72,7 @@ describe("deduce constraint types", () => {
   it("next_to constrains to adjacent positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "next_to", a: "Red", b: "Alice" },
+      { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "next_to");
@@ -86,7 +86,7 @@ describe("deduce constraint types", () => {
   it("not_next_to eliminates adjacent positions when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_next_to");
@@ -98,7 +98,7 @@ describe("deduce constraint types", () => {
   it("not_next_to eliminates adjacent positions when b is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 1 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_next_to");
@@ -113,7 +113,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_next_to", a: "Red", b: "Blue" },
+      { type: "not_next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -146,7 +146,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 5 },
       { type: "not_at_position", value: "Blue", position: 6 },
       { type: "not_at_position", value: "Blue", position: 7 },
-      { type: "next_to", a: "Red", b: "Blue" },
+      { type: "next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -156,7 +156,7 @@ describe("deduce constraint types", () => {
   it("left_of pins b to a+1 when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
-      { type: "left_of", a: "Red", b: "Alice" },
+      { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "left_of");
@@ -169,7 +169,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Alice", position: 0 },
       { type: "not_at_position", value: "Alice", position: 1 },
-      { type: "left_of", a: "Red", b: "Alice" },
+      { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -203,7 +203,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "left_of", a: "Red", b: "Blue" },
+      { type: "left_of", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -236,7 +236,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "before", a: "Red", b: "Blue" },
+      { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -249,7 +249,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Red", position: 2 },
-      { type: "next_to", a: "Red", b: "Alice" },
+      { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -260,7 +260,7 @@ describe("deduce constraint types", () => {
   it("before eliminates positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 2 },
-      { type: "before", a: "Red", b: "Alice" },
+      { type: "before", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "before");
@@ -274,7 +274,7 @@ describe("deduce constraint types", () => {
     // After Red becomes {0,1}, Blue can't be at 0 (≤ minRed=0).
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "before", a: "Red", b: "Blue" },
+      { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -290,7 +290,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 2 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "exact_distance", a: "Red", b: "Blue", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Blue",
+        distance: 2,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -321,7 +327,13 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "exact_distance", a: "Red", b: "Blue", distance: 5 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Blue",
+        distance: 5,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid8);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -333,7 +345,13 @@ describe("deduce constraint types", () => {
   it("exact_distance constrains positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "exact_distance", a: "Red", b: "Alice", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Alice",
+        distance: 2,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -353,7 +371,7 @@ describe("deduce constraint types", () => {
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
         },
       ],
@@ -362,7 +380,13 @@ describe("deduce constraint types", () => {
     // at positions (0,1) — so Bob is at position 1.
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, numGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -382,14 +406,20 @@ describe("deduce constraint types", () => {
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
         },
       ],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 6 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 6,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, numGrid);
     // Bob has no valid position; this should be detected as inconsistent
@@ -403,7 +433,13 @@ describe("deduce constraint types", () => {
     // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Red", b: "Alice", distance: 1 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Alice",
+        distance: 1,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -412,7 +448,7 @@ describe("deduce constraint types", () => {
     expect(step!.explanation).toContain("1 house apart");
   });
 
-  it("exact_distance explanation uses unit from position category", () => {
+  it("exact_distance explanation uses unit from spatialWords", () => {
     const unitGrid = makeGrid({
       size: 4,
       categories: [
@@ -421,22 +457,25 @@ describe("deduce constraint types", () => {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
-          isPosition: true,
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
           numericValues: [6, 7, 8, 9],
-          orderingPhrases: {
-            unit: ["percentage point", "percentage points"],
-          },
         },
       ],
       spatialWords: {
         ...POSITIONAL_WORDS,
         distanceUnit: ["percentage point", "percentage points"],
       },
-      positionLabels: ["6%", "7%", "8%", "9%"],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, unitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -453,22 +492,25 @@ describe("deduce constraint types", () => {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
-          isPosition: true,
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
           numericValues: [6, 7, 8, 9],
-          orderingPhrases: {
-            unit: ["percentage point", "percentage points"],
-          },
         },
       ],
       spatialWords: {
         ...POSITIONAL_WORDS,
         distanceUnit: ["percentage point", "percentage points"],
       },
-      positionLabels: ["6%", "7%", "8%", "9%"],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, unitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -487,7 +529,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 4 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "between");
@@ -508,7 +556,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Red", position: 3 },
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -537,7 +591,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Red", position: 5 },
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid6);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -550,7 +610,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 2 },
       { type: "at_position", value: "Red", position: 0 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -566,7 +632,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 1 },
       { type: "at_position", value: "Red", position: 3 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -583,7 +655,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 2 },
       { type: "at_position", value: "Blue", position: 0 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -615,7 +693,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -642,7 +726,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 2 },
       { type: "not_at_position", value: "Blue", position: 3 },
       { type: "not_at_position", value: "Blue", position: 4 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -654,7 +744,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 3 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -669,7 +765,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -682,7 +784,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Blue", position: 3 },
       { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -710,7 +818,13 @@ describe("deduce constraint types", () => {
       { type: "at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid6);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -725,7 +839,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -740,7 +860,7 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "before", a: "Red", b: "Alice" },
+      { type: "before", a: "Red", b: "Alice", axis: "House" },
       0,
     );
     expect(result).toBeNull();
@@ -756,7 +876,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Blue").clear();
     const result = tryConstraint(
       state,
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();
@@ -767,7 +893,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();
@@ -778,7 +910,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();

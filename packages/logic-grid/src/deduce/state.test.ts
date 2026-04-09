@@ -61,27 +61,28 @@ describe("describeResult", () => {
 });
 
 describe("describeKnown", () => {
+  // makeGrid auto-prepends a House category; Name is now categories[1].
   it("uses default house/in for assigned value", () => {
     const state = createState(defaultGrid);
-    // Pin Alice to position 0
-    state.possible[0][0].clear();
-    state.possible[0][0].add(0);
+    // Pin Alice (categories[1] = Name, values[0] = "Alice") to position 0
+    state.possible[1][0].clear();
+    state.possible[1][0].add(0);
     expect(describeKnown(state, "Alice")).toBe("Alice is in the first house");
   });
 
   it("uses custom noun and preposition for assigned value", () => {
     const state = createState(seatGrid);
-    state.possible[0][0].clear();
-    state.possible[0][0].add(0);
+    state.possible[1][0].clear();
+    state.possible[1][0].add(0);
     expect(describeKnown(state, "Alice")).toBe("Alice is at the first seat");
   });
 
   it("uses custom noun for possible positions", () => {
     const state = createState(seatGrid);
     // Restrict Bob to positions 0 and 2
-    state.possible[0][1].clear();
-    state.possible[0][1].add(0);
-    state.possible[0][1].add(2);
+    state.possible[1][1].clear();
+    state.possible[1][1].add(0);
+    state.possible[1][1].add(2);
     expect(describeKnown(state, "Bob")).toBe(
       "Bob can only be at the first or third seat",
     );

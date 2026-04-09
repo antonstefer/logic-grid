@@ -34,7 +34,7 @@ export function validateThemeResult(
   const seenValues = new Map<string, string>();
   const seenNouns = new Set<string>();
   let personCount = 0;
-  let positionCount = 0;
+  let orderedCount = 0;
 
   for (const cat of result.categories) {
     const name = cat.name ?? "";
@@ -121,9 +121,9 @@ export function validateThemeResult(
       );
     }
 
-    // Position category check
-    if (cat.isPosition) {
-      positionCount++;
+    // Ordered category check
+    if (cat.ordered === true) {
+      orderedCount++;
     }
 
     // numericValues / orderingPhrases (valid on any category)
@@ -193,11 +193,6 @@ export function validateThemeResult(
           `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
         );
       }
-      if (cat.isPosition) {
-        errors.push(
-          `Category "${name}" cannot be both isPosition and positionAdjective. Position categories define the axis; positionAdjective categories describe it.`,
-        );
-      }
     }
 
     // subjectPriority
@@ -219,9 +214,9 @@ export function validateThemeResult(
     );
   }
 
-  if (positionCount > 1) {
+  if (orderedCount === 0) {
     errors.push(
-      "Multiple position categories found. At most one category can have isPosition: true.",
+      "No ordered category found. At least one category must have ordered: true.",
     );
   }
 

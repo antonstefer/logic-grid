@@ -26,16 +26,16 @@
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
           orderingPhrases: {
-            unit: ["percentage point", "percentage points"],
+            unit: ["percentage point", "percentage points"] as [string, string],
             comparators: {
-              before: ["has a lower return than", "has a higher return than"],
+              before: ["has a lower return than", "has a higher return than"] as [string, string],
               left_of: [
                 "has the next lower return than",
                 "has the next higher return than",
-              ],
+              ] as [string, string],
               next_to: "has an adjacent return to",
               not_next_to: "does not have an adjacent return to",
               between: "has a return somewhere between",
@@ -61,19 +61,19 @@
           noun: "slot",
           verb: ["has an appointment at", "does not have an appointment at"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [7, 8, 9, 10],
           orderingPhrases: {
-            unit: ["hour", "hours"],
+            unit: ["hour", "hours"] as [string, string],
             comparators: {
               before: [
                 "has an earlier appointment than",
                 "has a later appointment than",
-              ],
+              ] as [string, string],
               left_of: [
                 "has an appointment exactly one hour before",
                 "has an appointment exactly one hour after",
-              ],
+              ] as [string, string],
               next_to: "has an appointment within one hour of",
               not_next_to: "does not have an appointment within one hour of",
               between: "has an appointment somewhere between",

@@ -50,10 +50,10 @@ function buildSchema(size: number, categories: number): JSONSchema {
         description:
           'Optional [positive, negative] verb pair for at_position inversion. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Inverts at_position to "{posLabel} {verb} {value}" → "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix and subjectPriority -1.',
       },
-      isPosition: {
+      ordered: {
         type: "boolean",
         description:
-          "If true, this category defines the positional axis. Its values are the position labels (e.g. sorted returns, years, times). At most one category can be isPosition. Its assignment is identity (value[0] → position 0, etc.), so it is not a mystery.",
+          "If true, the values array order is canonical. Comparative constraints (before, left_of, next_to, between, exact_distance) can reference this category as their axis. At least one category per theme must be ordered. numericValues and orderingPhrases are only legal on ordered categories.",
       },
       numericValues: {
         type: "array",
@@ -149,18 +149,13 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 
 The position noun labels ordered slots. Default ["house", "houses"] with preposition "in" → "lives in the first house". Pick a thematic alternative: ["station", "stations"] preposition "at", ["dock", "docks"] preposition "at", etc.
 
-## Position categories (optional, advanced)
+## Ordered categories
 
-Mark ONE category isPosition: true to define the positional axis. Its values ARE the positions (sorted). Use this when the theme has a natural numeric ordering (returns, times, years, prices). The position category should also have:
-- noun, verb (used for at_position rendering)
-- subjectPriority: -1 (always object)
-- numericValues: strictly ascending numbers matching the values
+At least one category must have \`ordered: true\` so comparative constraints can reference it. Use ordered categories when the values have a canonical sequence (sorted returns, years, times, prices, house numbers). Ordered categories can carry:
+- numericValues: strictly ascending numbers matching the values, enabling value-based distance clues like "exactly 11 years apart"
 - orderingPhrases.unit: [singular, plural] for distance clues
-- orderingPhrases.comparators: full-phrase overrides describing the positional ordering. **You MUST set ALL of these keys**: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. They apply to ALL ordering clues in the puzzle (Manager↔Strategy, City↔Strategy, etc.), not just clues involving position values. Missing keys fall through to generic "is somewhere before / adjacent to / directly before" wording, which sounds wrong in a domain like returns.
-- For directional comparators (\`before\` and \`left_of\`), prefer the tuple form \`[forward, reverse]\` for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\` lets clues say either "Alice has a lower return than Bob" or "Bob has a higher return than Alice" depending on which reads more naturally for that pair. Single string is also valid (forward only).
-- Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string, not a tuple.
-- For \`left_of\`: this means "immediately preceding in the ordering". Phrase it without assuming equidistant gaps (avoid "exactly one X less than" unless your numericValues actually are equidistant).
-- For \`exact_distance\`: this is the verb prefix that goes BEFORE the distance number. E.g. \`"is exactly"\` produces "Alice is exactly 3 percentage points from Bob." Use \`"has a return exactly"\` if you want "Alice has a return exactly 3 percentage points from Bob."
+- orderingPhrases.comparators: full-phrase overrides describing the ordering. Keys: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. Each is either a string (forward only) or a [forward, reverse] tuple. Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string.
+- For directional comparators (\`before\` and \`left_of\`), prefer the tuple form for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\`.
 
 ## Examples
 
@@ -184,7 +179,7 @@ For a "hedge fund" theme:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
-    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return after", "has the next higher return after"], "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return after", "has the next higher return after"], "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
@@ -199,7 +194,7 @@ For each category, ask:
 2. Are its values multi-word labels that describe the position noun (like "Crimson" describes "ship")? → set valueSuffix to the position noun, positionAdjective to ["is", "is not"], subjectPriority -1
 3. Are its values short labels needing a clarifying noun (like "Event-Driven" → "event-driven strategy")? → set valueSuffix, subjectPriority 1
 4. Does the value read naturally without a suffix in "{subject} {verb} {value}" form (like "Alice owns the cat", "Bob drinks tea", "Carol hides in tortuga")? → no valueSuffix needed, subjectPriority 1
-5. Does the theme have a numeric ordering axis (returns, times, years)? → mark ONE category isPosition with numericValues and orderingPhrases
+5. Does the theme have a natural ordering (returns, times, years, house numbers)? → mark that category ordered: true. For numeric orderings add numericValues and orderingPhrases
 
 ## Your task
 

@@ -44,7 +44,7 @@ const grid3x3 = makeGrid({
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },
   { type: "same_position", a: "Red", b: "Cat" },
-  { type: "left_of", a: "Blue", b: "Green" },
+  { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Blue", b: "Dog" },
   { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "at_position", value: "Tea", position: 0 },

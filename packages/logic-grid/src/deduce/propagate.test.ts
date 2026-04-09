@@ -75,7 +75,7 @@ describe("propagateToFixpoint", () => {
     const state = createState(grid4);
     propagateToFixpoint(state, [
       { type: "at_position", value: "Red", position: 1 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Alice").has(2)).toBe(false);
   });
@@ -85,7 +85,7 @@ describe("propagateToFixpoint", () => {
     const state = createState(grid4);
     propagateToFixpoint(state, [
       { type: "at_position", value: "Alice", position: 2 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Red").has(1)).toBe(false);
   });
@@ -98,7 +98,7 @@ describe("propagateToFixpoint", () => {
       { type: "not_at_position", value: "Red", position: 1 },
       { type: "not_at_position", value: "Red", position: 2 },
       { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     propagateToFixpoint(state, constraints);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
@@ -111,7 +111,7 @@ describe("propagateToFixpoint", () => {
     propagateToFixpoint(state, [
       { type: "not_at_position", value: "Red", position: 1 },
       { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
   });
@@ -122,7 +122,13 @@ describe("propagateToFixpoint", () => {
     propagateToFixpoint(state, [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 3 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ]);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
     expect(getPossible(state, "Alice").has(2)).toBe(false);
@@ -134,7 +140,13 @@ describe("propagateToFixpoint", () => {
     propagateToFixpoint(state, [
       { type: "at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ]);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
   });
@@ -149,7 +161,13 @@ describe("propagateToFixpoint", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ]);
     expect(getPossible(state, "Alice").has(2)).toBe(false);
   });

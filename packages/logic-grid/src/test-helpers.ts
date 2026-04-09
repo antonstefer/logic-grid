@@ -1,10 +1,17 @@
 import type { Category, Grid, SpatialWords } from "./types";
-import { ORDINALS } from "./grid-utils";
-import { DEFAULT_CONFIG } from "./default-config";
+import {
+  DEFAULT_SPATIAL_WORDS,
+  DEFAULT_POSITION_NOUN,
+  DEFAULT_POSITION_PREPOSITION,
+  defaultHouseCategory,
+} from "./default-config";
 
 /**
  * Build a Grid from a minimal description, filling in default rendering fields.
  * For tests only — production code should use generate().
+ *
+ * Prepends a default House ordered category if none of the supplied categories
+ * is ordered, matching the buildGrid behavior in generate().
  */
 export function makeGrid(partial: {
   size: number;
@@ -12,23 +19,21 @@ export function makeGrid(partial: {
   positionNoun?: [string, string];
   positionPreposition?: string;
   spatialWords?: SpatialWords;
-  positionLabels?: string[];
+  displayAxis?: string;
 }): Grid {
-  const positionNoun = partial.positionNoun ?? DEFAULT_CONFIG.positionNoun;
+  const positionNoun = partial.positionNoun ?? DEFAULT_POSITION_NOUN;
   const positionPreposition =
-    partial.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
-  const positionLabels =
-    partial.positionLabels ??
-    Array.from(
-      { length: partial.size },
-      (_, i) => `the ${ORDINALS[i]} ${positionNoun[0]}`,
-    );
+    partial.positionPreposition ?? DEFAULT_POSITION_PREPOSITION;
+  let categories = partial.categories;
+  if (!categories.some((c) => c.ordered === true)) {
+    categories = [defaultHouseCategory(partial.size), ...categories];
+  }
   return {
     size: partial.size,
-    categories: partial.categories,
+    categories,
     positionNoun,
     positionPreposition,
-    spatialWords: partial.spatialWords ?? DEFAULT_CONFIG.spatialWords,
-    positionLabels,
+    spatialWords: partial.spatialWords ?? { ...DEFAULT_SPATIAL_WORDS },
+    displayAxis: partial.displayAxis,
   };
 }

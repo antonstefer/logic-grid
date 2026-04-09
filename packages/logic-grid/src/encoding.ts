@@ -1,5 +1,5 @@
 import type { Constraint, Grid } from "./types";
-import { findPositionCategory } from "./grid-utils";
+import { resolveAxis } from "./axis";
 
 /** Holds grid metadata needed to map values/positions to SAT variables. */
 export interface EncodingContext {
@@ -77,6 +77,17 @@ export function encodeBase(ctx: EncodingContext): number[][] {
           ]);
         }
       }
+    }
+  }
+
+  // Phase 1: identity-pin the first ordered category. This matches the
+  // generator's randomSolution behavior and keeps the row-based encoder
+  // semantically consistent with the axis-tagged comparative constraints.
+  // Phase 2 removes this when the encoder switches to rank-forbidding.
+  const firstOrdered = grid.categories.find((c) => c.ordered === true);
+  if (firstOrdered) {
+    for (let i = 0; i < firstOrdered.values.length; i++) {
+      clauses.push([variable(ctx, firstOrdered.values[i], i)]);
     }
   }
 
@@ -244,7 +255,8 @@ export function encodeConstraint(
     case "exact_distance": {
       const { a, b, distance } = constraint;
       const clauses: number[][] = [];
-      const numVals = findPositionCategory(ctx.grid)?.numericValues;
+      const axis = resolveAxis(ctx.grid, constraint.axis);
+      const numVals = axis.numericValues;
 
       if (numVals) {
         // Value-based distance: find position pairs where numeric values differ by distance

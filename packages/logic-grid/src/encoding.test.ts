@@ -29,18 +29,21 @@ function decodeSolution(
   return result;
 }
 
+// 3x3 grid has 3 user categories + auto-added House = 4 categories, 12 values total.
+const NUM_VALUES_3X3 = 12;
+
 describe("createContext", () => {
   it("assigns unique indices to all values", () => {
     const ctx = createContext(grid3x3);
-    expect(ctx.valueIndex.size).toBe(9);
+    expect(ctx.valueIndex.size).toBe(NUM_VALUES_3X3);
     const indices = new Set(ctx.valueIndex.values());
-    expect(indices.size).toBe(9);
+    expect(indices.size).toBe(NUM_VALUES_3X3);
   });
 
   it("records correct dimensions", () => {
     const ctx = createContext(grid3x3);
     expect(ctx.numPositions).toBe(3);
-    expect(ctx.numValues).toBe(9);
+    expect(ctx.numValues).toBe(NUM_VALUES_3X3);
   });
 });
 
@@ -55,7 +58,7 @@ describe("variable", () => {
         vars.add(v);
       }
     }
-    expect(vars.size).toBe(27); // 9 values * 3 positions
+    expect(vars.size).toBe(NUM_VALUES_3X3 * 3);
   });
 
   it("throws for unknown value", () => {
@@ -151,7 +154,7 @@ describe("encodeConstraint", () => {
   it("next_to forces adjacency", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "next_to", a: "Red", b: "Cat" },
+      { type: "next_to", a: "Red", b: "Cat", axis: "House" },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
@@ -164,7 +167,7 @@ describe("encodeConstraint", () => {
   it("not_next_to prevents adjacency", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "not_next_to", a: "Red", b: "Cat" },
+      { type: "not_next_to", a: "Red", b: "Cat", axis: "House" },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     for (const sol of solutions) {
@@ -176,7 +179,7 @@ describe("encodeConstraint", () => {
   it("left_of places a immediately left of b", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "left_of", a: "Red", b: "Cat" },
+      { type: "left_of", a: "Red", b: "Cat", axis: "House" },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
@@ -189,7 +192,13 @@ describe("encodeConstraint", () => {
   it("between forces middle between outers", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "between", outer1: "Red", middle: "Cat", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+        axis: "House",
+      },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
@@ -205,7 +214,13 @@ describe("encodeConstraint", () => {
   it("not_between forbids middle between outers", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "not_between", outer1: "Red", middle: "Cat", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+        axis: "House",
+      },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     for (const sol of solutions) {
@@ -220,7 +235,9 @@ describe("encodeConstraint", () => {
 
   it("before forces a to be left of b", () => {
     const ctx = createContext(grid3x3);
-    const clauses = encodePuzzle(ctx, [{ type: "before", a: "Red", b: "Cat" }]);
+    const clauses = encodePuzzle(ctx, [
+      { type: "before", a: "Red", b: "Cat", axis: "House" },
+    ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
     for (const sol of solutions) {
@@ -232,7 +249,13 @@ describe("encodeConstraint", () => {
   it("exact_distance forces exact position difference", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
-      { type: "exact_distance", a: "Red", b: "Cat", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Cat",
+        distance: 2,
+        axis: "House",
+      },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
@@ -251,7 +274,8 @@ describe("encodeConstraint", () => {
           name: "Year",
           values: ["1980", "1990", "2005"],
           noun: "car",
-          isPosition: true,
+          verb: ["drives the", "does not drive the"],
+          ordered: true,
           numericValues: [1980, 1990, 2005],
         },
       ],
@@ -259,19 +283,23 @@ describe("encodeConstraint", () => {
     const ctx = createContext(numGrid);
     // distance=10 means |numericValues[p1]-numericValues[p2]|=10, i.e. positions 0,1
     const clauses = encodePuzzle(ctx, [
-      { type: "exact_distance", a: "Red", b: "Blue", distance: 10 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Blue",
+        distance: 10,
+        axis: "Year",
+      },
     ]);
     const solutions = solveAllSAT(clauses, 100);
     expect(solutions.length).toBeGreaterThan(0);
+    const yearCat = numGrid.categories.find((c) => c.name === "Year")!;
     for (const sol of solutions) {
       const decoded = decodeSolution(ctx, sol);
       const p1 = decoded["Red"];
       const p2 = decoded["Blue"];
       expect(
-        Math.abs(
-          numGrid.categories[1].numericValues![p1] -
-            numGrid.categories[1].numericValues![p2],
-        ),
+        Math.abs(yearCat.numericValues![p1] - yearCat.numericValues![p2]),
       ).toBe(10);
     }
   });

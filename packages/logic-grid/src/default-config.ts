@@ -1,146 +1,158 @@
-import type { Grid } from "./types";
+import type { Category, SpatialWords } from "./types";
 
-/** Complete default grid configuration for the classic Einstein's riddle style. */
-export const DEFAULT_CONFIG: Omit<Grid, "size" | "positionLabels"> = {
-  categories: [
-    {
-      name: "Name",
-      noun: "",
-      subjectPriority: 2,
-      values: [
-        "Alice",
-        "Bob",
-        "Carol",
-        "Dave",
-        "Eve",
-        "Frank",
-        "Grace",
-        "Hank",
-      ],
-    },
-    {
-      name: "Color",
-      noun: "house",
-      verb: ["lives in the", "does not live in the"],
-      subjectPriority: -1,
-      valueSuffix: "house",
-      positionAdjective: ["is", "is not"],
-      values: [
-        "Red",
-        "Blue",
-        "Green",
-        "Yellow",
-        "White",
-        "Orange",
-        "Purple",
-        "Pink",
-      ],
-    },
-    {
-      name: "Pet",
-      noun: "owner",
-      verb: ["owns the", "does not own the"],
-      subjectPriority: 1,
-      values: [
-        "Cat",
-        "Dog",
-        "Fish",
-        "Bird",
-        "Rabbit",
-        "Turtle",
-        "Hamster",
-        "Snake",
-      ],
-    },
-    {
-      name: "Drink",
-      noun: "drinker",
-      verb: ["drinks", "does not drink"],
-      subjectPriority: 1,
-      values: [
-        "Tea",
-        "Coffee",
-        "Water",
-        "Milk",
-        "Juice",
-        "Soda",
-        "Wine",
-        "Beer",
-      ],
-    },
-    {
-      name: "Food",
-      noun: "lover",
-      verb: ["eats", "does not eat"],
-      subjectPriority: 1,
-      values: [
-        "Pizza",
-        "Pasta",
-        "Sushi",
-        "Tacos",
-        "Salad",
-        "Steak",
-        "Curry",
-        "Soup",
-      ],
-    },
-    {
-      name: "Hobby",
-      noun: "enthusiast",
-      verb: ["enjoys", "does not enjoy"],
-      subjectPriority: 1,
-      values: [
-        "Reading",
-        "Painting",
-        "Knitting",
-        "Gardening",
-        "Photography",
-        "Origami",
-        "Pottery",
-        "Woodwork",
-      ],
-    },
-    {
-      name: "Music",
-      noun: "fan",
-      verb: ["listens to", "does not listen to"],
-      subjectPriority: 1,
-      values: [
-        "Jazz",
-        "Rock",
-        "Pop",
-        "Blues",
-        "Folk",
-        "Reggae",
-        "Metal",
-        "Punk",
-      ],
-    },
-    {
-      name: "Sport",
-      noun: "player",
-      verb: ["plays", "does not play"],
-      subjectPriority: 1,
-      values: [
-        "Soccer",
-        "Tennis",
-        "Golf",
-        "Baseball",
-        "Rugby",
-        "Cricket",
-        "Hockey",
-        "Basketball",
-      ],
-    },
-  ],
-  positionNoun: ["house", "houses"],
-  positionPreposition: "in",
-  spatialWords: {
-    verb: ["lives", "does not live"],
-    adjacency: "next to",
-    direction: ["left of", "right of"],
-    between: "somewhere between",
-    atPosition: ["lives in", "does not live in"],
-    cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
+/**
+ * Default non-position category pool for the classic Einstein's riddle style.
+ * When the user provides no `categoryNames`, `buildGrid` slices from this pool.
+ * None of these are ordered — an ordered "House" category is auto-prepended
+ * by `buildGrid` when no ordered category is present.
+ */
+export const DEFAULT_CATEGORIES: Category[] = [
+  {
+    name: "Name",
+    noun: "",
+    subjectPriority: 2,
+    values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"],
   },
+  {
+    name: "Color",
+    noun: "house",
+    verb: ["lives in the", "does not live in the"],
+    subjectPriority: -1,
+    valueSuffix: "house",
+    positionAdjective: ["is", "is not"],
+    values: [
+      "Red",
+      "Blue",
+      "Green",
+      "Yellow",
+      "White",
+      "Orange",
+      "Purple",
+      "Pink",
+    ],
+  },
+  {
+    name: "Pet",
+    noun: "owner",
+    verb: ["owns the", "does not own the"],
+    subjectPriority: 1,
+    values: [
+      "Cat",
+      "Dog",
+      "Fish",
+      "Bird",
+      "Rabbit",
+      "Turtle",
+      "Hamster",
+      "Snake",
+    ],
+  },
+  {
+    name: "Drink",
+    noun: "drinker",
+    verb: ["drinks", "does not drink"],
+    subjectPriority: 1,
+    values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"],
+  },
+  {
+    name: "Food",
+    noun: "lover",
+    verb: ["eats", "does not eat"],
+    subjectPriority: 1,
+    values: [
+      "Pizza",
+      "Pasta",
+      "Sushi",
+      "Tacos",
+      "Salad",
+      "Steak",
+      "Curry",
+      "Soup",
+    ],
+  },
+  {
+    name: "Hobby",
+    noun: "enthusiast",
+    verb: ["enjoys", "does not enjoy"],
+    subjectPriority: 1,
+    values: [
+      "Reading",
+      "Painting",
+      "Knitting",
+      "Gardening",
+      "Photography",
+      "Origami",
+      "Pottery",
+      "Woodwork",
+    ],
+  },
+  {
+    name: "Music",
+    noun: "fan",
+    verb: ["listens to", "does not listen to"],
+    subjectPriority: 1,
+    values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"],
+  },
+  {
+    name: "Sport",
+    noun: "player",
+    verb: ["plays", "does not play"],
+    subjectPriority: 1,
+    values: [
+      "Soccer",
+      "Tennis",
+      "Golf",
+      "Baseball",
+      "Rugby",
+      "Cricket",
+      "Hockey",
+      "Basketball",
+    ],
+  },
+];
+
+/** Generic fallback vocabulary used when an axis category supplies no overrides. */
+export const DEFAULT_SPATIAL_WORDS: SpatialWords = {
+  verb: ["lives", "does not live"],
+  adjacency: "next to",
+  direction: ["left of", "right of"],
+  between: "somewhere between",
+  atPosition: ["lives in", "does not live in"],
+  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
 };
+
+/** Default singular/plural position noun for the auto-added House category's display. */
+export const DEFAULT_POSITION_NOUN: [string, string] = ["house", "houses"];
+
+/** Default preposition for positional phrases. */
+export const DEFAULT_POSITION_PREPOSITION = "in";
+
+/**
+ * Build the auto-added House ordered category. Used by `buildGrid` when the
+ * user supplies no ordered category. noun + valueSuffix both set so label()
+ * yields "the first house" (subject form) and objectValue() yields "first
+ * house" (object form). Combined with the verb this renders
+ * `same_position(Alice, "first")` as "Alice lives in the first house" and
+ * `same_position(Red, "first")` (via the positionAdjective rule on Color) as
+ * "The first house is red" — recovering the classical rendering exactly.
+ */
+export function defaultHouseCategory(size: number): Category {
+  const ordinals = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+  ];
+  return {
+    name: "House",
+    noun: "house",
+    verb: ["lives in the", "does not live in the"],
+    valueSuffix: "house",
+    ordered: true,
+    values: ordinals.slice(0, size),
+  };
+}

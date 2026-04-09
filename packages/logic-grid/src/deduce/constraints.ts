@@ -1,11 +1,6 @@
 import type { Constraint, DeductionStep, DeductionTechnique } from "../types";
-import {
-  ordinal,
-  posNoun,
-  posNounPlural,
-  posPrep,
-  findPositionCategory,
-} from "../grid-utils";
+import { ordinal, posNoun, posNounPlural, posPrep } from "../grid-utils";
+import { resolveAxis } from "../axis";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -554,14 +549,14 @@ function tryNotBetween(
 
 function tryExactDistance(
   state: DeduceState,
-  c: { a: string; b: string; distance: number },
+  c: { a: string; b: string; distance: number; axis: string },
   ci: number,
 ): DeductionStep | null {
   const n = state.n;
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
-  const numVals = findPositionCategory(state.grid)?.numericValues;
+  const numVals = resolveAxis(state.grid, c.axis).numericValues;
 
   if (numVals) {
     // Value-based distance: compute valid partner positions from numeric values

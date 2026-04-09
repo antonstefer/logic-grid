@@ -1,7 +1,7 @@
 import {
   generate,
   deduce,
-  findPositionCategory,
+  displayAxisCategory,
   type Category,
   type Puzzle,
   type Difficulty,
@@ -135,15 +135,13 @@ export function createPuzzleState() {
         grid = Array.from({ length: totalValues }, () =>
           Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
         );
-        // Pre-confirm position category (identity assignment, not a mystery)
-        const posCat = findPositionCategory(puzzle.grid);
-        if (posCat) {
-          const posCatIdx = puzzle.grid.categories.indexOf(posCat);
-          for (let vi = 0; vi < posCat.values.length; vi++) {
-            const valueIdx = getValueIndex(posCatIdx, vi);
-            for (let p = 0; p < puzzle.grid.size; p++) {
-              grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
-            }
+        // Pre-confirm the display-axis category (identity assignment in Phase 1)
+        const displayCat = displayAxisCategory(puzzle.grid);
+        const displayCatIdx = puzzle.grid.categories.indexOf(displayCat);
+        for (let vi = 0; vi < displayCat.values.length; vi++) {
+          const valueIdx = getValueIndex(displayCatIdx, vi);
+          for (let p = 0; p < puzzle.grid.size; p++) {
+            grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
           }
         }
         hintSteps = [];
