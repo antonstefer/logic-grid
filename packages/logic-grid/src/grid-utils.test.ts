@@ -18,9 +18,15 @@ describe("findPositionCategory", () => {
           name: "Time",
           values: ["7am", "8am", "9am"],
           noun: "slot",
+          verb: ["is at", "is not at"],
           isPosition: true,
         },
-        { name: "Color", values: ["Red", "Blue", "Green"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green"],
+          noun: "color",
+          verb: ["wears", "does not wear"],
+        },
       ],
     });
     const cat = findPositionCategory(puzzle.grid);
@@ -39,9 +45,15 @@ describe("positionLabel", () => {
           name: "Time",
           values: ["7am", "8am", "9am"],
           noun: "slot",
+          verb: ["is at", "is not at"],
           isPosition: true,
         },
-        { name: "Color", values: ["Red", "Blue", "Green"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green"],
+          noun: "color",
+          verb: ["wears", "does not wear"],
+        },
       ],
     });
     expect(positionLabel(0, puzzle.grid)).toBe("7am");

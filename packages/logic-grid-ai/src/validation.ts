@@ -114,6 +114,11 @@ export function validateThemeResult(
       } else if (cat.verb[0].trim() === "" || cat.verb[1].trim() === "") {
         errors.push(`Category "${cat.name}" has empty verb strings.`);
       }
+    } else if (cat.noun !== "" && cat.noun !== undefined) {
+      // Every non-person category must have a verb so same_position renders cleanly.
+      errors.push(
+        `Category "${cat.name}" requires a verb. Only the person category (noun: "") may omit it.`,
+      );
     }
 
     // Position category check

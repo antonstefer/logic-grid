@@ -174,9 +174,23 @@ describe("generate", () => {
     const puzzle = generate({
       size: 3,
       categoryNames: [
-        { name: "House", values: ["A", "B", "C"] },
-        { name: "Owner", values: ["X", "Y", "Z"] },
-        { name: "Car", values: ["BMW", "Audi", "VW"] },
+        {
+          name: "House",
+          values: ["A", "B", "C"],
+          noun: "house",
+          verb: ["lives in", "does not live in"],
+        },
+        {
+          name: "Owner",
+          values: ["X", "Y", "Z"],
+          noun: "",
+        },
+        {
+          name: "Car",
+          values: ["BMW", "Audi", "VW"],
+          noun: "driver",
+          verb: ["drives the", "does not drive the"],
+        },
       ],
     });
     expect(puzzle.grid.categories[0].name).toBe("House");
@@ -318,6 +332,52 @@ describe("generate", () => {
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
 
+  it("throws when non-person category lacks verb", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "house",
+            // missing verb
+          },
+          {
+            name: "Pet",
+            values: ["Cat", "Dog", "Fish"],
+            noun: "owner",
+            verb: ["owns the", "does not own the"],
+          },
+        ],
+      }),
+    ).toThrow("requires a verb");
+  });
+
+  it("throws when position category lacks verb", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "", // person noun bypasses non-person check, but isPosition check should fire
+            isPosition: true,
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "house",
+            verb: ["lives in the", "does not live in the"],
+          },
+        ],
+      }),
+    ).toThrow("Position category");
+  });
+
   it("throws when category has both isPosition and positionAdjective", () => {
     expect(() =>
       generate({
@@ -365,6 +425,7 @@ describe("generate", () => {
           name: "Return",
           values: ["3%", "5%", "8%", "12%"],
           noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
           isPosition: true,
           numericValues: [3, 5, 8, 12],
           orderingPhrases: { unit: ["percentage point", "percentage points"] },
@@ -373,6 +434,7 @@ describe("generate", () => {
           name: "Strategy",
           values: ["Long", "Short", "Macro", "Quant"],
           noun: "strategist",
+          verb: ["uses", "does not use"],
         },
       ],
     });
@@ -404,6 +466,7 @@ describe("generate", () => {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
           isPosition: true,
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
@@ -415,6 +478,7 @@ describe("generate", () => {
           name: "Strategy",
           values: ["Long/Short", "Macro", "Quant", "Event"],
           noun: "strategist",
+          verb: ["uses", "does not use"],
         },
       ],
     });
@@ -439,9 +503,15 @@ describe("generate", () => {
           name: "Time",
           values: ["9am", "10am", "11am"],
           noun: "slot",
+          verb: ["is at", "is not at"],
           isPosition: true,
         },
-        { name: "Color", values: ["Red", "Blue", "Green"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green"],
+          noun: "color",
+          verb: ["wears", "does not wear"],
+        },
       ],
     });
 

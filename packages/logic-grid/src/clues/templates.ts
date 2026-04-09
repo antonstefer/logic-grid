@@ -16,8 +16,8 @@ function findCategory(value: string, grid: Grid): Category {
 
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
-  const noun = findCategory(value, grid).noun ?? "";
-  if (noun === "") return value;
+  const noun = findCategory(value, grid).noun;
+  if (!noun) return value;
   return `the ${value.toLowerCase()} ${noun}`;
 }
 
@@ -69,17 +69,12 @@ function renderSamePosition(
 
   const idx = negative ? 1 : 0;
   const verb = objCat.verb;
-  if (verb) {
-    return `${capitalize(label(subj, grid))} ${verb[idx]} ${objectValue(obj, grid)}.`;
+  if (!verb) {
+    throw new Error(
+      `Cannot render same_position: category "${objCat.name}" has no verb`,
+    );
   }
-
-  // Generic fallback when object category has no verb
-  const la = label(constraint.a, grid);
-  const lb = label(constraint.b, grid);
-  const prep = grid.positionPreposition;
-  return negative
-    ? `${capitalize(la)} and ${lb} are not ${prep} the same ${posNoun(grid)}.`
-    : `${capitalize(la)} and ${lb} are ${prep} the same ${posNoun(grid)}.`;
+  return `${capitalize(label(subj, grid))} ${verb[idx]} ${objectValue(obj, grid)}.`;
 }
 
 // --- Main renderer ---

@@ -15,17 +15,7 @@ import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-
-const ORDINALS = [
-  "first",
-  "second",
-  "third",
-  "fourth",
-  "fifth",
-  "sixth",
-  "seventh",
-  "eighth",
-];
+import { ORDINALS } from "./grid-utils";
 
 /** Complete default grid configuration for the classic Einstein's riddle style. */
 export const DEFAULT_CONFIG: Omit<Grid, "size" | "positionLabels"> = {
@@ -281,19 +271,36 @@ function buildGrid(
           `Category "${c.name}" cannot be both isPosition and positionAdjective`,
         );
       }
+      // Every non-person category needs a verb so same_position rendering
+      // doesn't fall through to the awkward "X and Y are in the same Z" form.
+      // Person category is identified by noun: "" (undefined is treated as bare).
+      const noun = c.noun ?? "";
+      if (noun !== "" && !c.verb) {
+        throw new RangeError(
+          `Category "${c.name}" requires a verb (only the person category may omit it)`,
+        );
+      }
+      if (c.isPosition && !c.verb) {
+        throw new RangeError(`Position category "${c.name}" requires a verb`);
+      }
     }
-    categories = categoryNames.map((c) => ({
-      name: c.name,
-      values: c.values.slice(0, size),
-      noun: c.noun,
-      verb: c.verb,
-      subjectPriority: c.subjectPriority,
-      valueSuffix: c.valueSuffix,
-      positionAdjective: c.positionAdjective,
-      isPosition: c.isPosition,
-      numericValues: c.numericValues?.slice(0, size),
-      orderingPhrases: c.orderingPhrases,
-    }));
+    categories = categoryNames.map((c) => {
+      const noun = c.noun ?? "";
+      // Default subjectPriority: 2 for person, 0 for everything else.
+      const subjectPriority = c.subjectPriority ?? (noun === "" ? 2 : 0);
+      return {
+        name: c.name,
+        values: c.values.slice(0, size),
+        noun,
+        verb: c.verb,
+        subjectPriority,
+        valueSuffix: c.valueSuffix,
+        positionAdjective: c.positionAdjective,
+        isPosition: c.isPosition,
+        numericValues: c.numericValues?.slice(0, size),
+        orderingPhrases: c.orderingPhrases,
+      };
+    });
   } else {
     categories = DEFAULT_CONFIG.categories.slice(0, numCategories).map((c) => ({
       ...c,
@@ -317,7 +324,7 @@ function buildGrid(
           verb: ["is", "is not"],
           adjacency: "adjacent to",
           direction: ["before", "after"],
-          atPosition: posCat.verb ?? [`is ${posPrep}`, `is not ${posPrep}`],
+          atPosition: posCat.verb!,
           comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,
         }
@@ -419,15 +426,17 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
         constraints.push({ type: "before", a: b, b: a });
       }
 
-      // exact_distance: for distances 2+ (distance 1 is next_to)
+      // exact_distance: emit when meaningful (not redundant with other clue types).
       if (numVals) {
-        // Value-based distance using numeric values
+        // Value-based distance: emit any non-zero value gap. Even when positions
+        // are adjacent, the constraint is more specific than next_to (it pins
+        // the exact value pair, not just adjacency).
         const valDist = Math.abs(numVals[posA] - numVals[posB]);
-        // Skip distance 0 (same position) and distances that match next_to (adjacent positions)
-        if (valDist > 0 && Math.abs(posA - posB) !== 1) {
+        if (valDist > 0) {
           constraints.push({ type: "exact_distance", a, b, distance: valDist });
         }
       } else {
+        // Position-based: distance 1 is exactly equivalent to next_to, skip it.
         const dist = Math.abs(posA - posB);
         if (dist >= 2) {
           constraints.push({ type: "exact_distance", a, b, distance: dist });

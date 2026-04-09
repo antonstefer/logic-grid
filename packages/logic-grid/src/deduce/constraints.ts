@@ -601,7 +601,7 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
-  const unit = state.grid.spatialWords?.distanceUnit;
+  const unit = state.grid.spatialWords.distanceUnit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
     : `${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)}`;

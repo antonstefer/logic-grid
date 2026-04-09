@@ -208,10 +208,11 @@ describe("validateThemeResult", () => {
     );
   });
 
-  it("allows undefined verb (uses defaults)", () => {
+  it("rejects non-person category without verb", () => {
     const r = validResult();
     delete r.categories[1].verb;
-    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(expect.stringContaining("requires a verb"));
   });
 
   it("reports multiple errors at once", () => {

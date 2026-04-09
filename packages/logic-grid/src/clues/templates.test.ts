@@ -312,13 +312,10 @@ describe("custom category noun/verb", () => {
     expect(clue.text).toBe("The toyota driver lives next to the apple lover.");
   });
 
-  it("custom noun without verb uses generic fallback", () => {
-    const clue = renderClue(
-      { type: "same_position", a: "Alice", b: "Apple" },
-      customGrid,
-    );
-    // Fruit has noun "lover" but no verb, so falls back to generic
-    expect(clue.text).toBe("Alice and the apple lover are in the same house.");
+  it("throws when object category has no verb", () => {
+    expect(() =>
+      renderClue({ type: "same_position", a: "Alice", b: "Apple" }, customGrid),
+    ).toThrow('category "Fruit" has no verb');
   });
 
   it("empty-string noun renders bare value", () => {
@@ -489,7 +486,7 @@ describe("custom positionNoun / positionPreposition", () => {
     );
   });
 
-  it("same_position fallback uses custom noun and preposition", () => {
+  it("throws when same_position rendering hits a verbless category", () => {
     const minGrid = makeGrid({
       size: 3,
       categories: [
@@ -505,40 +502,9 @@ describe("custom positionNoun / positionPreposition", () => {
       spatialWords: DEFAULT_CONFIG.spatialWords,
       positionLabels: ["the first slot", "the second slot", "the third slot"],
     });
-    const clue = renderClue(
-      { type: "same_position", a: "Circle", b: "Small" },
-      minGrid,
-    );
-    expect(clue.text).toBe(
-      "The circle shape and the small size are at the same slot.",
-    );
-  });
-
-  it("not_same_position fallback (negative branch)", () => {
-    const minGrid = makeGrid({
-      size: 3,
-      categories: [
-        {
-          name: "Shape",
-          values: ["Circle", "Square", "Triangle"],
-          noun: "shape",
-        },
-        { name: "Size", values: ["Small", "Medium", "Large"], noun: "size" },
-      ],
-      spatialWords: DEFAULT_CONFIG.spatialWords,
-      positionLabels: [
-        "the first house",
-        "the second house",
-        "the third house",
-      ],
-    });
-    const clue = renderClue(
-      { type: "not_same_position", a: "Circle", b: "Small" },
-      minGrid,
-    );
-    expect(clue.text).toBe(
-      "The circle shape and the small size are not in the same house.",
-    );
+    expect(() =>
+      renderClue({ type: "same_position", a: "Circle", b: "Small" }, minGrid),
+    ).toThrow("has no verb");
   });
 
   it("throws on empty positionNoun singular", () => {
