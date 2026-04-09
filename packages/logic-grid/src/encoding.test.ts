@@ -332,3 +332,223 @@ describe("encodeConstraint", () => {
     expect(decoded["Water"]).toBe(2);
   });
 });
+
+// Multi-axis encoder tests: exercise the rank-forbidding path on a
+// non-identity-pinned axis. Year is declared before Return so Year is the
+// first ordered category (identity-pinned), and Return is the second ordered
+// category (not pinned) — forcing the rank-forbidding path when constraints
+// reference "Return".
+describe("encodeConstraint on non-pinned ordered axis", () => {
+  const multiGrid = makeGrid({
+    size: 4,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+      {
+        name: "Year",
+        values: ["2020", "2021", "2022", "2023"],
+        noun: "fund",
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
+      },
+      {
+        name: "Return",
+        values: ["5%", "6%", "7%", "8%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+      },
+    ],
+  });
+  const returnValues = ["5%", "6%", "7%", "8%"];
+
+  /** Given a SAT solution, find `name`'s rank on the Return axis. */
+  function returnRank(decoded: Record<string, number>, name: string): number {
+    const p = decoded[name];
+    for (let k = 0; k < returnValues.length; k++) {
+      if (decoded[returnValues[k]] === p) return k;
+    }
+    throw new Error(`No Return value colocated with ${name}`);
+  }
+
+  it("before on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      expect(returnRank(decoded, "Alice")).toBeLessThan(
+        returnRank(decoded, "Bob"),
+      );
+    }
+  });
+
+  it("left_of on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      { type: "left_of", a: "Alice", b: "Bob", axis: "Return" },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      expect(returnRank(decoded, "Bob") - returnRank(decoded, "Alice")).toBe(1);
+    }
+  });
+
+  it("next_to on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      { type: "next_to", a: "Alice", b: "Bob", axis: "Return" },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const diff = Math.abs(
+        returnRank(decoded, "Alice") - returnRank(decoded, "Bob"),
+      );
+      expect(diff).toBe(1);
+    }
+  });
+
+  it("not_next_to on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      { type: "not_next_to", a: "Alice", b: "Bob", axis: "Return" },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const diff = Math.abs(
+        returnRank(decoded, "Alice") - returnRank(decoded, "Bob"),
+      );
+      expect(diff).not.toBe(1);
+    }
+  });
+
+  it("between on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      {
+        type: "between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "Return",
+      },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const a = returnRank(decoded, "Alice");
+      const m = returnRank(decoded, "Bob");
+      const c = returnRank(decoded, "Carol");
+      const lo = Math.min(a, c);
+      const hi = Math.max(a, c);
+      expect(m).toBeGreaterThan(lo);
+      expect(m).toBeLessThan(hi);
+    }
+  });
+
+  it("not_between on non-pinned axis", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      {
+        type: "not_between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "Return",
+      },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const a = returnRank(decoded, "Alice");
+      const m = returnRank(decoded, "Bob");
+      const c = returnRank(decoded, "Carol");
+      const lo = Math.min(a, c);
+      const hi = Math.max(a, c);
+      // Strictly between is forbidden; m may equal an outer or be outside.
+      expect(m <= lo || m >= hi).toBe(true);
+    }
+  });
+
+  it("exact_distance on non-pinned axis (rank steps)", () => {
+    const ctx = createContext(multiGrid);
+    const clauses = encodePuzzle(ctx, [
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const diff = Math.abs(
+        returnRank(decoded, "Alice") - returnRank(decoded, "Bob"),
+      );
+      expect(diff).toBe(2);
+    }
+  });
+
+  it("exact_distance on non-pinned axis with numericValues", () => {
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "Year",
+          values: ["2020", "2021", "2022", "2023"],
+          noun: "fund",
+          verb: ["was begun in", "was not begun in"],
+          ordered: true,
+        },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    const ctx = createContext(numGrid);
+    const clauses = encodePuzzle(ctx, [
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 7,
+        axis: "Return",
+      },
+    ]);
+    const solutions = solveAllSAT(clauses, 50);
+    expect(solutions.length).toBeGreaterThan(0);
+    const numVals = [3, 5, 8, 12];
+    for (const sol of solutions) {
+      const decoded = decodeSolution(ctx, sol);
+      const rankValues = ["3%", "5%", "8%", "12%"];
+      const rank = (name: string): number => {
+        const p = decoded[name];
+        for (let k = 0; k < rankValues.length; k++) {
+          if (decoded[rankValues[k]] === p) return k;
+        }
+        throw new Error(`No Return value colocated with ${name}`);
+      };
+      const diff = Math.abs(numVals[rank("Alice")] - numVals[rank("Bob")]);
+      expect(diff).toBe(7);
+    }
+  });
+});
