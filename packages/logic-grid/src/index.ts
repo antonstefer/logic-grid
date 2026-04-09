@@ -1,4 +1,5 @@
-export { generate, DEFAULT_CONFIG } from "./generator";
+export { generate } from "./generator";
+export { DEFAULT_CONFIG } from "./default-config";
 export { solve, hasUniqueSolution } from "./solver";
 export { classify } from "./difficulty";
 export { deduce } from "./deduce";

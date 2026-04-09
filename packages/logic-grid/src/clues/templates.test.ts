@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
 import { posPrep } from "../grid-utils";
-import { DEFAULT_CONFIG } from "../generator";
+import { DEFAULT_CONFIG } from "../default-config";
 import { makeGrid } from "../test-helpers";
 import type { Grid, SpatialWords } from "../types";
 
