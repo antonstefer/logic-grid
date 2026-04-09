@@ -35,24 +35,22 @@ function comparator(
   return grid.spatialWords.comparators?.[type];
 }
 
-/** Resolve a comparator value to a single string. */
+/**
+ * Resolve a symmetric comparator. Tuples on symmetric types are rejected
+ * by validateGrid in the generator, so we trust the type at render time.
+ */
 function symmetricComp(
   grid: Grid,
   type: OrderingComparatorType,
 ): string | undefined {
-  const c = comparator(grid, type);
-  if (Array.isArray(c)) {
-    throw new Error(
-      `Comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
-    );
-  }
-  return c;
+  return comparator(grid, type) as string | undefined;
 }
 
 /**
- * Pick the directional comparator phrase. For tuples, returns
- * `[subject, object, phrase]` accounting for the hash tiebreaker on equal
- * priorities. For string comparators, always uses constraint.a as subject.
+ * Pick the directional comparator phrase. For tuples, uses `ordered()` to
+ * decide which side becomes the subject (priority first, then hash tiebreaker)
+ * and selects the matching forward/reverse phrase. For string comparators,
+ * always uses constraint.a as subject (forward only).
  */
 function directionalComp(
   grid: Grid,

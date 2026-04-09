@@ -356,6 +356,30 @@ describe("validateThemeResult", () => {
     );
   });
 
+  it("rejects symmetric comparator as tuple", () => {
+    const r = validResult();
+    r.categories[1].orderingPhrases = {
+      comparators: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        next_to: ["fwd", "rev"] as any,
+      },
+    };
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining('comparator "next_to" is symmetric'),
+    );
+  });
+
+  it("accepts directional comparator as tuple", () => {
+    const r = validResult();
+    r.categories[1].orderingPhrases = {
+      comparators: {
+        before: ["has a lower X than", "has a higher X than"],
+      },
+    };
+    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
   it("rejects positionAdjective with isPosition", () => {
     const r = validResult();
     r.categories[1].isPosition = true;

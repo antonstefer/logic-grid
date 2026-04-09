@@ -673,22 +673,6 @@ describe("position category", () => {
     expect(bobCarol.text).toBe("Bob has a lower return than Carol.");
   });
 
-  it("throws when symmetric constraint has tuple comparator", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          next_to: ["adj fwd", "adj rev"],
-        },
-      },
-    };
-    expect(() =>
-      renderClue({ type: "next_to", a: "Alice", b: "Bob" }, g),
-    ).toThrow("symmetric");
-  });
-
   it("left_of with tuple comparator picks forward or reverse phrasing", () => {
     const g: Grid = {
       ...posGrid,

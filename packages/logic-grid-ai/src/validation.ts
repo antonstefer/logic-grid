@@ -151,6 +151,24 @@ export function validateThemeResult(
     ) {
       errors.push(`Category "${name}" orderingPhrases must be an object.`);
     }
+    // Symmetric comparators must be single strings, not [forward, reverse]
+    const symmetric = new Set([
+      "next_to",
+      "not_next_to",
+      "between",
+      "not_between",
+      "exact_distance",
+    ]);
+    const comps = cat.orderingPhrases?.comparators;
+    if (comps && typeof comps === "object") {
+      for (const [type, value] of Object.entries(comps)) {
+        if (Array.isArray(value) && symmetric.has(type)) {
+          errors.push(
+            `Category "${name}" comparator "${type}" is symmetric and must be a single string, not [forward, reverse].`,
+          );
+        }
+      }
+    }
 
     // valueSuffix / positionAdjective
     if (cat.valueSuffix !== undefined && typeof cat.valueSuffix !== "string") {

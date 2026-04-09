@@ -378,6 +378,60 @@ describe("generate", () => {
     ).toThrow("Position category");
   });
 
+  it("throws when more than one category is isPosition", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            isPosition: true,
+          },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["was in", "was not in"],
+            isPosition: true,
+          },
+        ],
+      }),
+    ).toThrow("At most one category can have isPosition");
+  });
+
+  it("throws when symmetric comparator is a tuple", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            isPosition: true,
+            orderingPhrases: {
+              comparators: {
+                next_to: ["fwd", "rev"],
+              },
+            },
+          },
+          {
+            name: "Activity",
+            values: ["Yoga", "Cardio", "Run"],
+            noun: "doer",
+            verb: ["does", "does not do"],
+          },
+        ],
+      }),
+    ).toThrow('comparator "next_to" is symmetric');
+  });
+
   it("throws when category has both isPosition and positionAdjective", () => {
     expect(() =>
       generate({

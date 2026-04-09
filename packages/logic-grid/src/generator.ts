@@ -20,6 +20,69 @@ import { DEFAULT_CONFIG } from "./default-config";
 
 const MAX_RETRIES = 100;
 
+const SYMMETRIC_COMPARATORS = new Set([
+  "next_to",
+  "not_next_to",
+  "between",
+  "not_between",
+  "exact_distance",
+]);
+
+function checkComparators(
+  scope: string,
+  comparators:
+    | NonNullable<NonNullable<Category["orderingPhrases"]>["comparators"]>
+    | undefined,
+): void {
+  if (!comparators) return;
+  for (const [type, value] of Object.entries(comparators)) {
+    if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
+      throw new RangeError(
+        `${scope} comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
+      );
+    }
+  }
+}
+
+/**
+ * Validate a fully constructed grid. Catches invariant violations regardless
+ * of how the grid was built (default config, custom categories, manual fields).
+ * Called automatically by buildGrid; templates.ts can rely on its invariants.
+ */
+function validateGrid(grid: Grid): void {
+  let positionCount = 0;
+  for (const c of grid.categories) {
+    if (c.isPosition) positionCount++;
+    if (c.numericValues) {
+      for (let i = 1; i < c.numericValues.length; i++) {
+        if (c.numericValues[i] <= c.numericValues[i - 1]) {
+          throw new RangeError(
+            `Category "${c.name}" numericValues must be in ascending order`,
+          );
+        }
+      }
+    }
+    if (c.isPosition && c.positionAdjective) {
+      throw new RangeError(
+        `Category "${c.name}" cannot be both isPosition and positionAdjective`,
+      );
+    }
+    if (c.noun !== "" && !c.verb) {
+      throw new RangeError(
+        `Category "${c.name}" requires a verb (only the person category may omit it)`,
+      );
+    }
+    if (c.isPosition && !c.verb) {
+      throw new RangeError(`Position category "${c.name}" requires a verb`);
+    }
+    checkComparators(`Category "${c.name}"`, c.orderingPhrases?.comparators);
+  }
+  if (positionCount > 1) {
+    throw new RangeError("At most one category can have isPosition: true");
+  }
+  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
+}
+
 /**
  * Generate a logic grid puzzle with a unique solution and minimal constraint set.
  * Throws if generation fails after 100 retries (e.g. impossible difficulty for grid size).
@@ -112,33 +175,6 @@ function buildGrid(
           `Category "${c.name}" has ${c.values.length} values but size is ${size}`,
         );
       }
-      if (c.numericValues) {
-        const nv = c.numericValues.slice(0, size);
-        for (let i = 1; i < nv.length; i++) {
-          if (nv[i] <= nv[i - 1]) {
-            throw new RangeError(
-              `Category "${c.name}" numericValues must be in ascending order`,
-            );
-          }
-        }
-      }
-      if (c.isPosition && c.positionAdjective) {
-        throw new RangeError(
-          `Category "${c.name}" cannot be both isPosition and positionAdjective`,
-        );
-      }
-      // Every non-person category needs a verb so same_position rendering
-      // doesn't fall through to the awkward "X and Y are in the same Z" form.
-      // Person category is identified by noun: "" (undefined is treated as bare).
-      const noun = c.noun ?? "";
-      if (noun !== "" && !c.verb) {
-        throw new RangeError(
-          `Category "${c.name}" requires a verb (only the person category may omit it)`,
-        );
-      }
-      if (c.isPosition && !c.verb) {
-        throw new RangeError(`Position category "${c.name}" requires a verb`);
-      }
     }
     categories = categoryNames.map((c) => {
       const noun = c.noun ?? "";
@@ -169,7 +205,7 @@ function buildGrid(
     options?.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
   const posCat = categories.find((c) => c.isPosition);
 
-  return {
+  const grid: Grid = {
     size,
     categories,
     positionNoun: posNoun,
@@ -180,8 +216,8 @@ function buildGrid(
           verb: ["is", "is not"],
           adjacency: "adjacent to",
           direction: ["before", "after"],
-          // Position categories require a verb (validated above), so the
-          // non-null assertion is safe.
+          // Position categories require a verb (validated by validateGrid),
+          // so the non-null assertion is safe.
           atPosition: posCat.verb!,
           comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,
@@ -194,6 +230,8 @@ function buildGrid(
           (_, i) => `the ${ORDINALS[i]} ${posNoun[0]}`,
         ),
   };
+  validateGrid(grid);
+  return grid;
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
