@@ -1,6 +1,8 @@
 import {
   generate,
   deduce,
+  findPositionCategory,
+  type Category,
   type Puzzle,
   type Difficulty,
   type DeductionStep,
@@ -22,13 +24,28 @@ export function createPuzzleState() {
   } | null>(null);
   let hintSteps = $state<DeductionStep[]>([]);
 
-  function newPuzzle(
-    size: number,
-    categories: number,
-    difficulty?: Difficulty,
-    theme?: string,
-    clueStyle?: string,
-  ) {
+  interface NewPuzzleOptions {
+    size: number;
+    categories: number;
+    difficulty?: Difficulty;
+    theme?: string;
+    clueStyle?: string;
+    customCategories?: Category[];
+    positionNoun?: [string, string];
+    positionPreposition?: string;
+  }
+
+  function newPuzzle(opts: NewPuzzleOptions) {
+    const {
+      size,
+      categories,
+      difficulty,
+      theme,
+      clueStyle,
+      customCategories,
+      positionNoun,
+      positionPreposition,
+    } = opts;
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
@@ -70,6 +87,9 @@ export function createPuzzleState() {
               categories,
               difficulty,
               seed: Date.now(),
+              categoryNames: customCategories,
+              positionNoun,
+              positionPreposition,
             });
           }
           if (clueStyle && puzzle) {
@@ -115,6 +135,17 @@ export function createPuzzleState() {
         grid = Array.from({ length: totalValues }, () =>
           Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
         );
+        // Pre-confirm position category (identity assignment, not a mystery)
+        const posCat = findPositionCategory(puzzle.grid);
+        if (posCat) {
+          const posCatIdx = puzzle.grid.categories.indexOf(posCat);
+          for (let vi = 0; vi < posCat.values.length; vi++) {
+            const valueIdx = getValueIndex(posCatIdx, vi);
+            for (let p = 0; p < puzzle.grid.size; p++) {
+              grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
+            }
+          }
+        }
         hintSteps = [];
         loading = false;
         loadingMessage = "Generating…";

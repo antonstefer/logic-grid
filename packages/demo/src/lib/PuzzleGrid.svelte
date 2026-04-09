@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Grid } from "logic-grid";
+  import { findPositionCategory, type Grid } from "logic-grid";
   import type { CellState } from "./puzzle-state.svelte";
 
   let {
@@ -16,6 +16,16 @@
     onEliminate: (valueIdx: number, position: number) => void;
   } = $props();
 
+  const posCat = $derived(findPositionCategory(puzzleGrid));
+
+  /** Categories to display as rows (excludes position category). */
+  const displayCategories = $derived(
+    puzzleGrid.categories
+      .map((cat, idx) => ({ cat, idx }))
+      .filter(({ cat }) => !cat.isPosition),
+  );
+
+  /** Compute the flat value index using the full categories array. */
   function getValueIndex(catIdx: number, valIdx: number): number {
     let offset = 0;
     for (let i = 0; i < catIdx; i++) {
@@ -84,18 +94,18 @@
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
-        <th class="position-noun-header" colspan={grid.size}>{grid.positionNoun?.[0] ?? "house"}</th>
+        <th class="position-noun-header" colspan={grid.size}>{posCat ? posCat.name : grid.positionNoun[1]}</th>
       </tr>
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
         {#each Array(grid.size) as _, p}
-          <th class="position-number">{p + 1}</th>
+          <th class="position-number">{posCat ? posCat.values[p] : p + 1}</th>
         {/each}
       </tr>
     </thead>
     <tbody>
-      {#each puzzleGrid.categories as cat, catIdx}
+      {#each displayCategories as { cat, idx: catIdx }}
         {#each cat.values as value, valIdx}
           {@const valueIdx = getValueIndex(catIdx, valIdx)}
           <tr class:category-first={valIdx === 0}>

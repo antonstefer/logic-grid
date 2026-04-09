@@ -1,25 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { propagateToFixpoint } from "./propagate";
 import { createState, getPossible } from "./state";
-import type { Grid, Constraint } from "../types";
+import { makeGrid } from "../test-helpers";
+import type { Constraint } from "../types";
 
-const grid4: Grid = {
+const grid4 = makeGrid({
   size: 4,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
     { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
   ],
-};
+});
 
-const grid5: Grid = {
+const grid5 = makeGrid({
   size: 5,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
     { name: "Color", values: ["Red", "Blue", "Green", "Yellow", "White"] },
   ],
-};
+});
 
-const grid7: Grid = {
+const grid7 = makeGrid({
   size: 7,
   categories: [
     { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G"] },
@@ -28,7 +29,7 @@ const grid7: Grid = {
       values: ["Red", "Blue", "Green", "Yellow", "White", "Black", "Purple"],
     },
   ],
-};
+});
 
 describe("propagateToFixpoint", () => {
   it("at_position pins value from fresh state", () => {
@@ -39,22 +40,22 @@ describe("propagateToFixpoint", () => {
     expect([...getPossible(state, "Red")]).toEqual([0]);
   });
 
-  it("same_house propagates via chain links", () => {
-    // Red pinned at 0, same_house(Red, Alice) + same_house(Red, Cat)
+  it("same_position propagates via chain links", () => {
+    // Red pinned at 0, same_position(Red, Alice) + same_position(Red, Cat)
     // → both Alice and Cat should be pinned at 0 via chain propagation.
-    const grid3cat: Grid = {
+    const grid3cat = makeGrid({
       size: 4,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
         { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
         { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird"] },
       ],
-    };
+    });
     const state = createState(grid3cat);
     propagateToFixpoint(state, [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "same_house", a: "Red", b: "Cat" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Red", b: "Cat" },
     ]);
     expect([...getPossible(state, "Alice")]).toEqual([0]);
     expect([...getPossible(state, "Cat")]).toEqual([0]);

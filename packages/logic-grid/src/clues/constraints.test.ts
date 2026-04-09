@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  sameHouse,
-  notSameHouse,
+  samePosition,
+  notSamePosition,
   nextTo,
   notNextTo,
   leftOf,
@@ -14,17 +14,17 @@ import {
 } from "./constraints";
 
 describe("constraint factories", () => {
-  it("sameHouse", () => {
-    expect(sameHouse("Red", "Cat")).toEqual({
-      type: "same_house",
+  it("samePosition", () => {
+    expect(samePosition("Red", "Cat")).toEqual({
+      type: "same_position",
       a: "Red",
       b: "Cat",
     });
   });
 
-  it("notSameHouse", () => {
-    expect(notSameHouse("Red", "Cat")).toEqual({
-      type: "not_same_house",
+  it("notSamePosition", () => {
+    expect(notSamePosition("Red", "Cat")).toEqual({
+      type: "not_same_position",
       a: "Red",
       b: "Cat",
     });

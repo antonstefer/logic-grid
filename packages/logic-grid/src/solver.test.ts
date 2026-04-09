@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { solve, hasUniqueSolution } from "./solver";
-import type { Grid, Constraint } from "./types";
+import { makeGrid } from "./test-helpers";
+import type { Constraint } from "./types";
 
 /**
  * 3x3 puzzle: 3 houses, 3 categories
@@ -18,21 +19,21 @@ import type { Grid, Constraint } from "./types";
  *   - Dog and Coffee share a house → Coffee=1
  *   - Tea is at position 0 (at_position) → Water=2
  */
-const grid3x3: Grid = {
+const grid3x3 = makeGrid({
   size: 3,
   categories: [
     { name: "Color", values: ["Red", "Blue", "Green"] },
     { name: "Pet", values: ["Cat", "Dog", "Fish"] },
     { name: "Drink", values: ["Tea", "Coffee", "Water"] },
   ],
-};
+});
 
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },
-  { type: "same_house", a: "Red", b: "Cat" },
+  { type: "same_position", a: "Red", b: "Cat" },
   { type: "left_of", a: "Blue", b: "Green" },
-  { type: "same_house", a: "Blue", b: "Dog" },
-  { type: "same_house", a: "Dog", b: "Coffee" },
+  { type: "same_position", a: "Blue", b: "Dog" },
+  { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "at_position", value: "Tea", position: 0 },
 ];
 
@@ -76,21 +77,21 @@ describe("solve", () => {
  *
  * Reasoning:
  *   1. Alice=0 (at_position)
- *   2. Alice=Red → Red=0 (same_house)
- *   3. Alice=Tea → Tea=0 (same_house)
+ *   2. Alice=Red → Red=0 (same_position)
+ *   3. Alice=Tea → Tea=0 (same_position)
  *   4. Bob next to Alice(0) → Bob=1 (only adjacent position)
- *   5. Dave=Yellow (same_house). Remaining positions for Carol,Dave: {2,3}
+ *   5. Dave=Yellow (same_position). Remaining positions for Carol,Dave: {2,3}
  *   6. left_of(Blue,Green): Blue can't be 0 (Red). Options: (1,2) or (2,3).
  *      If (2,3): Yellow would need pos 1, but Bob=1. Contradiction.
  *      So Blue=1, Green=2 → Yellow=3 → Dave=3, Carol=2
- *   7. Carol=Fish → Fish=2 (same_house)
+ *   7. Carol=Fish → Fish=2 (same_position)
  *   8. Milk=2 (at_position) → Carol drinks Milk
  *   9. left_of(Dog,Fish): Fish=2, so Dog=1
- *  10. Dog=Coffee → Coffee=1 (same_house)
- *  11. Alice≠Bird (not_same_house) → Bird≠0 → Bird=3, Cat=0
+ *  10. Dog=Coffee → Coffee=1 (same_position)
+ *  11. Alice≠Bird (not_same_position) → Bird≠0 → Bird=3, Cat=0
  *      Remaining: Water=3
  */
-const grid4x4: Grid = {
+const grid4x4 = makeGrid({
   size: 4,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
@@ -98,20 +99,20 @@ const grid4x4: Grid = {
     { name: "Pet", values: ["Cat", "Dog", "Fish", "Bird"] },
     { name: "Drink", values: ["Tea", "Coffee", "Milk", "Water"] },
   ],
-};
+});
 
 const puzzle4x4: Constraint[] = [
   { type: "at_position", value: "Alice", position: 0 },
-  { type: "same_house", a: "Alice", b: "Red" },
-  { type: "same_house", a: "Alice", b: "Tea" },
+  { type: "same_position", a: "Alice", b: "Red" },
+  { type: "same_position", a: "Alice", b: "Tea" },
   { type: "next_to", a: "Bob", b: "Alice" },
-  { type: "same_house", a: "Dave", b: "Yellow" },
+  { type: "same_position", a: "Dave", b: "Yellow" },
   { type: "left_of", a: "Blue", b: "Green" },
-  { type: "same_house", a: "Carol", b: "Fish" },
+  { type: "same_position", a: "Carol", b: "Fish" },
   { type: "at_position", value: "Milk", position: 2 },
-  { type: "same_house", a: "Dog", b: "Coffee" },
+  { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "left_of", a: "Dog", b: "Fish" },
-  { type: "not_same_house", a: "Alice", b: "Bird" },
+  { type: "not_same_position", a: "Alice", b: "Bird" },
 ];
 
 describe("solve 4x4", () => {

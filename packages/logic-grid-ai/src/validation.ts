@@ -34,6 +34,7 @@ export function validateThemeResult(
   const seenValues = new Map<string, string>();
   const seenNouns = new Set<string>();
   let personCount = 0;
+  let positionCount = 0;
 
   for (const cat of result.categories) {
     const name = cat.name ?? "";
@@ -113,6 +114,98 @@ export function validateThemeResult(
       } else if (cat.verb[0].trim() === "" || cat.verb[1].trim() === "") {
         errors.push(`Category "${cat.name}" has empty verb strings.`);
       }
+    } else if (cat.noun !== "" && cat.noun !== undefined) {
+      // Every non-person category must have a verb so same_position renders cleanly.
+      errors.push(
+        `Category "${cat.name}" requires a verb. Only the person category (noun: "") may omit it.`,
+      );
+    }
+
+    // Position category check
+    if (cat.isPosition) {
+      positionCount++;
+    }
+
+    // numericValues / orderingPhrases (valid on any category)
+    if (cat.numericValues !== undefined) {
+      if (
+        !Array.isArray(cat.numericValues) ||
+        cat.numericValues.length !== expectedSize
+      ) {
+        errors.push(
+          `Category "${name}" numericValues must have exactly ${expectedSize} numbers.`,
+        );
+      } else if (
+        cat.numericValues.some((v: unknown) => typeof v !== "number")
+      ) {
+        errors.push(`Category "${name}" numericValues must all be numbers.`);
+      } else if (cat.numericValues.some((v, i, a) => i > 0 && v <= a[i - 1])) {
+        errors.push(
+          `Category "${name}" numericValues must be in strictly ascending order.`,
+        );
+      }
+    }
+    if (
+      cat.orderingPhrases !== undefined &&
+      (cat.orderingPhrases === null || typeof cat.orderingPhrases !== "object")
+    ) {
+      errors.push(`Category "${name}" orderingPhrases must be an object.`);
+    }
+    // Symmetric comparators must be single strings, not [forward, reverse].
+    // NOTE: duplicated in logic-grid/src/generator.ts (validateGrid). The AI
+    // package can't depend on the core package, so we keep a parallel copy.
+    // Keep both lists in sync.
+    const symmetric = new Set([
+      "next_to",
+      "not_next_to",
+      "between",
+      "not_between",
+      "exact_distance",
+    ]);
+    const comps = cat.orderingPhrases?.comparators;
+    if (comps && typeof comps === "object") {
+      for (const [type, value] of Object.entries(comps)) {
+        if (Array.isArray(value) && symmetric.has(type)) {
+          errors.push(
+            `Category "${name}" comparator "${type}" is symmetric and must be a single string, not [forward, reverse].`,
+          );
+        }
+      }
+    }
+
+    // valueSuffix / positionAdjective
+    if (cat.valueSuffix !== undefined && typeof cat.valueSuffix !== "string") {
+      errors.push(`Category "${name}" valueSuffix must be a string.`);
+    }
+    if (cat.positionAdjective !== undefined) {
+      if (
+        !Array.isArray(cat.positionAdjective) ||
+        cat.positionAdjective.length !== 2 ||
+        typeof cat.positionAdjective[0] !== "string" ||
+        typeof cat.positionAdjective[1] !== "string"
+      ) {
+        errors.push(
+          `Category "${name}" positionAdjective must be a [positive, negative] string pair.`,
+        );
+      }
+      if (cat.valueSuffix === undefined) {
+        errors.push(
+          `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
+        );
+      }
+      if (cat.isPosition) {
+        errors.push(
+          `Category "${name}" cannot be both isPosition and positionAdjective. Position categories define the axis; positionAdjective categories describe it.`,
+        );
+      }
+    }
+
+    // subjectPriority
+    if (
+      cat.subjectPriority !== undefined &&
+      typeof cat.subjectPriority !== "number"
+    ) {
+      errors.push(`Category "${name}" subjectPriority must be a number.`);
     }
   }
 
@@ -123,6 +216,12 @@ export function validateThemeResult(
   } else if (personCount > 1) {
     errors.push(
       'Multiple person categories found. Exactly one must have noun: "".',
+    );
+  }
+
+  if (positionCount > 1) {
+    errors.push(
+      "Multiple position categories found. At most one category can have isPosition: true.",
     );
   }
 

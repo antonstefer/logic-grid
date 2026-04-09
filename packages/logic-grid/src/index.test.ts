@@ -4,11 +4,12 @@ import {
   solve,
   hasUniqueSolution,
   classify,
-  sameHouse,
+  samePosition,
   nextTo,
   leftOf,
   atPosition,
 } from "./index";
+import { makeGrid } from "./test-helpers";
 
 describe("public API integration", () => {
   it("generate → solve → verify solution matches", () => {
@@ -37,16 +38,16 @@ describe("public API integration", () => {
   });
 
   it("constraint factories work with solve", () => {
-    const grid = {
+    const grid = makeGrid({
       size: 3,
       categories: [
         { name: "Color", values: ["Red", "Blue", "Green"] },
         { name: "Pet", values: ["Cat", "Dog", "Fish"] },
       ],
-    };
+    });
     const constraints = [
       atPosition("Red", 0),
-      sameHouse("Red", "Cat"),
+      samePosition("Red", "Cat"),
       leftOf("Blue", "Green"),
     ];
     const solution = solve(constraints, grid);
@@ -64,7 +65,7 @@ describe("public API integration", () => {
   });
 
   it("all constraint factories are exported", () => {
-    expect(typeof sameHouse).toBe("function");
+    expect(typeof samePosition).toBe("function");
     expect(typeof nextTo).toBe("function");
     expect(typeof leftOf).toBe("function");
     expect(typeof atPosition).toBe("function");

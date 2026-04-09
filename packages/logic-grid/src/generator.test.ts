@@ -40,10 +40,10 @@ describe("generate", () => {
 
     for (const c of puzzle.constraints) {
       switch (c.type) {
-        case "same_house":
+        case "same_position":
           expect(posOf.get(c.a)).toBe(posOf.get(c.b));
           break;
-        case "not_same_house":
+        case "not_same_position":
           expect(posOf.get(c.a)).not.toBe(posOf.get(c.b));
           break;
         case "next_to":
@@ -164,6 +164,20 @@ describe("generate", () => {
     );
   });
 
+  it("custom positionPreposition derives atPosition without a position category", () => {
+    const puzzle = generate({
+      size: 3,
+      categories: 3,
+      seed: 1,
+      positionNoun: ["seat", "seats"],
+      positionPreposition: "at",
+    });
+    expect(puzzle.grid.spatialWords.atPosition).toEqual([
+      "lives at",
+      "does not live at",
+    ]);
+  });
+
   it("rejects empty positionPreposition", () => {
     expect(() => generate({ size: 3, positionPreposition: "" })).toThrow(
       RangeError,
@@ -174,9 +188,23 @@ describe("generate", () => {
     const puzzle = generate({
       size: 3,
       categoryNames: [
-        { name: "House", values: ["A", "B", "C"] },
-        { name: "Owner", values: ["X", "Y", "Z"] },
-        { name: "Car", values: ["BMW", "Audi", "VW"] },
+        {
+          name: "House",
+          values: ["A", "B", "C"],
+          noun: "house",
+          verb: ["lives in", "does not live in"],
+        },
+        {
+          name: "Owner",
+          values: ["X", "Y", "Z"],
+          noun: "",
+        },
+        {
+          name: "Car",
+          values: ["BMW", "Audi", "VW"],
+          noun: "driver",
+          verb: ["drives the", "does not drive the"],
+        },
       ],
     });
     expect(puzzle.grid.categories[0].name).toBe("House");
@@ -192,7 +220,7 @@ describe("generate", () => {
     }
     const atPos = types["at_position"] ?? 0;
     const relational =
-      (types["same_house"] ?? 0) +
+      (types["same_position"] ?? 0) +
       (types["next_to"] ?? 0) +
       (types["left_of"] ?? 0) +
       (types["between"] ?? 0);
@@ -213,8 +241,8 @@ describe("generate", () => {
     expect(puzzle.difficulty).toBe("easy");
     for (const c of puzzle.constraints) {
       expect([
-        "same_house",
-        "not_same_house",
+        "same_position",
+        "not_same_position",
         "at_position",
         "not_at_position",
       ]).toContain(c.type);
@@ -231,8 +259,8 @@ describe("generate", () => {
     expect(puzzle.difficulty).toBe("medium");
     for (const c of puzzle.constraints) {
       expect([
-        "same_house",
-        "not_same_house",
+        "same_position",
+        "not_same_position",
         "at_position",
         "not_at_position",
         "next_to",
@@ -316,5 +344,248 @@ describe("generate", () => {
         ],
       }),
     ).toThrow('Category "Color" has 2 values but size is 5');
+  });
+
+  it("throws when non-person category lacks verb", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "house",
+            // missing verb
+          },
+          {
+            name: "Pet",
+            values: ["Cat", "Dog", "Fish"],
+            noun: "owner",
+            verb: ["owns the", "does not own the"],
+          },
+        ],
+      }),
+    ).toThrow("requires a verb");
+  });
+
+  it("throws when position category lacks verb", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "", // person noun bypasses non-person check, but isPosition check should fire
+            isPosition: true,
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "house",
+            verb: ["lives in the", "does not live in the"],
+          },
+        ],
+      }),
+    ).toThrow("Position category");
+  });
+
+  it("throws when more than one category is isPosition", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            isPosition: true,
+          },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["was in", "was not in"],
+            isPosition: true,
+          },
+        ],
+      }),
+    ).toThrow("At most one category can have isPosition");
+  });
+
+  it("throws when symmetric comparator is a tuple", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            isPosition: true,
+            orderingPhrases: {
+              comparators: {
+                next_to: ["fwd", "rev"],
+              },
+            },
+          },
+          {
+            name: "Activity",
+            values: ["Yoga", "Cardio", "Run"],
+            noun: "doer",
+            verb: ["does", "does not do"],
+          },
+        ],
+      }),
+    ).toThrow('comparator "next_to" is symmetric');
+  });
+
+  it("throws when category has both isPosition and positionAdjective", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            isPosition: true,
+            valueSuffix: "slot",
+            positionAdjective: ["is", "is not"],
+          },
+          { name: "Color", values: ["Red", "Blue", "Green"] },
+        ],
+      }),
+    ).toThrow("cannot be both isPosition and positionAdjective");
+  });
+
+  it("throws when numericValues are not in ascending order", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            isPosition: true,
+            numericValues: [9, 7, 8],
+          },
+          { name: "Color", values: ["Red", "Blue", "Green"] },
+        ],
+      }),
+    ).toThrow("numericValues must be in ascending order");
+  });
+
+  it("non-equidistant numericValues produce value-based exact_distance", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 7,
+      categoryNames: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+          orderingPhrases: { unit: ["percentage point", "percentage points"] },
+        },
+        {
+          name: "Strategy",
+          values: ["Long", "Short", "Macro", "Quant"],
+          noun: "strategist",
+          verb: ["uses", "does not use"],
+        },
+      ],
+    });
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+
+    // Verify all exact_distance constraints use value-based distances (not positional)
+    const validValueDistances = new Set<number>();
+    const numVals = [3, 5, 8, 12];
+    for (let i = 0; i < numVals.length; i++) {
+      for (let j = i + 1; j < numVals.length; j++) {
+        validValueDistances.add(Math.abs(numVals[i] - numVals[j]));
+      }
+    }
+    for (const c of puzzle.constraints) {
+      if (c.type === "exact_distance") {
+        expect(validValueDistances.has(c.distance)).toBe(true);
+      }
+    }
+  });
+
+  it("position category gets identity assignment", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 42,
+      categoryNames: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: { before: "has a lower return than" },
+          },
+        },
+        {
+          name: "Strategy",
+          values: ["Long/Short", "Macro", "Quant", "Event"],
+          noun: "strategist",
+          verb: ["uses", "does not use"],
+        },
+      ],
+    });
+
+    // Position category should have identity mapping
+    const returnAssignment = puzzle.solution.find((a) => "6%" in a)!;
+    expect(returnAssignment["6%"]).toBe(0);
+    expect(returnAssignment["7%"]).toBe(1);
+    expect(returnAssignment["8%"]).toBe(2);
+    expect(returnAssignment["9%"]).toBe(3);
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+  });
+
+  it("position category is preserved in grid", () => {
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        {
+          name: "Time",
+          values: ["9am", "10am", "11am"],
+          noun: "slot",
+          verb: ["is at", "is not at"],
+          isPosition: true,
+        },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green"],
+          noun: "color",
+          verb: ["wears", "does not wear"],
+        },
+      ],
+    });
+
+    const posCat = puzzle.grid.categories.find((c) => c.isPosition);
+    expect(posCat).toBeDefined();
+    expect(posCat!.name).toBe("Time");
+    expect(posCat!.isPosition).toBe(true);
   });
 });

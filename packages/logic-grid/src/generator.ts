@@ -2,6 +2,7 @@ import type {
   Puzzle,
   GenerateOptions,
   Grid,
+  ComparatorMap,
   Solution,
   Constraint,
   Category,
@@ -15,88 +16,73 @@ import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-
-const DEFAULT_CATEGORIES: Category[] = [
-  {
-    name: "Name",
-    values: ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Hank"],
-  },
-  {
-    name: "Color",
-    values: [
-      "Red",
-      "Blue",
-      "Green",
-      "Yellow",
-      "White",
-      "Orange",
-      "Purple",
-      "Pink",
-    ],
-  },
-  {
-    name: "Pet",
-    values: [
-      "Cat",
-      "Dog",
-      "Fish",
-      "Bird",
-      "Rabbit",
-      "Turtle",
-      "Hamster",
-      "Snake",
-    ],
-  },
-  {
-    name: "Drink",
-    values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"],
-  },
-  {
-    name: "Food",
-    values: [
-      "Pizza",
-      "Pasta",
-      "Sushi",
-      "Tacos",
-      "Salad",
-      "Steak",
-      "Curry",
-      "Soup",
-    ],
-  },
-  {
-    name: "Hobby",
-    values: [
-      "Reading",
-      "Painting",
-      "Knitting",
-      "Gardening",
-      "Photography",
-      "Origami",
-      "Pottery",
-      "Woodwork",
-    ],
-  },
-  {
-    name: "Music",
-    values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"],
-  },
-  {
-    name: "Sport",
-    values: [
-      "Soccer",
-      "Tennis",
-      "Golf",
-      "Baseball",
-      "Rugby",
-      "Cricket",
-      "Hockey",
-      "Basketball",
-    ],
-  },
-];
+import { ORDINALS } from "./grid-utils";
+import { DEFAULT_CONFIG } from "./default-config";
 
 const MAX_RETRIES = 100;
+
+// Symmetric constraint types — comparators must be a single string, not a tuple.
+// NOTE: duplicated in logic-grid-ai/src/validation.ts so the AI retry loop can
+// catch this without depending on the core package. Keep both lists in sync.
+const SYMMETRIC_COMPARATORS = new Set([
+  "next_to",
+  "not_next_to",
+  "between",
+  "not_between",
+  "exact_distance",
+]);
+
+function checkComparators(
+  scope: string,
+  comparators: ComparatorMap | undefined,
+): void {
+  if (!comparators) return;
+  for (const [type, value] of Object.entries(comparators)) {
+    if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
+      throw new RangeError(
+        `${scope} comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
+      );
+    }
+  }
+}
+
+/**
+ * Validate per-category invariants. Called by buildGrid before constructing
+ * dependent fields (e.g. spatialWords.atPosition from posCat.verb), so
+ * downstream code can rely on these invariants.
+ */
+function validateCategories(categories: Category[]): void {
+  let positionCount = 0;
+  for (const c of categories) {
+    if (c.isPosition) positionCount++;
+    if (c.numericValues) {
+      for (let i = 1; i < c.numericValues.length; i++) {
+        if (c.numericValues[i] <= c.numericValues[i - 1]) {
+          throw new RangeError(
+            `Category "${c.name}" numericValues must be in ascending order`,
+          );
+        }
+      }
+    }
+    if (c.isPosition && c.positionAdjective) {
+      throw new RangeError(
+        `Category "${c.name}" cannot be both isPosition and positionAdjective`,
+      );
+    }
+    if (c.noun !== "" && !c.verb) {
+      throw new RangeError(
+        `Category "${c.name}" requires a verb (only the person category may omit it)`,
+      );
+    }
+    if (c.isPosition && !c.verb) {
+      throw new RangeError(`Position category "${c.name}" requires a verb`);
+    }
+    checkComparators(`Category "${c.name}"`, c.orderingPhrases?.comparators);
+  }
+  if (positionCount > 1) {
+    throw new RangeError("At most one category can have isPosition: true");
+  }
+}
 
 /**
  * Generate a logic grid puzzle with a unique solution and minimal constraint set.
@@ -191,29 +177,83 @@ function buildGrid(
         );
       }
     }
-    categories = categoryNames.map((c) => ({
-      name: c.name,
-      values: c.values.slice(0, size),
-      noun: c.noun,
-      verb: c.verb,
-    }));
+    categories = categoryNames.map((c) => {
+      const noun = c.noun ?? "";
+      // Default subjectPriority: 2 for person, 0 for everything else.
+      const subjectPriority = c.subjectPriority ?? (noun === "" ? 2 : 0);
+      return {
+        name: c.name,
+        values: c.values.slice(0, size),
+        noun,
+        verb: c.verb,
+        subjectPriority,
+        valueSuffix: c.valueSuffix,
+        positionAdjective: c.positionAdjective,
+        isPosition: c.isPosition,
+        numericValues: c.numericValues?.slice(0, size),
+        orderingPhrases: c.orderingPhrases,
+      };
+    });
   } else {
-    categories = DEFAULT_CATEGORIES.slice(0, numCategories).map((c) => ({
-      name: c.name,
+    categories = DEFAULT_CONFIG.categories.slice(0, numCategories).map((c) => ({
+      ...c,
       values: c.values.slice(0, size),
     }));
   }
 
-  return {
+  const posNoun = options?.positionNoun ?? DEFAULT_CONFIG.positionNoun;
+  const posPrep =
+    options?.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
+  const posCat = categories.find((c) => c.isPosition);
+
+  // Validate per-category invariants before constructing dependent fields.
+  validateCategories(categories);
+
+  const grid: Grid = {
     size,
     categories,
-    positionNoun: options?.positionNoun,
-    positionPreposition: options?.positionPreposition,
+    positionNoun: posNoun,
+    positionPreposition: posPrep,
+    spatialWords: posCat
+      ? {
+          ...DEFAULT_CONFIG.spatialWords,
+          verb: ["is", "is not"],
+          adjacency: "adjacent to",
+          direction: ["before", "after"],
+          atPosition: posCat.verb as [string, string],
+          comparators: posCat.orderingPhrases?.comparators,
+          distanceUnit: posCat.orderingPhrases?.unit,
+        }
+      : {
+          ...DEFAULT_CONFIG.spatialWords,
+          // Derive atPosition from positionPreposition so custom prepositions
+          // ("at" → "lives at") work without a position category.
+          atPosition: [
+            `${DEFAULT_CONFIG.spatialWords.verb[0]} ${posPrep}`,
+            `${DEFAULT_CONFIG.spatialWords.verb[1]} ${posPrep}`,
+          ],
+        },
+    positionLabels: posCat
+      ? posCat.values.slice()
+      : Array.from(
+          { length: size },
+          (_, i) => `the ${ORDINALS[i]} ${posNoun[0]}`,
+        ),
   };
+  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
+  return grid;
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
   return grid.categories.map((cat) => {
+    if (cat.isPosition) {
+      // Identity mapping: value[i] → position i
+      const assignment: Assignment = {};
+      for (let i = 0; i < cat.values.length; i++) {
+        assignment[cat.values[i]] = i;
+      }
+      return assignment;
+    }
     const positions = Array.from({ length: grid.size }, (_, i) => i);
     shuffle(positions, rng);
     const assignment: Assignment = {};
@@ -227,6 +267,9 @@ function randomSolution(grid: Grid, rng: () => number): Solution {
 function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const constraints: Constraint[] = [];
   const n = grid.size;
+
+  // Find position category index (if any)
+  const posCatIndex = grid.categories.findIndex((c) => c.isPosition);
 
   // Build indexed arrays for fast access (avoid Map lookups in hot loops)
   const allValues: string[] = [];
@@ -248,6 +291,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   let notSameCount = 0;
   let notNextCount = 0;
 
+  const numVals =
+    posCatIndex >= 0 ? grid.categories[posCatIndex].numericValues : undefined;
+
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
     const posA = posArr[i];
@@ -259,9 +305,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       const posB = posArr[j];
 
       if (posA === posB) {
-        constraints.push({ type: "same_house", a, b });
+        constraints.push({ type: "same_position", a, b });
       } else if (notSameCount < maxPerType) {
-        constraints.push({ type: "not_same_house", a, b });
+        constraints.push({ type: "not_same_position", a, b });
         notSameCount++;
       }
 
@@ -286,10 +332,21 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
         constraints.push({ type: "before", a: b, b: a });
       }
 
-      // exact_distance: for distances 2+ (distance 1 is next_to)
-      const dist = Math.abs(posA - posB);
-      if (dist >= 2) {
-        constraints.push({ type: "exact_distance", a, b, distance: dist });
+      // exact_distance: emit when meaningful (not redundant with other clue types).
+      if (numVals) {
+        // Value-based distance: emit any non-zero value gap. Even when positions
+        // are adjacent, the constraint is more specific than next_to (it pins
+        // the exact value pair, not just adjacency).
+        const valDist = Math.abs(numVals[posA] - numVals[posB]);
+        if (valDist > 0) {
+          constraints.push({ type: "exact_distance", a, b, distance: valDist });
+        }
+      } else {
+        // Position-based: distance 1 is exactly equivalent to next_to, skip it.
+        const dist = Math.abs(posA - posB);
+        if (dist >= 2) {
+          constraints.push({ type: "exact_distance", a, b, distance: dist });
+        }
       }
     }
   }
@@ -351,8 +408,11 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // Position constraints
+  // Position constraints (skip position category values — their assignments are trivially known)
+  const posCatValues =
+    posCatIndex >= 0 ? new Set(grid.categories[posCatIndex].values) : undefined;
   for (const [val, pos] of posOf) {
+    if (posCatValues?.has(val)) continue;
     constraints.push({ type: "at_position", value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
@@ -380,8 +440,8 @@ function filterByDifficulty(
 }
 
 // How many slots each type gets per round-robin cycle.
-// same_house gets 4 to ensure it dominates (~40% of final puzzle).
-const TYPE_SLOTS: Record<string, number> = { same_house: 4 };
+// same_position gets 4 to ensure it dominates (~40% of final puzzle).
+const TYPE_SLOTS: Record<string, number> = { same_position: 4 };
 
 interface IncSolverCtx {
   solver: IncrementalSolver;

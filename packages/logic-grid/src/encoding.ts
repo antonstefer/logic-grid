@@ -1,4 +1,5 @@
 import type { Constraint, Grid } from "./types";
+import { findPositionCategory } from "./grid-utils";
 
 /** Holds grid metadata needed to map values/positions to SAT variables. */
 export interface EncodingContext {
@@ -90,7 +91,7 @@ export function encodeConstraint(
   const n = ctx.numPositions;
 
   switch (constraint.type) {
-    case "same_house": {
+    case "same_position": {
       const { a, b } = constraint;
       const clauses: number[][] = [];
       for (let p = 0; p < n; p++) {
@@ -100,7 +101,7 @@ export function encodeConstraint(
       return clauses;
     }
 
-    case "not_same_house": {
+    case "not_same_position": {
       const { a, b } = constraint;
       const clauses: number[][] = [];
       for (let p = 0; p < n; p++) {
@@ -243,19 +244,50 @@ export function encodeConstraint(
     case "exact_distance": {
       const { a, b, distance } = constraint;
       const clauses: number[][] = [];
-      // If a at p, then b at p+distance or p-distance
-      for (let p = 0; p < n; p++) {
-        const clause: number[] = [-variable(ctx, a, p)];
-        if (p + distance < n) clause.push(variable(ctx, b, p + distance));
-        if (p - distance >= 0) clause.push(variable(ctx, b, p - distance));
-        clauses.push(clause);
-      }
-      // Symmetric: if b at p, then a at p+distance or p-distance
-      for (let p = 0; p < n; p++) {
-        const clause: number[] = [-variable(ctx, b, p)];
-        if (p + distance < n) clause.push(variable(ctx, a, p + distance));
-        if (p - distance >= 0) clause.push(variable(ctx, a, p - distance));
-        clauses.push(clause);
+      const numVals = findPositionCategory(ctx.grid)?.numericValues;
+
+      if (numVals) {
+        // Value-based distance: find position pairs where numeric values differ by distance
+        const validPairs: [number, number][] = [];
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            if (Math.abs(numVals[i] - numVals[j]) === distance) {
+              validPairs.push([i, j]);
+            }
+          }
+        }
+        // If a at p, b must be at one of the matching partner positions
+        for (let p = 0; p < n; p++) {
+          const clause: number[] = [-variable(ctx, a, p)];
+          for (const [p1, p2] of validPairs) {
+            if (p1 === p) clause.push(variable(ctx, b, p2));
+            if (p2 === p) clause.push(variable(ctx, b, p1));
+          }
+          clauses.push(clause);
+        }
+        // Symmetric
+        for (let p = 0; p < n; p++) {
+          const clause: number[] = [-variable(ctx, b, p)];
+          for (const [p1, p2] of validPairs) {
+            if (p1 === p) clause.push(variable(ctx, a, p2));
+            if (p2 === p) clause.push(variable(ctx, a, p1));
+          }
+          clauses.push(clause);
+        }
+      } else {
+        // Position-based distance (original behavior)
+        for (let p = 0; p < n; p++) {
+          const clause: number[] = [-variable(ctx, a, p)];
+          if (p + distance < n) clause.push(variable(ctx, b, p + distance));
+          if (p - distance >= 0) clause.push(variable(ctx, b, p - distance));
+          clauses.push(clause);
+        }
+        for (let p = 0; p < n; p++) {
+          const clause: number[] = [-variable(ctx, b, p)];
+          if (p + distance < n) clause.push(variable(ctx, a, p + distance));
+          if (p - distance >= 0) clause.push(variable(ctx, a, p - distance));
+          clauses.push(clause);
+        }
       }
       return clauses;
     }

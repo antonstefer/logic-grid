@@ -18,7 +18,7 @@ describe("buildNudgeText", () => {
   it("clue-based elimination uses technique template with target", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "same_house",
+        technique: "same_position",
         clueIndices: [2],
         eliminations: [{ value: "Alice", position: 0 }],
       }),
@@ -31,7 +31,7 @@ describe("buildNudgeText", () => {
   it("clue-based assignment uses placement phrasing", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "same_house",
+        technique: "same_position",
         clueIndices: [4],
         assignments: [{ value: "Dog", position: 1 }],
         eliminations: [{ value: "Dog", position: 0 }],
@@ -118,7 +118,7 @@ describe("buildNudgeText", () => {
   it("includes all assigned values in nudge text", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "same_house",
+        technique: "same_position",
         clueIndices: [1],
         assignments: [
           { value: "Alice", position: 0 },
@@ -134,7 +134,7 @@ describe("buildNudgeText", () => {
   it("includes all eliminated values in nudge text", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "not_same_house",
+        technique: "not_same_position",
         clueIndices: [0],
         eliminations: [
           { value: "Alice", position: 1 },
@@ -152,8 +152,8 @@ describe("buildNudgeText", () => {
     const techniques = [
       "direct",
       "elimination",
-      "same_house",
-      "not_same_house",
+      "same_position",
+      "not_same_position",
       "next_to",
       "not_next_to",
       "left_of",

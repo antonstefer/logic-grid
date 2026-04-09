@@ -1,5 +1,11 @@
 import type { Constraint, DeductionStep, DeductionTechnique } from "../types";
-import { ordinal, posNoun, posNounPlural, posPrep } from "../grid-utils";
+import {
+  ordinal,
+  posNoun,
+  posNounPlural,
+  posPrep,
+  findPositionCategory,
+} from "../grid-utils";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -34,10 +40,10 @@ export function tryConstraint(
       return tryAtPosition(state, constraint, ci);
     case "not_at_position":
       return tryNotAtPosition(state, constraint, ci);
-    case "same_house":
-      return trySameHouse(state, constraint, ci);
-    case "not_same_house":
-      return tryNotSameHouse(state, constraint, ci);
+    case "same_position":
+      return trySamePosition(state, constraint, ci);
+    case "not_same_position":
+      return tryNotSamePosition(state, constraint, ci);
     case "next_to":
       return tryNextTo(state, constraint, ci);
     case "not_next_to":
@@ -102,7 +108,7 @@ function tryNotAtPosition(
   );
 }
 
-function trySameHouse(
+function trySamePosition(
   state: DeduceState,
   c: { a: string; b: string },
   ci: number,
@@ -145,10 +151,10 @@ function trySameHouse(
   } else {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
   }
-  return step("same_house", [ci], elims, assigns, explanation);
+  return step("same_position", [ci], elims, assigns, explanation);
 }
 
-function tryNotSameHouse(
+function tryNotSamePosition(
   state: DeduceState,
   c: { a: string; b: string },
   ci: number,
@@ -181,7 +187,7 @@ function tryNotSameHouse(
       ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
       : "";
   return step(
-    "not_same_house",
+    "not_same_position",
     [ci],
     elims,
     assigns,
@@ -555,19 +561,39 @@ function tryExactDistance(
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
+  const numVals = findPositionCategory(state.grid)?.numericValues;
 
-  // For each possible position of a, check if any valid b position exists
-  for (const p of pa) {
-    const canB =
-      (p + c.distance < n && pb.has(p + c.distance)) ||
-      (p - c.distance >= 0 && pb.has(p - c.distance));
-    if (!canB) elims.push({ value: c.a, position: p });
-  }
-  for (const p of pb) {
-    const canA =
-      (p + c.distance < n && pa.has(p + c.distance)) ||
-      (p - c.distance >= 0 && pa.has(p - c.distance));
-    if (!canA) elims.push({ value: c.b, position: p });
+  if (numVals) {
+    // Value-based distance: compute valid partner positions from numeric values
+    const partnersOf = (p: number): number[] => {
+      const result: number[] = [];
+      for (let q = 0; q < n; q++) {
+        if (Math.abs(numVals[p] - numVals[q]) === c.distance) result.push(q);
+      }
+      return result;
+    };
+    for (const p of pa) {
+      if (!partnersOf(p).some((q) => pb.has(q)))
+        elims.push({ value: c.a, position: p });
+    }
+    for (const p of pb) {
+      if (!partnersOf(p).some((q) => pa.has(q)))
+        elims.push({ value: c.b, position: p });
+    }
+  } else {
+    // Position-based distance (original behavior)
+    for (const p of pa) {
+      const canB =
+        (p + c.distance < n && pb.has(p + c.distance)) ||
+        (p - c.distance >= 0 && pb.has(p - c.distance));
+      if (!canB) elims.push({ value: c.a, position: p });
+    }
+    for (const p of pb) {
+      const canA =
+        (p + c.distance < n && pa.has(p + c.distance)) ||
+        (p - c.distance >= 0 && pa.has(p - c.distance));
+      if (!canA) elims.push({ value: c.b, position: p });
+    }
   }
 
   const uniqueElims = dedup(elims);
@@ -575,6 +601,10 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
+  const unit = state.grid.spatialWords.distanceUnit;
+  const distLabel = unit
+    ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
+    : `${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)}`;
   // At least one value always has a description for supported grid sizes (3–8).
   const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
   const because = ` ${ctx}, so `;
@@ -583,6 +613,6 @@ function tryExactDistance(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${distLabel} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
   );
 }

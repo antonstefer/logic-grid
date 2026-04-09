@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { describeResult, describeKnown, createState } from "./state";
-import type { Grid } from "../types";
+import { makeGrid } from "../test-helpers";
 
-const defaultGrid: Grid = {
+const defaultGrid = makeGrid({
   size: 3,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol"] },
     { name: "Color", values: ["Red", "Blue", "Green"] },
   ],
-};
+});
 
-const seatGrid: Grid = {
+const seatGrid = makeGrid({
   size: 3,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol"] },
@@ -18,7 +18,7 @@ const seatGrid: Grid = {
   ],
   positionNoun: ["seat", "seats"],
   positionPreposition: "at",
-};
+});
 
 describe("describeResult", () => {
   it("uses default house/in when no custom noun", () => {

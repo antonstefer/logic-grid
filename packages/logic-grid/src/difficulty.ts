@@ -2,8 +2,8 @@ import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 import { deduce } from "./deduce";
 
 export const EASY_TYPES: Set<ConstraintType> = new Set([
-  "same_house",
-  "not_same_house",
+  "same_position",
+  "not_same_position",
   "at_position",
   "not_at_position",
 ]);

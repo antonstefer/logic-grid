@@ -1,14 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { deduce } from ".";
-import type { Grid, Constraint } from "../types";
+import { makeGrid } from "../test-helpers";
+import type { Constraint } from "../types";
 
-const grid: Grid = {
+const grid = makeGrid({
   size: 4,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
     { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
   ],
-};
+});
 
 describe("deduce structural techniques", () => {
   it("naked_single eliminates a pinned value's position from its category peers", () => {
@@ -62,13 +63,13 @@ describe("deduce structural techniques", () => {
 
   it("naked_triple eliminates positions from other values in category", () => {
     // Needs 5 values so hidden_single doesn't fire first
-    const grid5: Grid = {
+    const grid5 = makeGrid({
       size: 5,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
         { name: "Color", values: ["Red", "Blue", "Green", "Yellow", "White"] },
       ],
-    };
+    });
     // Red, Blue, Green restricted to {0,1,2}; Yellow and White still have all 5
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 3 },
@@ -91,7 +92,7 @@ describe("deduce structural techniques", () => {
   });
 
   it("hidden_pair restricts the two values exclusively reachable at two positions", () => {
-    const grid6: Grid = {
+    const grid6 = makeGrid({
       size: 6,
       categories: [
         {
@@ -103,7 +104,7 @@ describe("deduce structural techniques", () => {
           values: ["Red", "Blue", "Green", "Yellow", "White", "Black"],
         },
       ],
-    };
+    });
     // Red={0,1,2} and Blue={0,1,3} are the ONLY colors reachable at positions 0 or 1
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 3 },
@@ -133,7 +134,7 @@ describe("deduce structural techniques", () => {
     // 7-size grid: Red/Blue/Green each have one extra position outside {0,1,2},
     // while Yellow/White/Black/Purple are excluded from {0,1,2}.
     // Naked_triple doesn't fire first because no value has size ≤ 3.
-    const grid7: Grid = {
+    const grid7 = makeGrid({
       size: 7,
       categories: [
         { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G"] },
@@ -150,7 +151,7 @@ describe("deduce structural techniques", () => {
           ],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       // Red → {0,1,2,3}
       { type: "not_at_position", value: "Red", position: 4 },
@@ -186,12 +187,12 @@ describe("deduce structural techniques", () => {
     expect(step!.eliminations).toContainEqual({ value: "Green", position: 5 });
   });
 
-  it("same_house transitivity: A linked to M linked to B all reach same position", () => {
-    // same_house(Red, Alice) and same_house(Alice, Blue) handled by the iterative
+  it("same_position transitivity: A linked to M linked to B all reach same position", () => {
+    // same_position(Red, Alice) and same_position(Alice, Blue) handled by the iterative
     // constraint loop — no dedicated chain step needed.
     const constraints: Constraint[] = [
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "same_house", a: "Alice", b: "Blue" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Alice", b: "Blue" },
       { type: "at_position", value: "Red", position: 0 },
     ];
     const result = deduce(constraints, grid);
@@ -199,12 +200,12 @@ describe("deduce structural techniques", () => {
     expect(allAssigns).toContainEqual({ value: "Blue", position: 0 });
   });
 
-  it("not_same_house with same_house peer: exclusion propagates via direct constraints", () => {
-    // same_house(Red, Alice): co-located. not_same_house(Red, Bob): different houses.
-    // Alice pinned at 0 → Red at 0 (via same_house) → Bob not at 0 (via not_same_house).
+  it("not_same_position with same_position peer: exclusion propagates via direct constraints", () => {
+    // same_position(Red, Alice): co-located. not_same_position(Red, Bob): different houses.
+    // Alice pinned at 0 → Red at 0 (via same_position) → Bob not at 0 (via not_same_position).
     const constraints: Constraint[] = [
-      { type: "same_house", a: "Red", b: "Alice" },
-      { type: "not_same_house", a: "Red", b: "Bob" },
+      { type: "same_position", a: "Red", b: "Alice" },
+      { type: "not_same_position", a: "Red", b: "Bob" },
       { type: "at_position", value: "Alice", position: 0 },
     ];
     const result = deduce(constraints, grid);
@@ -214,19 +215,19 @@ describe("deduce structural techniques", () => {
 
   it("contradiction: rules out positions that would lead to an impossible state", () => {
     // Fixed constraint set that requires contradiction (3x3 grid)
-    const small: Grid = {
+    const small = makeGrid({
       size: 3,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol"] },
         { name: "Color", values: ["Red", "Blue", "Green"] },
         { name: "Pet", values: ["Cat", "Dog", "Fish"] },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_next_to", a: "Bob", b: "Green" },
       { type: "left_of", a: "Carol", b: "Blue" },
-      { type: "same_house", a: "Carol", b: "Fish" },
-      { type: "same_house", a: "Red", b: "Dog" },
+      { type: "same_position", a: "Carol", b: "Fish" },
+      { type: "same_position", a: "Red", b: "Dog" },
     ];
     const result = deduce(constraints, small);
     expect(result.complete).toBe(true);

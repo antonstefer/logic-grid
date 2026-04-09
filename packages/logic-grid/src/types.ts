@@ -1,21 +1,88 @@
+/** Custom comparator phrases for ordering constraints. */
+export type OrderingComparatorType =
+  | "left_of"
+  | "before"
+  | "next_to"
+  | "not_next_to"
+  | "between"
+  | "not_between"
+  | "exact_distance";
+
+/**
+ * Comparator phrase value. A plain string is forward-only ("a {phrase} b").
+ * A tuple `[forward, reverse]` lets the renderer alternate phrasing for
+ * directional constraints (`before`, `left_of`). Forward: "a {forward} b".
+ * Reverse: "b {reverse} a". E.g. `["has a lower return than", "has a higher return than"]`.
+ */
+export type ComparatorPhrase = string | [string, string];
+
+/** Map of constraint type → comparator phrase override. */
+export type ComparatorMap = Partial<
+  Record<OrderingComparatorType, ComparatorPhrase>
+>;
+
+/** Domain-specific phrasing for ordering constraints on a category. */
+export interface OrderingPhrases {
+  /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
+  unit?: [string, string];
+  /** Custom comparator phrases keyed by constraint type. */
+  comparators?: ComparatorMap;
+}
+
+/** Configurable words for composing ordering clue sentences. */
+export interface SpatialWords {
+  /** [positive, negative] verb. E.g. `["lives", "does not live"]` or `["is", "is not"]`. */
+  verb: [string, string];
+  /** Adjacency word for next_to / not_next_to. E.g. `"next to"` or `"adjacent to"`. */
+  adjacency: string;
+  /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
+  direction: [string, string];
+  /** Suffix for between / not_between, composed with verb. E.g. `"somewhere between"` → "lives somewhere between". */
+  between: string;
+  /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]` or `["has an appointment at", "does not have an appointment at"]`. */
+  atPosition: [string, string];
+  /** Spelled-out cardinal numbers for exact_distance. */
+  cardinals: string[];
+  /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
+  comparators?: ComparatorMap;
+  /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
+  distanceUnit?: [string, string];
+}
+
 /** A named group of values that occupy positions in the grid. */
 export interface Category {
   name: string;
   values: string[];
   /** Noun for clue phrases. `"owner"` → "the cat owner". Empty string = bare value ("Alice"). */
   noun?: string;
-  /** Verb phrases for same-house clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
+  /** Verb phrases for same-position clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
   verb?: [string, string];
+  /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
+  subjectPriority?: number;
+  /** Suffix appended to the value in object position. E.g. `"strategy"` → "the event-driven strategy", `"house"` → "red house". */
+  valueSuffix?: string;
+  /** When this category's values describe the position noun directly (e.g. Color → "The first house is red"), provide the [positive, negative] verb pair for at_position inversion. */
+  positionAdjective?: [string, string];
+  /** When true, this category defines position labels. Assignment is identity (value[i] → position i). Values appear verbatim in clues as position labels (e.g. "Alice has a return of 6%") — keep them short and self-explanatory. */
+  isPosition?: boolean;
+  /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length and be in ascending order. */
+  numericValues?: number[];
+  /** Domain-specific phrasing for ordering constraints. */
+  orderingPhrases?: OrderingPhrases;
 }
 
 /** The puzzle board: `size` positions and one or more categories. */
 export interface Grid {
   size: number;
   categories: Category[];
-  /** Singular and plural position noun, e.g. `["house", "houses"]`. Default: `["house", "houses"]`. */
-  positionNoun?: [string, string];
-  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". Default: `"in"`. */
-  positionPreposition?: string;
+  /** Singular and plural position noun, e.g. `["house", "houses"]`. */
+  positionNoun: [string, string];
+  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". */
+  positionPreposition: string;
+  /** Configurable words for composing ordering clue sentences. */
+  spatialWords: SpatialWords;
+  /** Human-readable position labels. E.g. `["the first house", ...]` or `["6%", "7%", ...]`. */
+  positionLabels: string[];
 }
 
 /** Maps each value name to its 0-indexed position. One per category. */
@@ -32,8 +99,8 @@ export type ConstraintType = Constraint["type"];
  * Positions are 0-indexed.
  */
 export type Constraint =
-  | { type: "same_house"; a: string; b: string }
-  | { type: "not_same_house"; a: string; b: string }
+  | { type: "same_position"; a: string; b: string }
+  | { type: "not_same_position"; a: string; b: string }
   | { type: "next_to"; a: string; b: string }
   | { type: "not_next_to"; a: string; b: string }
   | { type: "left_of"; a: string; b: string }
@@ -66,8 +133,8 @@ export interface Puzzle {
 export type DeductionTechnique =
   | "direct"
   | "elimination"
-  | "same_house"
-  | "not_same_house"
+  | "same_position"
+  | "not_same_position"
   | "next_to"
   | "not_next_to"
   | "left_of"

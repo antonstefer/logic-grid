@@ -1,25 +1,125 @@
 <script lang="ts">
-  import type { Difficulty } from "logic-grid";
+  import type { Category, Difficulty } from "logic-grid";
   import PuzzleGrid from "$lib/PuzzleGrid.svelte";
   import ClueList from "$lib/ClueList.svelte";
   import { createPuzzleState } from "$lib/puzzle-state.svelte";
 
   const puzzleState = createPuzzleState();
 
+  interface Preset {
+    label: string;
+    size: number;
+    categories: Category[];
+    positionNoun: [string, string];
+    positionPreposition: string;
+  }
+
+  const presets: Record<string, Preset> = {
+    "hedge-fund": {
+      label: "Hedge Fund Returns",
+      size: 4,
+      categories: [
+        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "", subjectPriority: 2 },
+        {
+          name: "YTD Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: {
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: [
+                "has the next lower return than",
+                "has the next higher return than",
+              ],
+              next_to: "has an adjacent return to",
+              not_next_to: "does not have an adjacent return to",
+              between: "has a return somewhere between",
+              not_between: "does not have a return between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses the", "does not use the"], valueSuffix: "strategy" },
+        { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", subjectPriority: 1, verb: ["is based in", "is not based in"] },
+      ],
+      positionNoun: ["fund", "funds"],
+      positionPreposition: "at",
+    },
+    "morning-schedule": {
+      label: "Morning Schedule",
+      size: 4,
+      categories: [
+        { name: "Person", values: ["Emma", "Liam", "Noah", "Olivia"], noun: "", subjectPriority: 2 },
+        {
+          name: "Time",
+          values: ["7am", "8am", "9am", "10am"],
+          noun: "slot",
+          verb: ["has an appointment at", "does not have an appointment at"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [7, 8, 9, 10],
+          orderingPhrases: {
+            unit: ["hour", "hours"],
+            comparators: {
+              before: [
+                "has an earlier appointment than",
+                "has a later appointment than",
+              ],
+              left_of: [
+                "has an appointment exactly one hour before",
+                "has an appointment exactly one hour after",
+              ],
+              next_to: "has an appointment within one hour of",
+              not_next_to: "does not have an appointment within one hour of",
+              between: "has an appointment somewhere between",
+              not_between: "does not have an appointment between",
+              exact_distance: "has an appointment exactly",
+            },
+          },
+        },
+        { name: "Activity", values: ["Dentist", "Barber", "Therapist", "Optician"], noun: "attendee", subjectPriority: 1, verb: ["visits the", "does not visit the"] },
+        { name: "Transport", values: ["Bus", "Bike", "Car", "Walk"], noun: "commuter", subjectPriority: 1, verb: ["takes the", "does not take the"] },
+      ],
+      positionNoun: ["slot", "slots"],
+      positionPreposition: "at",
+    },
+  };
+
   let size = $state(4);
   let categories = $state(4);
   let difficulty = $state<Difficulty | "any">("any");
   let theme = $state("");
   let clueStyle = $state("");
+  let preset = $state("none");
 
   function handleNewPuzzle() {
-    puzzleState.newPuzzle(
-      size,
-      categories,
-      difficulty === "any" ? undefined : difficulty,
-      theme.trim() || undefined,
-      clueStyle.trim() || undefined,
-    );
+    const p = presets[preset];
+    const diff = difficulty === "any" ? undefined : difficulty;
+    const style = clueStyle.trim() || undefined;
+    if (p) {
+      puzzleState.newPuzzle({
+        size: p.size,
+        categories: p.categories.length,
+        difficulty: diff,
+        clueStyle: style,
+        customCategories: p.categories,
+        positionNoun: p.positionNoun,
+        positionPreposition: p.positionPreposition,
+      });
+    } else {
+      puzzleState.newPuzzle({
+        size,
+        categories,
+        difficulty: diff,
+        theme: theme.trim() || undefined,
+        clueStyle: style,
+      });
+    }
   }
 
   // Generate initial puzzle
@@ -36,22 +136,34 @@
 
   <div class="controls">
     <label>
-      Size
-      <select bind:value={size}>
-        {#each [3, 4, 5, 6, 7, 8] as s}
-          <option value={s}>{s}</option>
+      Preset
+      <select bind:value={preset}>
+        <option value="none">Default</option>
+        {#each Object.entries(presets) as [key, p]}
+          <option value={key}>{p.label}</option>
         {/each}
       </select>
     </label>
 
-    <label>
-      Categories
-      <select bind:value={categories}>
-        {#each [3, 4, 5, 6, 7, 8] as c}
-          <option value={c}>{c}</option>
-        {/each}
-      </select>
-    </label>
+    {#if preset === "none"}
+      <label>
+        Size
+        <select bind:value={size}>
+          {#each [3, 4, 5, 6, 7, 8] as s}
+            <option value={s}>{s}</option>
+          {/each}
+        </select>
+      </label>
+
+      <label>
+        Categories
+        <select bind:value={categories}>
+          {#each [3, 4, 5, 6, 7, 8] as c}
+            <option value={c}>{c}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
 
     <label>
       Difficulty
@@ -64,10 +176,12 @@
       </select>
     </label>
 
-    <label>
-      Theme
-      <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
-    </label>
+    {#if preset === "none"}
+      <label>
+        Theme
+        <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
+      </label>
+    {/if}
 
     <label>
       Clue style

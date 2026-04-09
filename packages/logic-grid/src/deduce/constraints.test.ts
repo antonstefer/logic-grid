@@ -3,15 +3,25 @@ import { deduce } from ".";
 import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
-import type { Grid, Constraint } from "../types";
+import { makeGrid } from "../test-helpers";
+import type { Constraint, SpatialWords } from "../types";
 
-const grid: Grid = {
+const POSITIONAL_WORDS: SpatialWords = {
+  verb: ["is", "is not"],
+  adjacency: "adjacent to",
+  direction: ["before", "after"],
+  between: "somewhere between",
+  atPosition: ["is at", "is not at"],
+  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
+};
+
+const grid = makeGrid({
   size: 4,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
     { name: "Color", values: ["Red", "Blue", "Green", "Yellow"] },
   ],
-};
+});
 
 describe("deduce constraint types", () => {
   it("direct: at_position pins the value", () => {
@@ -37,24 +47,24 @@ describe("deduce constraint types", () => {
     expect(assigns).toContainEqual({ value: "Alice", position: 3 });
   });
 
-  it("same_house intersects possible positions", () => {
+  it("same_position intersects possible positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "same_house", a: "Red", b: "Alice" },
+      { type: "same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "same_house");
+    const step = result.steps.find((s) => s.technique === "same_position");
     expect(step).toBeDefined();
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 0 });
   });
 
-  it("not_same_house eliminates when one value is pinned", () => {
+  it("not_same_position eliminates when one value is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "not_same_house", a: "Red", b: "Alice" },
+      { type: "not_same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "not_same_house");
+    const step = result.steps.find((s) => s.technique === "not_same_position");
     expect(step).toBeDefined();
     expect(step!.eliminations).toContainEqual({ value: "Alice", position: 0 });
   });
@@ -113,7 +123,7 @@ describe("deduce constraint types", () => {
   it("next_to arc-consistency: no known context in large grid", () => {
     // Blue={0,...,4}, Red={0,...,7}. Red at 6,7 have no Blue neighbor → eliminated.
     // Both retain > 3 positions so describeKnown returns "" for both.
-    const grid8: Grid = {
+    const grid8 = makeGrid({
       size: 8,
       categories: [
         { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
@@ -131,7 +141,7 @@ describe("deduce constraint types", () => {
           ],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 5 },
       { type: "not_at_position", value: "Blue", position: 6 },
@@ -170,7 +180,7 @@ describe("deduce constraint types", () => {
   it("left_of arc-consistency: no known context in large grid", () => {
     // Blue={3,...,7}, Red={0,...,7}. left_of(Red,Blue): Red at 7 has no Blue > 7 → eliminated.
     // Both retain > 3 positions so describeKnown returns "" for both.
-    const grid8: Grid = {
+    const grid8 = makeGrid({
       size: 8,
       categories: [
         { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
@@ -188,7 +198,7 @@ describe("deduce constraint types", () => {
           ],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
@@ -203,7 +213,7 @@ describe("deduce constraint types", () => {
   it("before arc-consistency: no known context in large grid", () => {
     // Blue={3,...,7}, Red={0,...,7}. before(Red,Blue): Red at 7 has no Blue > 7 → eliminated.
     // Both retain > 3 positions so describeKnown returns "" for both.
-    const grid8: Grid = {
+    const grid8 = makeGrid({
       size: 8,
       categories: [
         { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
@@ -221,7 +231,7 @@ describe("deduce constraint types", () => {
           ],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
@@ -291,7 +301,7 @@ describe("deduce constraint types", () => {
   it("exact_distance arc-consistency: eliminates when both values have many positions", () => {
     // distance=5 in a size-8 grid: Red and Blue each lose positions 3 and 4
     // (no valid partner at those positions).
-    const grid8: Grid = {
+    const grid8 = makeGrid({
       size: 8,
       categories: [
         { name: "Name", values: ["A", "B", "C", "D", "E", "F", "G", "H"] },
@@ -309,7 +319,7 @@ describe("deduce constraint types", () => {
           ],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "exact_distance", a: "Red", b: "Blue", distance: 5 },
     ];
@@ -331,6 +341,64 @@ describe("deduce constraint types", () => {
     expect(step!.assignments).toContainEqual({ value: "Alice", position: 2 });
   });
 
+  it("exact_distance with non-equidistant numericValues uses value-based partners", () => {
+    // numericValues [3, 5, 8, 12] — only positions (0,1) have value gap 2.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    // Alice pinned to position 0; exact_distance 2 means Alice and Bob must be
+    // at positions (0,1) — so Bob is at position 1.
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+    ];
+    const result = deduce(constraints, numGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.assignments).toContainEqual({ value: "Bob", position: 1 });
+  });
+
+  it("exact_distance with non-equidistant numericValues rules out impossible distances", () => {
+    // No pair has value gap 6 with [3, 5, 8, 12], so distance 6 is unsatisfiable.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          isPosition: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 6 },
+    ];
+    const result = deduce(constraints, numGrid);
+    // Bob has no valid position; this should be detected as inconsistent
+    // (all positions eliminated for Bob).
+    const allElims = result.steps.flatMap((s) => s.eliminations);
+    const bobElims = allElims.filter((e) => e.value === "Bob").length;
+    expect(bobElims).toBeGreaterThan(0);
+  });
+
   it("exact_distance distance=1 explanation uses singular noun", () => {
     // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
     const constraints: Constraint[] = [
@@ -344,14 +412,78 @@ describe("deduce constraint types", () => {
     expect(step!.explanation).toContain("1 house apart");
   });
 
+  it("exact_distance explanation uses unit from position category", () => {
+    const unitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+          },
+        },
+      ],
+      spatialWords: {
+        ...POSITIONAL_WORDS,
+        distanceUnit: ["percentage point", "percentage points"],
+      },
+      positionLabels: ["6%", "7%", "8%", "9%"],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+    ];
+    const result = deduce(constraints, unitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 percentage points apart");
+  });
+
+  it("exact_distance explanation uses singular unit", () => {
+    const unitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          isPosition: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+          },
+        },
+      ],
+      spatialWords: {
+        ...POSITIONAL_WORDS,
+        distanceUnit: ["percentage point", "percentage points"],
+      },
+      positionLabels: ["6%", "7%", "8%", "9%"],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
+    ];
+    const result = deduce(constraints, unitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("1 percentage point apart");
+  });
+
   it("between constrains middle position", () => {
-    const grid5: Grid = {
+    const grid5 = makeGrid({
       size: 5,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
         { name: "Color", values: ["Red", "Blue", "Green", "Yellow", "White"] },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 4 },
@@ -387,7 +519,7 @@ describe("deduce constraint types", () => {
   it("between arc-consistency: no known context when all three values have many positions", () => {
     // Red={0,1,2,3}, Blue={2,3,4,5}: Alice at 0 or 5 has no valid outer pair.
     // All three values have 4 positions (> 3) so describeKnown returns "" for all.
-    const grid6: Grid = {
+    const grid6 = makeGrid({
       size: 6,
       categories: [
         {
@@ -399,7 +531,7 @@ describe("deduce constraint types", () => {
           values: ["Red", "Blue", "Green", "Yellow", "White", "Black"],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 4 },
       { type: "not_at_position", value: "Red", position: 5 },
@@ -466,7 +598,7 @@ describe("deduce constraint types", () => {
   it("not_between arc-consistency: eliminates middle when all outers are on opposite sides", () => {
     // Red={0,1}, Blue={3,4}: neither pinned. Alice at 2: all Red < 2 and all Blue > 2
     // → always between → eliminated.
-    const grid5: Grid = {
+    const grid5 = makeGrid({
       size: 5,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
@@ -475,7 +607,7 @@ describe("deduce constraint types", () => {
           values: ["Red", "Blue", "Green", "Yellow", "White"],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 2 },
       { type: "not_at_position", value: "Red", position: 3 },
@@ -493,7 +625,7 @@ describe("deduce constraint types", () => {
 
   it("not_between arc-consistency: mirror case with outers swapped", () => {
     // Red={3,4}, Blue={0,1}: Alice at 2 is always between (Blue left, Red right) → eliminated.
-    const grid5: Grid = {
+    const grid5 = makeGrid({
       size: 5,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
@@ -502,7 +634,7 @@ describe("deduce constraint types", () => {
           values: ["Red", "Blue", "Green", "Yellow", "White"],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Red", position: 1 },
@@ -561,7 +693,7 @@ describe("deduce constraint types", () => {
     // outer2=Blue pinned at 0, outer1=Red has {2,3,4,5} (4 positions, no description).
     // Alice at 1 is always between pinnedBlue(0) and minRed(2) → eliminated.
     // knownO1="" (Red > 3 positions) so knownO1||knownO2 uses knownO2.
-    const grid6: Grid = {
+    const grid6 = makeGrid({
       size: 6,
       categories: [
         {
@@ -573,7 +705,7 @@ describe("deduce constraint types", () => {
           values: ["Red", "Blue", "Green", "Yellow", "White", "Black"],
         },
       ],
-    };
+    });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Red", position: 0 },
