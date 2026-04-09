@@ -337,6 +337,37 @@ describe("validateThemeResult", () => {
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
 
+  it("rejects non-ascending numericValues", () => {
+    const r = validResult();
+    r.categories[1].numericValues = [3, 1, 2];
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("strictly ascending"),
+    );
+  });
+
+  it("rejects equal adjacent numericValues", () => {
+    const r = validResult();
+    r.categories[1].numericValues = [1, 1, 2];
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("strictly ascending"),
+    );
+  });
+
+  it("rejects positionAdjective with isPosition", () => {
+    const r = validResult();
+    r.categories[1].isPosition = true;
+    r.categories[1].valueSuffix = "house";
+    r.categories[1].positionAdjective = ["is", "is not"];
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining(
+        "cannot be both isPosition and positionAdjective",
+      ),
+    );
+  });
+
   it("rejects non-number subjectPriority", () => {
     const r = validResult();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment

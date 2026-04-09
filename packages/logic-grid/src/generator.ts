@@ -276,6 +276,11 @@ function buildGrid(
           }
         }
       }
+      if (c.isPosition && c.positionAdjective) {
+        throw new RangeError(
+          `Category "${c.name}" cannot be both isPosition and positionAdjective`,
+        );
+      }
     }
     categories = categoryNames.map((c) => ({
       name: c.name,

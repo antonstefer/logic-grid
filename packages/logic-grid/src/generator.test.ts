@@ -318,6 +318,25 @@ describe("generate", () => {
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
 
+  it("throws when category has both isPosition and positionAdjective", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Time",
+            values: ["7am", "8am", "9am"],
+            isPosition: true,
+            valueSuffix: "slot",
+            positionAdjective: ["is", "is not"],
+          },
+          { name: "Color", values: ["Red", "Blue", "Green"] },
+        ],
+      }),
+    ).toThrow("cannot be both isPosition and positionAdjective");
+  });
+
   it("throws when numericValues are not in ascending order", () => {
     expect(() =>
       generate({

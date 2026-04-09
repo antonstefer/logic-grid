@@ -134,6 +134,10 @@ export function validateThemeResult(
         cat.numericValues.some((v: unknown) => typeof v !== "number")
       ) {
         errors.push(`Category "${name}" numericValues must all be numbers.`);
+      } else if (cat.numericValues.some((v, i, a) => i > 0 && v <= a[i - 1])) {
+        errors.push(
+          `Category "${name}" numericValues must be in strictly ascending order.`,
+        );
       }
     }
     if (
@@ -161,6 +165,11 @@ export function validateThemeResult(
       if (cat.valueSuffix === undefined) {
         errors.push(
           `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
+        );
+      }
+      if (cat.isPosition) {
+        errors.push(
+          `Category "${name}" cannot be both isPosition and positionAdjective. Position categories define the axis; positionAdjective categories describe it.`,
         );
       }
     }
