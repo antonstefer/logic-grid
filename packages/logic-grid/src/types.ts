@@ -65,7 +65,7 @@ export interface Category {
   positionAdjective?: [string, string];
   /** When true, this category defines position labels. Assignment is identity (value[i] → position i). Values appear verbatim in clues as position labels (e.g. "Alice has a return of 6%") — keep them short and self-explanatory. */
   isPosition?: boolean;
-  /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length. */
+  /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length and be in ascending order. */
   numericValues?: number[];
   /** Domain-specific phrasing for ordering constraints. */
   orderingPhrases?: OrderingPhrases;
