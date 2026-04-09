@@ -154,9 +154,11 @@ The position noun labels ordered slots. Default ["house", "houses"] with preposi
 Mark ONE category isPosition: true to define the positional axis. Its values ARE the positions (sorted). Use this when the theme has a natural numeric ordering (returns, times, years, prices). The position category should also have:
 - noun, verb (used for at_position rendering)
 - subjectPriority: -1 (always object)
-- numericValues: ascending numbers matching the values
+- numericValues: strictly ascending numbers matching the values
 - orderingPhrases.unit: [singular, plural] for distance clues
-- orderingPhrases.comparators: full-phrase overrides describing the positional ordering. Apply to ALL ordering clues in the puzzle, not just clues involving position values.
+- orderingPhrases.comparators: full-phrase overrides describing the positional ordering. **You MUST set ALL of these keys**: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. They apply to ALL ordering clues in the puzzle (Manager↔Strategy, City↔Strategy, etc.), not just clues involving position values. Missing keys fall through to generic "is somewhere before / adjacent to / directly before" wording, which sounds wrong in a domain like returns.
+- For \`left_of\`: this means "immediately preceding in the ordering". Phrase it without assuming equidistant gaps (avoid "exactly one X less than" unless your numericValues actually are equidistant).
+- For \`exact_distance\`: this is the verb prefix that goes BEFORE the distance number. E.g. \`"is exactly"\` produces "Alice is exactly 3 percentage points from Bob." Use \`"has a return exactly"\` if you want "Alice has a return exactly 3 percentage points from Bob."
 
 ## Examples
 
@@ -180,7 +182,7 @@ For a "hedge fund" theme:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
-    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "next_to": "has an adjacent return to", "between": "has a return between", "exact_distance": "is exactly" } } },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "left_of": "has the next lower return after", "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
