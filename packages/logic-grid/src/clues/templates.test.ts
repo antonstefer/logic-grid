@@ -667,15 +667,9 @@ describe("position category", () => {
       },
     };
     // Hash tiebreaker: Alice+Bob → reverse, Bob+Carol → forward.
-    const aliceBob = renderClue(
-      { type: "before", a: "Alice", b: "Bob" },
-      g,
-    );
+    const aliceBob = renderClue({ type: "before", a: "Alice", b: "Bob" }, g);
     expect(aliceBob.text).toBe("Bob has a higher return than Alice.");
-    const bobCarol = renderClue(
-      { type: "before", a: "Bob", b: "Carol" },
-      g,
-    );
+    const bobCarol = renderClue({ type: "before", a: "Bob", b: "Carol" }, g);
     expect(bobCarol.text).toBe("Bob has a lower return than Carol.");
   });
 
