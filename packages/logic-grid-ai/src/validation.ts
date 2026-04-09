@@ -151,7 +151,10 @@ export function validateThemeResult(
     ) {
       errors.push(`Category "${name}" orderingPhrases must be an object.`);
     }
-    // Symmetric comparators must be single strings, not [forward, reverse]
+    // Symmetric comparators must be single strings, not [forward, reverse].
+    // NOTE: duplicated in logic-grid/src/generator.ts (validateGrid). The AI
+    // package can't depend on the core package, so we keep a parallel copy.
+    // Keep both lists in sync.
     const symmetric = new Set([
       "next_to",
       "not_next_to",

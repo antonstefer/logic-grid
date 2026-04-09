@@ -16,12 +16,17 @@ export type OrderingComparatorType =
  */
 export type ComparatorPhrase = string | [string, string];
 
+/** Map of constraint type → comparator phrase override. */
+export type ComparatorMap = Partial<
+  Record<OrderingComparatorType, ComparatorPhrase>
+>;
+
 /** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {
   /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
   unit?: [string, string];
   /** Custom comparator phrases keyed by constraint type. */
-  comparators?: Partial<Record<OrderingComparatorType, ComparatorPhrase>>;
+  comparators?: ComparatorMap;
 }
 
 /** Configurable words for composing ordering clue sentences. */
@@ -39,7 +44,7 @@ export interface SpatialWords {
   /** Spelled-out cardinal numbers for exact_distance. */
   cardinals: string[];
   /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
-  comparators?: Partial<Record<OrderingComparatorType, ComparatorPhrase>>;
+  comparators?: ComparatorMap;
   /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
   distanceUnit?: [string, string];
 }

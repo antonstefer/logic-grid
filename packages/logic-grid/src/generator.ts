@@ -2,6 +2,7 @@ import type {
   Puzzle,
   GenerateOptions,
   Grid,
+  ComparatorMap,
   Solution,
   Constraint,
   Category,
@@ -20,6 +21,9 @@ import { DEFAULT_CONFIG } from "./default-config";
 
 const MAX_RETRIES = 100;
 
+// Symmetric constraint types — comparators must be a single string, not a tuple.
+// NOTE: duplicated in logic-grid-ai/src/validation.ts so the AI retry loop can
+// catch this without depending on the core package. Keep both lists in sync.
 const SYMMETRIC_COMPARATORS = new Set([
   "next_to",
   "not_next_to",
@@ -30,9 +34,7 @@ const SYMMETRIC_COMPARATORS = new Set([
 
 function checkComparators(
   scope: string,
-  comparators:
-    | NonNullable<NonNullable<Category["orderingPhrases"]>["comparators"]>
-    | undefined,
+  comparators: ComparatorMap | undefined,
 ): void {
   if (!comparators) return;
   for (const [type, value] of Object.entries(comparators)) {

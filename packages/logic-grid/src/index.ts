@@ -25,6 +25,8 @@ export type {
   Category,
   OrderingPhrases,
   OrderingComparatorType,
+  ComparatorPhrase,
+  ComparatorMap,
   SpatialWords,
   Grid,
   Assignment,
