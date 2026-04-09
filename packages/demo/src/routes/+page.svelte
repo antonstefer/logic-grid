@@ -113,8 +113,7 @@
     }
   }
 
-  // Generate initial puzzle with hedge fund preset to showcase position categories
-  preset = "hedge-fund";
+  // Generate initial puzzle
   handleNewPuzzle();
 </script>
 
