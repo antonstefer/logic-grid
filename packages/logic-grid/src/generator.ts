@@ -180,6 +180,8 @@ function buildGrid(
           verb: ["is", "is not"],
           adjacency: "adjacent to",
           direction: ["before", "after"],
+          // Position categories require a verb (validated above), so the
+          // non-null assertion is safe.
           atPosition: posCat.verb!,
           comparators: posCat.orderingPhrases?.comparators,
           distanceUnit: posCat.orderingPhrases?.unit,

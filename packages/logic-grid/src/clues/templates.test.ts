@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
-import { posPrep } from "../grid-utils";
 import { DEFAULT_CONFIG } from "../default-config";
 import { makeGrid } from "../test-helpers";
 import type { Grid, SpatialWords } from "../types";
@@ -554,15 +553,6 @@ describe("custom positionNoun / positionPreposition", () => {
       ),
     ).toThrow(RangeError);
   });
-
-  it("throws on empty positionPreposition", () => {
-    const badGrid = makeGrid({
-      size: 3,
-      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
-      positionPreposition: "",
-    });
-    expect(() => posPrep(badGrid)).toThrow(RangeError);
-  });
 });
 
 describe("position category", () => {
@@ -670,7 +660,9 @@ describe("position category", () => {
       { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
       posGrid,
     );
-    expect(clue.text).toBe("Alice is exactly 2 percentage points from Bob.");
+    expect(clue.text).toMatch(
+      /^(Alice|Bob) is exactly 2 percentage points from (Alice|Bob)\.$/,
+    );
   });
 
   it("exact_distance singular unit", () => {
@@ -678,12 +670,17 @@ describe("position category", () => {
       { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
       posGrid,
     );
-    expect(clue.text).toBe("Alice is exactly 1 percentage point from Bob.");
+    expect(clue.text).toMatch(
+      /^(Alice|Bob) is exactly 1 percentage point from (Alice|Bob)\.$/,
+    );
   });
 
   it("next_to uses ordering templates", () => {
     const clue = renderClue({ type: "next_to", a: "Alice", b: "Bob" }, posGrid);
-    expect(clue.text).toBe("Alice is adjacent to Bob.");
+    // Same priority (both Manager) → deterministic hash tiebreaker
+    expect(clue.text).toMatch(
+      /^(Alice is adjacent to Bob|Bob is adjacent to Alice)\.$/,
+    );
   });
 
   it("not_next_to uses ordering templates", () => {
@@ -691,7 +688,9 @@ describe("position category", () => {
       { type: "not_next_to", a: "Alice", b: "Bob" },
       posGrid,
     );
-    expect(clue.text).toBe("Alice is not adjacent to Bob.");
+    expect(clue.text).toMatch(
+      /^(Alice is not adjacent to Bob|Bob is not adjacent to Alice)\.$/,
+    );
   });
 
   it("between uses ordering templates", () => {

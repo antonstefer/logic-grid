@@ -35,11 +35,23 @@ function comparator(
   return grid.spatialWords.comparators?.[type];
 }
 
-/** Return [subject, object] ordered by subjectPriority (higher first). */
+/**
+ * Return [subject, object] ordered by subjectPriority (higher first). Ties are
+ * broken by a deterministic hash so the same constraint pair always renders
+ * the same way, but different pairs vary across left/right phrasings.
+ */
 function ordered(a: string, b: string, grid: Grid): [string, string] {
   const pa = findCategory(a, grid).subjectPriority ?? 0;
   const pb = findCategory(b, grid).subjectPriority ?? 0;
-  return pb > pa ? [b, a] : [a, b];
+  if (pa !== pb) return pb > pa ? [b, a] : [a, b];
+  return simpleHash(a + b) % 2 === 0 ? [a, b] : [b, a];
+}
+
+/** Deterministic hash — same constraint always renders the same way. */
+function simpleHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h >>> 0;
 }
 
 /** Convert a constraint into a human-readable English clue. */
