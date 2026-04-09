@@ -31,8 +31,11 @@
           orderingPhrases: {
             unit: ["percentage point", "percentage points"],
             comparators: {
-              before: "has a lower return than",
-              left_of: "has the next lower return than",
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: [
+                "has the next lower return than",
+                "has the next higher return than",
+              ],
               next_to: "has an adjacent return to",
               not_next_to: "does not have an adjacent return to",
               between: "has a return somewhere between",
@@ -63,8 +66,14 @@
           orderingPhrases: {
             unit: ["hour", "hours"],
             comparators: {
-              before: "has an earlier appointment than",
-              left_of: "has an appointment exactly one hour before",
+              before: [
+                "has an earlier appointment than",
+                "has a later appointment than",
+              ],
+              left_of: [
+                "has an appointment exactly one hour before",
+                "has an appointment exactly one hour after",
+              ],
               next_to: "has an appointment within one hour of",
               not_next_to: "does not have an appointment within one hour of",
               between: "has an appointment somewhere between",

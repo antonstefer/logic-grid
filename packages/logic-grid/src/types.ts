@@ -8,12 +8,20 @@ export type OrderingComparatorType =
   | "not_between"
   | "exact_distance";
 
+/**
+ * Comparator phrase value. A plain string is forward-only ("a {phrase} b").
+ * A tuple `[forward, reverse]` lets the renderer alternate phrasing for
+ * directional constraints (`before`, `left_of`). Forward: "a {forward} b".
+ * Reverse: "b {reverse} a". E.g. `["has a lower return than", "has a higher return than"]`.
+ */
+export type ComparatorPhrase = string | [string, string];
+
 /** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {
   /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
   unit?: [string, string];
   /** Custom comparator phrases keyed by constraint type. */
-  comparators?: Partial<Record<OrderingComparatorType, string>>;
+  comparators?: Partial<Record<OrderingComparatorType, ComparatorPhrase>>;
 }
 
 /** Configurable words for composing ordering clue sentences. */
@@ -31,7 +39,7 @@ export interface SpatialWords {
   /** Spelled-out cardinal numbers for exact_distance. */
   cardinals: string[];
   /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
-  comparators?: Partial<Record<OrderingComparatorType, string>>;
+  comparators?: Partial<Record<OrderingComparatorType, ComparatorPhrase>>;
   /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
   distanceUnit?: [string, string];
 }

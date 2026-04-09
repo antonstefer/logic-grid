@@ -655,6 +655,66 @@ describe("position category", () => {
     expect(clue.text).toBe("Alice has a lower return than Bob.");
   });
 
+  it("before with tuple comparator picks forward or reverse phrasing", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords,
+        comparators: {
+          ...posGrid.spatialWords.comparators,
+          before: ["has a lower return than", "has a higher return than"],
+        },
+      },
+    };
+    // Hash tiebreaker: Alice+Bob → reverse, Bob+Carol → forward.
+    const aliceBob = renderClue(
+      { type: "before", a: "Alice", b: "Bob" },
+      g,
+    );
+    expect(aliceBob.text).toBe("Bob has a higher return than Alice.");
+    const bobCarol = renderClue(
+      { type: "before", a: "Bob", b: "Carol" },
+      g,
+    );
+    expect(bobCarol.text).toBe("Bob has a lower return than Carol.");
+  });
+
+  it("throws when symmetric constraint has tuple comparator", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords,
+        comparators: {
+          ...posGrid.spatialWords.comparators,
+          next_to: ["adj fwd", "adj rev"],
+        },
+      },
+    };
+    expect(() =>
+      renderClue({ type: "next_to", a: "Alice", b: "Bob" }, g),
+    ).toThrow("symmetric");
+  });
+
+  it("left_of with tuple comparator picks forward or reverse phrasing", () => {
+    const g: Grid = {
+      ...posGrid,
+      spatialWords: {
+        ...posGrid.spatialWords,
+        comparators: {
+          ...posGrid.spatialWords.comparators,
+          left_of: [
+            "has the next lower return than",
+            "has the next higher return than",
+          ],
+        },
+      },
+    };
+    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, g);
+    expect(clue.text).toMatch(
+      /^(Alice has the next lower return than Bob|Bob has the next higher return than Alice)\.$/,
+    );
+  });
+
   it("exact_distance uses unit from ordering templates", () => {
     const clue = renderClue(
       { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },

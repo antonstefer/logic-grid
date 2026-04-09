@@ -76,7 +76,7 @@ function buildSchema(size: number, categories: number): JSONSchema {
           comparators: {
             type: "object",
             description:
-              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". E.g. { "before": "has a lower return than" }. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
+              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". Each value is either a string (forward only) or a [forward, reverse] tuple for variety. The tuple form is recommended for "before" and "left_of": e.g. { "before": ["has a lower return than", "has a higher return than"] }. Symmetric constraints (next_to, not_next_to, between, not_between, exact_distance) MUST be a single string. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
           },
         },
         description:
@@ -157,6 +157,8 @@ Mark ONE category isPosition: true to define the positional axis. Its values ARE
 - numericValues: strictly ascending numbers matching the values
 - orderingPhrases.unit: [singular, plural] for distance clues
 - orderingPhrases.comparators: full-phrase overrides describing the positional ordering. **You MUST set ALL of these keys**: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. They apply to ALL ordering clues in the puzzle (Manager↔Strategy, City↔Strategy, etc.), not just clues involving position values. Missing keys fall through to generic "is somewhere before / adjacent to / directly before" wording, which sounds wrong in a domain like returns.
+- For directional comparators (\`before\` and \`left_of\`), prefer the tuple form \`[forward, reverse]\` for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\` lets clues say either "Alice has a lower return than Bob" or "Bob has a higher return than Alice" depending on which reads more naturally for that pair. Single string is also valid (forward only).
+- Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string, not a tuple.
 - For \`left_of\`: this means "immediately preceding in the ordering". Phrase it without assuming equidistant gaps (avoid "exactly one X less than" unless your numericValues actually are equidistant).
 - For \`exact_distance\`: this is the verb prefix that goes BEFORE the distance number. E.g. \`"is exactly"\` produces "Alice is exactly 3 percentage points from Bob." Use \`"has a return exactly"\` if you want "Alice has a return exactly 3 percentage points from Bob."
 
@@ -182,7 +184,7 @@ For a "hedge fund" theme:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
-    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": "has a lower return than", "left_of": "has the next lower return after", "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "isPosition": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return after", "has the next higher return after"], "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],

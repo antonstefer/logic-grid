@@ -31,8 +31,44 @@ function objectValue(value: string, grid: Grid): string {
 function comparator(
   grid: Grid,
   type: OrderingComparatorType,
-): string | undefined {
+): string | [string, string] | undefined {
   return grid.spatialWords.comparators?.[type];
+}
+
+/** Resolve a comparator value to a single string. */
+function symmetricComp(
+  grid: Grid,
+  type: OrderingComparatorType,
+): string | undefined {
+  const c = comparator(grid, type);
+  if (Array.isArray(c)) {
+    throw new Error(
+      `Comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
+    );
+  }
+  return c;
+}
+
+/**
+ * Pick the directional comparator phrase. For tuples, returns
+ * `[subject, object, phrase]` accounting for the hash tiebreaker on equal
+ * priorities. For string comparators, always uses constraint.a as subject.
+ */
+function directionalComp(
+  grid: Grid,
+  type: OrderingComparatorType,
+  a: string,
+  b: string,
+): { subject: string; object: string; phrase: string } | undefined {
+  const c = comparator(grid, type);
+  if (c === undefined) return undefined;
+  if (typeof c === "string") {
+    return { subject: a, object: b, phrase: c };
+  }
+  const [s] = ordered(a, b, grid);
+  return s === a
+    ? { subject: a, object: b, phrase: c[0] }
+    : { subject: b, object: a, phrase: c[1] };
 }
 
 /**
@@ -100,18 +136,18 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return renderSamePosition(constraint, grid, true);
     case "next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = comparator(grid, "next_to");
+      const comp = symmetricComp(grid, "next_to");
       return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[0]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "not_next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = comparator(grid, "not_next_to");
+      const comp = symmetricComp(grid, "not_next_to");
       return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[1]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "left_of": {
-      const comp = comparator(grid, "left_of");
+      const comp = directionalComp(grid, "left_of", constraint.a, constraint.b);
       if (comp) {
-        return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
+        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
       }
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const dir = s === constraint.a ? w.direction[0] : w.direction[1];
@@ -121,7 +157,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = comparator(grid, "between");
+      const comp = symmetricComp(grid, "between");
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
         findCategory(constraint.middle, grid).positionAdjective?.[0] ??
@@ -132,7 +168,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = comparator(grid, "not_between");
+      const comp = symmetricComp(grid, "not_between");
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
         findCategory(constraint.middle, grid).positionAdjective?.[1] ??
@@ -140,9 +176,9 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "before": {
-      const comp = comparator(grid, "before");
+      const comp = directionalComp(grid, "before", constraint.a, constraint.b);
       if (comp) {
-        return `${capitalize(label(constraint.a, grid))} ${comp} ${label(constraint.b, grid)}.`;
+        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
       }
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const dir = s === constraint.a ? w.direction[0] : w.direction[1];
@@ -154,7 +190,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lb = label(o, grid);
       const unit = w.distanceUnit;
       const prefix =
-        comparator(grid, "exact_distance") ?? `${w.verb[0]} exactly`;
+        symmetricComp(grid, "exact_distance") ?? `${w.verb[0]} exactly`;
       if (unit) {
         const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
