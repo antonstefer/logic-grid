@@ -147,7 +147,7 @@ At least one category must have \`ordered: true\` so comparative constraints can
 
 The phrase must be a grammatical verb phrase connecting two noun phrases. Test: say "Alice {phrase} Bob" and "The ramen cook {phrase} the french chef" — both must read naturally.
 
-**Comparators are OPTIONAL** — but without them, clues fall back to generic "lives next to" / "lives left of" phrasing that only works for spatial themes (houses, docks, seats). For any non-spatial ordered category (scores, times, prices, years), you MUST set comparators for at least: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`.
+**Comparators are REQUIRED** on every ordered category — all 7 keys must be set. There are no fallbacks; missing keys cause errors. \`before\` and \`left_of\` must be \`[forward, reverse]\` tuples. The other 5 (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) must be plain strings.
 
 Keep phrases short and simple. Examples of good patterns:
 - before: \`["scored lower than", "scored higher than"]\`
