@@ -16,8 +16,8 @@
     onEliminate: (valueIdx: number, position: number) => void;
   } = $props();
 
-  // The display-axis category provides column headers. Phase 1 identity-pins
-  // it, so its values are excluded from the mystery rows.
+  // The display-axis category provides column headers. It's identity-pinned,
+  // so its values are excluded from the mystery rows.
   const posCat = $derived(displayAxisCategory(puzzleGrid));
 
   /** Categories to display as rows (excludes display-axis category). */

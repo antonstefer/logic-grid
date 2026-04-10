@@ -138,6 +138,7 @@ export function defaultHouseCategory(size: number): Category {
     valueSuffix: "house",
     ordered: true,
     values: ordinals.slice(0, size),
+    // Grid headers show "1, 2, 3..." while clues use "first house, second house..."
     displayLabels: Array.from({ length: size }, (_, i) => String(i + 1)),
     orderingPhrases: {
       unit: ["house", "houses"],

@@ -223,10 +223,9 @@ function sliceCategory(c: Category, size: number): Category {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  // Phase 1: identity-assign the first ordered category so row = axis rank for
-  // it. This keeps the still-row-based encoder semantically consistent with
-  // the axis-tagged comparatives the generator emits. Phase 2 switches the
-  // encoder to rank-forbidding and removes identity assignment.
+  // Identity-assign the first ordered category so row = axis rank for it.
+  // This lets the positional fast-path encoder handle constraints on this axis
+  // cheaply. Other ordered axes use the rank-forbidding encoder.
   const firstOrdered = grid.categories.findIndex((c) => c.ordered === true);
   return grid.categories.map((cat, idx) => {
     if (idx === firstOrdered) {
@@ -305,6 +304,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
     const numVals = axis.numericValues;
 
+    let nextCount = 0;
     let notNextCount = 0;
     for (let i = 0; i < allValues.length; i++) {
       if (catArr[i] === axisCatIdx) continue;
@@ -317,8 +317,9 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
         const b = allValues[j];
         const rankB = rankAtRow[posArr[j]];
 
-        if (Math.abs(rankA - rankB) === 1) {
+        if (Math.abs(rankA - rankB) === 1 && nextCount < maxPerType) {
           constraints.push({ type: "next_to", a, b, axis: axisName });
+          nextCount++;
         } else if (rankA !== rankB && notNextCount < maxPerType) {
           constraints.push({ type: "not_next_to", a, b, axis: axisName });
           notNextCount++;
@@ -428,8 +429,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
 
   // --- Position constraints ---
   // Skip values in the first ordered category — identity pinning makes their
-  // rows trivially determined by encodeBase. Phase 4 removes identity pinning
-  // and broadens this skip rule.
+  // rows trivially determined by encodeBase's identity pinning.
   const firstOrdered = orderedCats[0];
   const firstOrderedValues = new Set(firstOrdered.values);
   for (const [val, pos] of posOf) {
@@ -546,7 +546,7 @@ function minimizeConstraints(
   }
   shuffle(rotation, rng);
 
-  // Phase 1: Constructive — add one constraint per rotation slot until unique
+  // Constructive phase: add one constraint per rotation slot until unique
   const cursors = new Map<string, number>();
   for (const type of byType.keys()) cursors.set(type, 0);
 
@@ -575,7 +575,7 @@ function minimizeConstraints(
   /* v8 ignore next */
   if (!unique) return [];
 
-  // Phase 2: Destructive trim — remove redundant in random order,
+  // Destructive trim: remove redundant in random order,
   // but keep constraints needed to avoid proof-by-contradiction.
   const activeIndices: number[] = [];
   for (let i = 0; i < total; i++) if (active[i]) activeIndices.push(i);

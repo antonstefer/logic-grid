@@ -2,16 +2,15 @@
 
 exports[`public API integration > generate with custom noun/verb produces correct clues 1`] = `
 [
+  "Luna speaks german.",
+  "The tulip grower lives directly right of the piano player.",
+  "Nora lives next to the italian speaker.",
+  "Kai does not live in the first house.",
+  "The guitar player grows the tulip.",
+  "Theo grows the daisy.",
+  "Luna lives somewhere right of the french speaker.",
   "Kai grows the rose.",
-  "The german speaker plays the violin.",
-  "Luna does not live somewhere between the piano player and the rose grower.",
-  "The german speaker lives next to the drums player.",
-  "Theo lives next to the guitar player.",
-  "The lily grower plays the violin.",
-  "The third house grows the rose.",
-  "The first house does not grow the tulip.",
-  "The piano player lives in the first house.",
-  "The first house speaks italian.",
+  "Luna lives directly right of the drums player.",
   "The french speaker lives in the third house.",
 ]
 `;

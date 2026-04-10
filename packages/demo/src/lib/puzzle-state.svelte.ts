@@ -121,7 +121,7 @@ export function createPuzzleState() {
         grid = Array.from({ length: totalValues }, () =>
           Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
         );
-        // Pre-confirm the display-axis category (identity assignment in Phase 1)
+        // Pre-confirm the display-axis category (identity-assigned, not a mystery)
         const displayCat = displayAxisCategory(puzzle.grid);
         const displayCatIdx = puzzle.grid.categories.indexOf(displayCat);
         for (let vi = 0; vi < displayCat.values.length; vi++) {

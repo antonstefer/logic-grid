@@ -2,10 +2,9 @@ import type { Category, Constraint, Grid } from "./types";
 import { resolveAxis } from "./axis";
 
 /**
- * True when `axis` is the first ordered category in `grid`. Phase 1/2 pins
- * this category by identity in encodeBase, so rank = position for it; we can
- * use the cheap positional encoders for any comparative constraint targeting
- * this axis.
+ * True when `axis` is the first ordered category in `grid`. This category is
+ * identity-pinned by encodeBase (rank = position), so the cheap positional
+ * encoders can be used for constraints targeting it.
  */
 function isIdentityPinnedAxis(grid: Grid, axis: Category): boolean {
   return grid.categories.find((c) => c.ordered === true) === axis;
@@ -108,6 +107,10 @@ function encodeBinaryAxis(
  * (rank_o1, rank_o2, rank_middle) triple and each position triple (p1, p2, p3)
  * with all positions distinct, emits a 6-literal clause forbidding the
  * assignment.
+ *
+ * Complexity: O(M³·n³) worst case — ~260k clause candidates at M=n=8.
+ * Acceptable for the supported grid size range (3–8) but would need
+ * optimization (e.g. exploiting ALO/AMO redundancy) if the range expanded.
  */
 function encodeBetweenAxis(
   ctx: EncodingContext,
