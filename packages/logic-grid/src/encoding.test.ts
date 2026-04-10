@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createContext, variable, encodeBase, encodePuzzle } from "./encoding";
 import { solveSAT, solveAllSAT } from "./sat";
-import { makeGrid } from "./test-helpers";
-import { DEFAULT_SPATIAL_WORDS } from "./default-config";
+import { makeGrid, TEST_COMPARATORS } from "./test-helpers";
 import type { Constraint, Grid } from "./types";
 
 const grid3x3 = makeGrid({
@@ -278,6 +277,7 @@ describe("encodeConstraint", () => {
           verb: ["drives the", "does not drive the"],
           ordered: true,
           numericValues: [1980, 1990, 2005],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });
@@ -342,9 +342,6 @@ describe("encodeBase invariant", () => {
         { name: "A", values: ["a1", "a2", "a3"] },
         { name: "B", values: ["b1", "b2", "b3"] },
       ],
-      positionNoun: ["house", "houses"],
-      positionPreposition: "in",
-      spatialWords: { ...DEFAULT_SPATIAL_WORDS },
     };
     const ctx = createContext(bare);
     expect(() => encodeBase(ctx)).toThrow("no ordered category");
@@ -367,6 +364,7 @@ describe("encodeConstraint on non-pinned ordered axis", () => {
         noun: "fund",
         verb: ["was begun in", "was not begun in"],
         ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
       },
       {
         name: "Return",
@@ -374,6 +372,7 @@ describe("encodeConstraint on non-pinned ordered axis", () => {
         noun: "fund",
         verb: ["has a return of", "does not have a return of"],
         ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
       },
     ],
   });
@@ -531,6 +530,7 @@ describe("encodeConstraint on non-pinned ordered axis", () => {
           noun: "fund",
           verb: ["was begun in", "was not begun in"],
           ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Return",
@@ -539,6 +539,7 @@ describe("encodeConstraint on non-pinned ordered axis", () => {
           verb: ["has a return of", "does not have a return of"],
           ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });

@@ -17,13 +17,7 @@ import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
 import { orderedCategories, resolveAxis } from "./axis";
-import {
-  DEFAULT_CATEGORIES,
-  DEFAULT_SPATIAL_WORDS,
-  DEFAULT_POSITION_NOUN,
-  DEFAULT_POSITION_PREPOSITION,
-  defaultHouseCategory,
-} from "./default-config";
+import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
 
@@ -38,11 +32,7 @@ const SYMMETRIC_COMPARATORS = new Set([
   "exact_distance",
 ]);
 
-function checkComparators(
-  scope: string,
-  comparators: ComparatorMap | undefined,
-): void {
-  if (!comparators) return;
+function checkComparators(scope: string, comparators: ComparatorMap): void {
   for (const [type, value] of Object.entries(comparators)) {
     if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
       throw new RangeError(
@@ -85,7 +75,7 @@ function validateCategories(categories: Category[]): void {
           }
         }
       }
-      checkComparators(`Category "${c.name}"`, c.orderingPhrases?.comparators);
+      checkComparators(`Category "${c.name}"`, c.orderingPhrases.comparators);
     }
   }
 }
@@ -158,18 +148,6 @@ function buildGrid(
   options?: GenerateOptions,
 ): Grid {
   const categoryNames = options?.categoryNames;
-  if (options?.positionNoun !== undefined) {
-    const [singular, plural] = options.positionNoun;
-    if (!singular || !plural)
-      throw new RangeError(
-        "positionNoun singular and plural must be non-empty",
-      );
-  }
-  if (
-    options?.positionPreposition !== undefined &&
-    !options.positionPreposition
-  )
-    throw new RangeError("positionPreposition must be non-empty");
   let categories: Category[];
 
   if (categoryNames) {
@@ -202,30 +180,11 @@ function buildGrid(
 
   validateCategories(categories);
 
-  const posNoun = options?.positionNoun ?? DEFAULT_POSITION_NOUN;
-  const posPrep = options?.positionPreposition ?? DEFAULT_POSITION_PREPOSITION;
-
-  // Derive spatialWords.atPosition from the custom preposition so that
-  // "lives at the 3rd house" etc. flows from a non-default preposition.
-  const spatialWords: typeof DEFAULT_SPATIAL_WORDS = {
-    ...DEFAULT_SPATIAL_WORDS,
-  };
-  if (options?.positionPreposition !== undefined) {
-    spatialWords.atPosition = [
-      `${DEFAULT_SPATIAL_WORDS.verb[0]} ${posPrep}`,
-      `${DEFAULT_SPATIAL_WORDS.verb[1]} ${posPrep}`,
-    ];
-  }
-
   const grid: Grid = {
     size,
     categories,
-    positionNoun: posNoun,
-    positionPreposition: posPrep,
-    spatialWords,
     displayAxis: options?.displayAxis,
   };
-  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
 
   // Validate displayAxis references an ordered category if set.
   if (grid.displayAxis !== undefined) {
@@ -291,9 +250,6 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const n = grid.size;
 
   const orderedCats = orderedCategories(grid);
-  /* v8 ignore next 2 */
-  if (orderedCats.length === 0)
-    throw new Error("Grid has no ordered category after buildGrid");
 
   // Build indexed arrays for fast access (avoid Map lookups in hot loops)
   const allValues: string[] = [];

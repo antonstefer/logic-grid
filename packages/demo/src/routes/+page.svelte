@@ -10,8 +10,6 @@
     label: string;
     size: number;
     categories: Category[];
-    positionNoun: [string, string];
-    positionPreposition: string;
   }
 
   const presets: Record<string, Preset> = {
@@ -47,8 +45,6 @@
         { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses the", "does not use the"], valueSuffix: "strategy" },
         { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", subjectPriority: 1, verb: ["is based in", "is not based in"] },
       ],
-      positionNoun: ["fund", "funds"],
-      positionPreposition: "at",
     },
     "morning-schedule": {
       label: "Morning Schedule",
@@ -85,8 +81,6 @@
         { name: "Activity", values: ["Dentist", "Barber", "Therapist", "Optician"], noun: "attendee", subjectPriority: 1, verb: ["visits the", "does not visit the"] },
         { name: "Transport", values: ["Bus", "Bike", "Car", "Walk"], noun: "commuter", subjectPriority: 1, verb: ["takes the", "does not take the"] },
       ],
-      positionNoun: ["slot", "slots"],
-      positionPreposition: "at",
     },
     "hedge-fund-multi": {
       label: "Hedge Funds (Multi-Axis)",
@@ -136,8 +130,6 @@
         },
         { name: "Fund", values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"], noun: "fund", subjectPriority: 1, verb: ["runs", "does not run"], valueSuffix: "fund" },
       ],
-      positionNoun: ["fund", "funds"],
-      positionPreposition: "at",
     },
   };
 
@@ -159,8 +151,6 @@
         difficulty: diff,
         clueStyle: style,
         customCategories: p.categories,
-        positionNoun: p.positionNoun,
-        positionPreposition: p.positionPreposition,
       });
     } else {
       puzzleState.newPuzzle({

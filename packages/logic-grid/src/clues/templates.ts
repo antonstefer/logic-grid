@@ -5,7 +5,7 @@ import type {
   Grid,
   OrderingComparatorType,
 } from "../types";
-import { posNoun, posNounPlural } from "../grid-utils";
+// posNoun/posNounPlural no longer used — all rendering comes from axis comparators.
 import { orderedCategories, resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
@@ -37,10 +37,9 @@ function comparator(
   grid: Grid,
   type: OrderingComparatorType,
   axisName: string,
-): string | [string, string] | undefined {
+): string | [string, string] {
   const axis = resolveAxis(grid, axisName);
-  const phrase = axis.orderingPhrases?.comparators?.[type];
-  return phrase ?? grid.spatialWords.comparators?.[type];
+  return axis.orderingPhrases.comparators[type];
 }
 
 /**
@@ -51,8 +50,8 @@ function symmetricComp(
   grid: Grid,
   type: OrderingComparatorType,
   axisName: string,
-): string | undefined {
-  return comparator(grid, type, axisName) as string | undefined;
+): string {
+  return comparator(grid, type, axisName) as string;
 }
 
 /**
@@ -67,9 +66,8 @@ function directionalComp(
   a: string,
   b: string,
   axisName: string,
-): { subject: string; object: string; phrase: string } | undefined {
+): { subject: string; object: string; phrase: string } {
   const c = comparator(grid, type, axisName);
-  if (c === undefined) return undefined;
   if (typeof c === "string") {
     return { subject: a, object: b, phrase: c };
   }
@@ -140,7 +138,6 @@ function renderSamePosition(
 // --- Main renderer ---
 
 function renderText(constraint: Constraint, grid: Grid): string {
-  const w = grid.spatialWords;
   switch (constraint.type) {
     case "same_position":
       return renderSamePosition(constraint, grid, false);
@@ -149,12 +146,12 @@ function renderText(constraint: Constraint, grid: Grid): string {
     case "next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const comp = symmetricComp(grid, "next_to", constraint.axis);
-      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[0]} ${w.adjacency}`} ${label(o, grid)}.`;
+      return `${capitalize(label(s, grid))} ${comp} ${label(o, grid)}.`;
     }
     case "not_next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const comp = symmetricComp(grid, "not_next_to", constraint.axis);
-      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[1]} ${w.adjacency}`} ${label(o, grid)}.`;
+      return `${capitalize(label(s, grid))} ${comp} ${label(o, grid)}.`;
     }
     case "left_of": {
       const comp = directionalComp(
@@ -164,34 +161,21 @@ function renderText(constraint: Constraint, grid: Grid): string {
         constraint.b,
         constraint.axis,
       );
-      if (comp) {
-        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
-      }
-      const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
-      return `${capitalize(label(s, grid))} ${w.verb[0]} directly ${dir} ${label(o, grid)}.`;
+      return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
     }
     case "between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
       const comp = symmetricComp(grid, "between", constraint.axis);
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective?.[0] ??
-        w.verb[0];
-      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
+      return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
       const comp = symmetricComp(grid, "not_between", constraint.axis);
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective?.[1] ??
-        w.verb[1];
-      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
+      return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
     }
     case "before": {
       const comp = directionalComp(
@@ -201,31 +185,20 @@ function renderText(constraint: Constraint, grid: Grid): string {
         constraint.b,
         constraint.axis,
       );
-      if (comp) {
-        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
-      }
-      const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
-      return `${capitalize(label(s, grid))} ${w.verb[0]} somewhere ${dir} ${label(o, grid)}.`;
+      return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
     }
     case "exact_distance": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const la = label(s, grid);
       const lb = label(o, grid);
-      // Per-axis unit takes precedence over grid-level distanceUnit.
       const axisCategory = resolveAxis(grid, constraint.axis);
-      const unit = axisCategory.orderingPhrases?.unit ?? w.distanceUnit;
-      const prefix =
-        symmetricComp(grid, "exact_distance", constraint.axis) ??
-        `${w.verb[0]} exactly`;
+      const unit = axisCategory.orderingPhrases?.unit;
+      const prefix = symmetricComp(grid, "exact_distance", constraint.axis);
       if (unit) {
         const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
       }
-      const dist = w.cardinals[constraint.distance];
-      const noun =
-        constraint.distance === 1 ? posNoun(grid) : posNounPlural(grid);
-      return `${capitalize(la)} ${prefix} ${dist} ${noun} from ${lb}.`;
+      return `${capitalize(la)} ${prefix} ${constraint.distance} from ${lb}.`;
     }
     case "at_position": {
       // Render using the first ordered category's value at this position.

@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
-import { DEFAULT_SPATIAL_WORDS } from "../default-config";
-import { makeGrid } from "../test-helpers";
-import type { Grid, SpatialWords } from "../types";
+import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
+import type { Grid } from "../types";
 
 const grid = makeGrid({
   size: 3,
@@ -252,9 +251,7 @@ describe("renderClue — comparatives on House axis", () => {
       },
       grid,
     );
-    expect(clue.text).toBe(
-      "Alice lives exactly two houses from the cat owner.",
-    );
+    expect(clue.text).toBe("Alice lives exactly 2 houses from the cat owner.");
   });
 
   it("exact_distance singular", () => {
@@ -268,7 +265,7 @@ describe("renderClue — comparatives on House axis", () => {
       },
       grid,
     );
-    expect(clue.text).toBe("Alice lives exactly one house from the cat owner.");
+    expect(clue.text).toBe("Alice lives exactly 1 house from the cat owner.");
   });
 });
 
@@ -306,22 +303,45 @@ describe("custom category noun/verb", () => {
   });
 });
 
-describe("grid-level comparator overrides", () => {
-  const withComparators: Grid = {
-    ...grid,
-    spatialWords: {
-      ...grid.spatialWords,
-      comparators: {
-        before: "comes earlier than",
-        left_of: "is directly before",
-        next_to: "is adjacent to",
-        not_next_to: "is not adjacent to",
-        between: "is between",
-        not_between: "is not between",
-        exact_distance: "is exactly",
+describe("per-axis comparator overrides on House", () => {
+  // Build a grid with custom House comparators.
+  const withComparators = makeGrid({
+    size: 3,
+    categories: [
+      {
+        name: "House",
+        noun: "house",
+        verb: ["lives in the", "does not live in the"],
+        valueSuffix: "house",
+        ordered: true,
+        values: ["first", "second", "third"],
+        orderingPhrases: {
+          comparators: {
+            before: "comes earlier than",
+            left_of: "is directly before",
+            next_to: "is adjacent to",
+            not_next_to: "is not adjacent to",
+            between: "is between",
+            not_between: "is not between",
+            exact_distance: "is exactly",
+          },
+        },
       },
-    },
-  };
+      {
+        name: "Name",
+        values: ["Alice", "Bob", "Carol"],
+        noun: "",
+        subjectPriority: 2,
+      },
+      {
+        name: "Pet",
+        values: ["Cat", "Dog", "Fish"],
+        noun: "owner",
+        verb: ["owns the", "does not own the"],
+        subjectPriority: 1,
+      },
+    ],
+  });
 
   it("left_of uses grid comparator when set", () => {
     const clue = renderClue(
@@ -393,102 +413,41 @@ describe("grid-level comparator overrides", () => {
 });
 
 describe("before with tuple comparator picks forward or reverse", () => {
-  const withTuple: Grid = {
-    ...grid,
-    spatialWords: {
-      ...grid.spatialWords,
-      comparators: {
-        before: ["has a lower return than", "has a higher return than"],
-      },
-    },
-  };
-
+  // The default House category from grid has tuple comparators for before.
   it("picks forward or reverse phrase deterministically", () => {
     const aliceBob = renderClue(
       { type: "before", a: "Alice", b: "Bob", axis: "House" },
-      withTuple,
+      grid,
     );
     expect(aliceBob.text).toMatch(
-      /^(Alice has a lower return than Bob|Bob has a higher return than Alice)\.$/,
+      /^(Alice lives somewhere left of Bob|Bob lives somewhere right of Alice)\.$/,
     );
     // Deterministic: same input → same output.
     const again = renderClue(
       { type: "before", a: "Alice", b: "Bob", axis: "House" },
-      withTuple,
+      grid,
     );
     expect(again.text).toBe(aliceBob.text);
   });
 });
 
-describe("distance unit from spatialWords.distanceUnit", () => {
-  const withUnit: Grid = {
-    ...grid,
-    spatialWords: {
-      ...grid.spatialWords,
-      distanceUnit: ["percentage point", "percentage points"],
-    },
-  };
-
-  it("exact_distance singular", () => {
-    const clue = renderClue(
-      {
-        type: "exact_distance",
-        a: "Alice",
-        b: "Cat",
-        distance: 1,
-        axis: "House",
-      },
-      withUnit,
-    );
-    expect(clue.text).toBe(
-      "Alice lives exactly 1 percentage point from the cat owner.",
-    );
-  });
-
-  it("exact_distance plural", () => {
-    const clue = renderClue(
-      {
-        type: "exact_distance",
-        a: "Alice",
-        b: "Cat",
-        distance: 2,
-        axis: "House",
-      },
-      withUnit,
-    );
-    expect(clue.text).toBe(
-      "Alice lives exactly 2 percentage points from the cat owner.",
-    );
-  });
-});
-
 describe("left_of with tuple comparator picks forward or reverse", () => {
-  const withTupleLeftOf: Grid = {
-    ...grid,
-    spatialWords: {
-      ...grid.spatialWords,
-      comparators: {
-        left_of: ["is right before", "is right after"] as [string, string],
-      },
-    },
-  };
-
   it("picks reverse phrasing when hash tiebreaker selects b as subject", () => {
     // simpleHash("Alice"+"Bob") % 2 === 1 → reverse: Bob is subject
     const clue = renderClue(
       { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
-      withTupleLeftOf,
+      grid,
     );
-    expect(clue.text).toBe("Bob is right after Alice.");
+    expect(clue.text).toBe("Bob lives directly right of Alice.");
   });
 
   it("picks forward phrasing when hash tiebreaker selects a as subject", () => {
     // simpleHash("Bob"+"Carol") % 2 === 0 → forward: Bob is subject
     const clue = renderClue(
       { type: "left_of", a: "Bob", b: "Carol", axis: "House" },
-      withTupleLeftOf,
+      grid,
     );
-    expect(clue.text).toBe("Bob is right before Carol.");
+    expect(clue.text).toBe("Bob lives directly left of Carol.");
   });
 });
 
@@ -515,7 +474,15 @@ describe("per-axis orderingPhrases in rendering", () => {
               string,
               string,
             ],
-            next_to: "was begun in the closest year to",
+            left_of: ["was begun right before", "was begun right after"] as [
+              string,
+              string,
+            ],
+            next_to: "was begun right before or after",
+            not_next_to: "was not begun right before or after",
+            between: "was begun between",
+            not_between: "was not begun between",
+            exact_distance: "was begun exactly",
           },
         },
       },
@@ -532,6 +499,15 @@ describe("per-axis orderingPhrases in rendering", () => {
               string,
               string,
             ],
+            left_of: [
+              "has a return right below",
+              "has a return right above",
+            ] as [string, string],
+            next_to: "has the return right above or below",
+            not_next_to: "does not have the return right above or below",
+            between: "has a return between",
+            not_between: "does not have a return between",
+            exact_distance: "is exactly",
           },
         },
       },
@@ -559,16 +535,15 @@ describe("per-axis orderingPhrases in rendering", () => {
       { type: "next_to", a: "Alice", b: "Bob", axis: "Year" },
       multiGrid,
     );
-    expect(clue.text).toContain("was begun in the closest year to");
+    expect(clue.text).toContain("was begun right before or after");
   });
 
-  it("next_to falls through to grid defaults when axis=Return (no next_to override)", () => {
+  it("next_to uses Return axis comparators when axis=Return", () => {
     const clue = renderClue(
       { type: "next_to", a: "Alice", b: "Bob", axis: "Return" },
       multiGrid,
     );
-    // Return has no next_to comparator → falls through to spatial words default.
-    expect(clue.text).toMatch(/lives next to/);
+    expect(clue.text).toContain("has the return right above or below");
   });
 
   it("exact_distance uses per-axis unit when axis has one", () => {
@@ -585,7 +560,7 @@ describe("per-axis orderingPhrases in rendering", () => {
     expect(clue.text).toContain("2 percentage points");
   });
 
-  it("exact_distance uses grid default when axis has no unit", () => {
+  it("exact_distance without unit uses bare number", () => {
     const clue = renderClue(
       {
         type: "exact_distance",
@@ -596,8 +571,8 @@ describe("per-axis orderingPhrases in rendering", () => {
       },
       multiGrid,
     );
-    // Year has no unit → falls through to cardinals ("two houses").
-    expect(clue.text).toContain("two houses");
+    // Year has no unit → bare number.
+    expect(clue.text).toContain("2 from");
   });
 });
 
@@ -605,9 +580,6 @@ describe("at_position / not_at_position invariants", () => {
   const bareGrid: Grid = {
     size: 3,
     categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" }],
-    positionNoun: ["house", "houses"],
-    positionPreposition: "in",
-    spatialWords: DEFAULT_SPATIAL_WORDS,
   };
 
   it("at_position throws when grid has no ordered category", () => {
@@ -633,11 +605,13 @@ describe("at_position / not_at_position invariants", () => {
       size: 3,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-        { name: "Axis", values: ["X", "Y", "Z"], ordered: true },
+        {
+          name: "Axis",
+          values: ["X", "Y", "Z"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
       ],
-      positionNoun: ["house", "houses"],
-      positionPreposition: "in",
-      spatialWords: DEFAULT_SPATIAL_WORDS,
     };
     expect(() =>
       renderClue(
@@ -652,11 +626,13 @@ describe("at_position / not_at_position invariants", () => {
       size: 3,
       categories: [
         { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-        { name: "Axis", values: ["X", "Y", "Z"], ordered: true },
+        {
+          name: "Axis",
+          values: ["X", "Y", "Z"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
       ],
-      positionNoun: ["house", "houses"],
-      positionPreposition: "in",
-      spatialWords: DEFAULT_SPATIAL_WORDS,
     };
     expect(() =>
       renderClue(
@@ -664,16 +640,5 @@ describe("at_position / not_at_position invariants", () => {
         noVerbGrid,
       ),
     ).toThrow("has no verb");
-  });
-});
-
-describe("default spatial words sanity", () => {
-  it("DEFAULT_SPATIAL_WORDS has expected shape", () => {
-    const w: SpatialWords = DEFAULT_SPATIAL_WORDS;
-    expect(w.verb).toEqual(["lives", "does not live"]);
-    expect(w.adjacency).toBe("next to");
-    expect(w.direction).toEqual(["left of", "right of"]);
-    expect(w.between).toBe("somewhere between");
-    expect(w.cardinals.length).toBeGreaterThanOrEqual(4);
   });
 });

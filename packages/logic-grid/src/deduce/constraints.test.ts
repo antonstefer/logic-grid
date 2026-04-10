@@ -3,17 +3,8 @@ import { deduce } from ".";
 import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
-import { makeGrid } from "../test-helpers";
-import type { Constraint, SpatialWords } from "../types";
-
-const POSITIONAL_WORDS: SpatialWords = {
-  verb: ["is", "is not"],
-  adjacency: "adjacent to",
-  direction: ["before", "after"],
-  between: "somewhere between",
-  atPosition: ["is at", "is not at"],
-  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-};
+import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
+import type { Constraint } from "../types";
 
 const grid = makeGrid({
   size: 4,
@@ -342,6 +333,71 @@ describe("deduce constraint types", () => {
     expect(step!.eliminations).toContainEqual({ value: "Blue", position: 3 });
   });
 
+  it("exact_distance explanation uses generic 'positions' when axis has no unit", () => {
+    // Build a grid with an ordered category that has comparators but no unit.
+    const noUnitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: TEST_COMPARATORS,
+          },
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, noUnitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 positions");
+  });
+
+  it("exact_distance explanation uses singular 'position' when distance=1 and no unit", () => {
+    const noUnitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, noUnitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("1 position");
+  });
+
   it("exact_distance constrains positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
@@ -373,6 +429,7 @@ describe("deduce constraint types", () => {
           subjectPriority: -1,
           ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });
@@ -408,6 +465,7 @@ describe("deduce constraint types", () => {
           subjectPriority: -1,
           ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });
@@ -448,7 +506,7 @@ describe("deduce constraint types", () => {
     expect(step!.explanation).toContain("1 house apart");
   });
 
-  it("exact_distance explanation uses unit from spatialWords", () => {
+  it("exact_distance explanation uses unit from orderingPhrases", () => {
     const unitGrid = makeGrid({
       size: 4,
       categories: [
@@ -460,12 +518,12 @@ describe("deduce constraint types", () => {
           verb: ["has a return of", "does not have a return of"],
           ordered: true,
           numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: TEST_COMPARATORS,
+          },
         },
       ],
-      spatialWords: {
-        ...POSITIONAL_WORDS,
-        distanceUnit: ["percentage point", "percentage points"],
-      },
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
@@ -495,12 +553,12 @@ describe("deduce constraint types", () => {
           verb: ["has a return of", "does not have a return of"],
           ordered: true,
           numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: TEST_COMPARATORS,
+          },
         },
       ],
-      spatialWords: {
-        ...POSITIONAL_WORDS,
-        distanceUnit: ["percentage point", "percentage points"],
-      },
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
@@ -947,6 +1005,7 @@ describe("rank-space deduction on non-pinned axis", () => {
         noun: "fund",
         verb: ["was begun in", "was not begun in"],
         ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
       },
       {
         name: "Return",
@@ -954,6 +1013,7 @@ describe("rank-space deduction on non-pinned axis", () => {
         noun: "fund",
         verb: ["has a return of", "does not have a return of"],
         ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
       },
     ],
   });
@@ -1108,6 +1168,7 @@ describe("rank-space deduction on non-pinned axis", () => {
           noun: "fund",
           verb: ["started in", "did not start in"],
           ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Return",
@@ -1116,6 +1177,7 @@ describe("rank-space deduction on non-pinned axis", () => {
           verb: ["has a return of", "does not have a return of"],
           ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });

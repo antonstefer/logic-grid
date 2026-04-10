@@ -16,37 +16,15 @@ export type OrderingComparatorType =
  */
 export type ComparatorPhrase = string | [string, string];
 
-/** Map of constraint type → comparator phrase override. */
-export type ComparatorMap = Partial<
-  Record<OrderingComparatorType, ComparatorPhrase>
->;
+/** Map of constraint type → comparator phrase. All 7 keys required. */
+export type ComparatorMap = Record<OrderingComparatorType, ComparatorPhrase>;
 
 /** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {
-  /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
+  /** Singular/plural unit for exact_distance, e.g. `["hour", "hours"]` → "exactly two hours apart". */
   unit?: [string, string];
-  /** Custom comparator phrases keyed by constraint type. */
-  comparators?: ComparatorMap;
-}
-
-/** Configurable words for composing ordering clue sentences. */
-export interface SpatialWords {
-  /** [positive, negative] verb. E.g. `["lives", "does not live"]` or `["is", "is not"]`. */
-  verb: [string, string];
-  /** Adjacency word for next_to / not_next_to. E.g. `"next to"` or `"adjacent to"`. */
-  adjacency: string;
-  /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
-  direction: [string, string];
-  /** Suffix for between / not_between, composed with verb. E.g. `"somewhere between"` → "lives somewhere between". */
-  between: string;
-  /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]`. */
-  atPosition: [string, string];
-  /** Spelled-out cardinal numbers for exact_distance. */
-  cardinals: string[];
-  /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
-  comparators?: ComparatorMap;
-  /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
-  distanceUnit?: [string, string];
+  /** Comparator phrases for all 7 comparative constraint types. Required. */
+  comparators: ComparatorMap;
 }
 
 /** Shared fields on every category. */
@@ -75,8 +53,8 @@ type OrderednessFields =
       ordered: true;
       /** Per-rank numeric values for non-equidistant `exact_distance`. Must match `values` length and be ascending. */
       numericValues?: number[];
-      /** Domain-specific phrasing for ordering constraints on this axis. */
-      orderingPhrases?: OrderingPhrases;
+      /** Domain-specific phrasing for ordering constraints on this axis. Required on all ordered categories. */
+      orderingPhrases: OrderingPhrases;
     }
   | {
       ordered?: false;
@@ -105,16 +83,17 @@ type ValueSuffixFields =
 /** A named group of values that occupy positions in the grid. */
 export type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
 
+/** A Category known to be ordered (returned by resolveAxis). */
+export type OrderedCategory = CategoryCore & {
+  ordered: true;
+  numericValues?: number[];
+  orderingPhrases: OrderingPhrases;
+} & ValueSuffixFields;
+
 /** The puzzle board: `size` positions and one or more categories. */
 export interface Grid {
   size: number;
   categories: Category[];
-  /** Singular and plural position noun, e.g. `["house", "houses"]`. */
-  positionNoun: [string, string];
-  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". */
-  positionPreposition: string;
-  /** Generic fallback vocabulary for composing ordering clue sentences. */
-  spatialWords: SpatialWords;
   /** Optional hint for presentation layers: name of an ordered category to use as display anchor. If absent, presentation picks the first ordered category. */
   displayAxis?: string;
 }
@@ -237,10 +216,6 @@ export interface GenerateOptions {
   categoryNames?: Category[];
   /** Random seed for reproducible generation. */
   seed?: number;
-  /** Singular and plural position noun. Default: `["house", "houses"]`. */
-  positionNoun?: [string, string];
-  /** Preposition for positional phrases. Default: `"in"`. */
-  positionPreposition?: string;
   /** Optional presentation hint naming an ordered category as display anchor. */
   displayAxis?: string;
 }

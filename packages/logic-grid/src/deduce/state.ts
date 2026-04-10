@@ -4,17 +4,17 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { ordinal, posNoun, posPrep } from "../grid-utils";
+import { ordinal } from "../grid-utils";
 
 // --- Display utilities ---
 
 export function describeResult(
-  grid: Grid,
+  _grid: Grid,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const noun = posNoun(grid);
-  const prep = posPrep(grid);
+  const noun = "position";
+  const prep = "in";
   const parts: string[] = [];
   for (const a of assigns) {
     parts.push(`${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`);
@@ -40,9 +40,8 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const { grid } = state;
-  const noun = posNoun(grid);
-  const prep = posPrep(grid);
+  const noun = "position";
+  const prep = "in";
   const pos = getAssigned(state, value);
   if (pos !== null) return `${value} is ${prep} the ${ordinal(pos)} ${noun}`;
   const possible = getPossible(state, value);

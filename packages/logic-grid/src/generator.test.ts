@@ -3,7 +3,18 @@ import { generate } from "./generator";
 import { deduce } from "./deduce";
 import { hasUniqueSolution, solve } from "./solver";
 import { resolveAxis } from "./axis";
-import type { Grid } from "./types";
+import type { Category, ComparatorMap, Grid } from "./types";
+
+/** Generic comparators for test ordered categories. */
+const TEST_COMPARATORS: ComparatorMap = {
+  before: ["is before", "is after"],
+  left_of: ["is right before", "is right after"],
+  next_to: "is right next to",
+  not_next_to: "is not right next to",
+  between: "is between",
+  not_between: "is not between",
+  exact_distance: "is exactly",
+};
 
 describe("generate", () => {
   it("returns a valid puzzle with defaults", () => {
@@ -185,44 +196,6 @@ describe("generate", () => {
     expect(() => generate({ categories: 9 })).toThrow(RangeError);
   });
 
-  it("accepts valid positionNoun", () => {
-    const puzzle = generate({
-      size: 3,
-      seed: 1,
-      positionNoun: ["seat", "seats"],
-    });
-    expect(puzzle.grid.positionNoun).toEqual(["seat", "seats"]);
-  });
-
-  it("rejects empty positionNoun strings", () => {
-    expect(() => generate({ size: 3, positionNoun: ["", "slots"] })).toThrow(
-      RangeError,
-    );
-    expect(() => generate({ size: 3, positionNoun: ["slot", ""] })).toThrow(
-      RangeError,
-    );
-  });
-
-  it("custom positionPreposition derives atPosition without a position category", () => {
-    const puzzle = generate({
-      size: 3,
-      categories: 3,
-      seed: 1,
-      positionNoun: ["seat", "seats"],
-      positionPreposition: "at",
-    });
-    expect(puzzle.grid.spatialWords.atPosition).toEqual([
-      "lives at",
-      "does not live at",
-    ]);
-  });
-
-  it("rejects empty positionPreposition", () => {
-    expect(() => generate({ size: 3, positionPreposition: "" })).toThrow(
-      RangeError,
-    );
-  });
-
   it("accepts custom categories", () => {
     const puzzle = generate({
       size: 3,
@@ -233,6 +206,7 @@ describe("generate", () => {
           noun: "house",
           verb: ["lives in", "does not live in"],
           ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Owner",
@@ -422,6 +396,7 @@ describe("generate", () => {
             verb: ["started in", "did not start in"],
             ordered: true,
             numericValues: [2020, 2021],
+            orderingPhrases: { comparators: TEST_COMPARATORS },
           },
           {
             name: "Color",
@@ -446,6 +421,7 @@ describe("generate", () => {
             noun: "year",
             verb: ["started in", "did not start in"],
             ordered: true,
+            orderingPhrases: { comparators: TEST_COMPARATORS },
           },
           {
             name: "Color",
@@ -496,6 +472,7 @@ describe("generate", () => {
             ordered: true,
             orderingPhrases: {
               comparators: {
+                ...TEST_COMPARATORS,
                 next_to: ["fwd", "rev"] as [string, string],
               },
             },
@@ -523,6 +500,7 @@ describe("generate", () => {
             noun: "slot",
             verb: ["is at", "is not at"],
             ordered: true,
+            orderingPhrases: { comparators: TEST_COMPARATORS },
             numericValues: [9, 7, 8],
           },
           { name: "Color", values: ["Red", "Blue", "Green"] },
@@ -546,6 +524,7 @@ describe("generate", () => {
           numericValues: [3, 5, 8, 12],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"] as [string, string],
+            comparators: TEST_COMPARATORS,
           },
         },
         {
@@ -590,7 +569,7 @@ describe("generate", () => {
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"] as [string, string],
-            comparators: { before: "has a lower return than" },
+            comparators: TEST_COMPARATORS,
           },
         },
         {
@@ -624,6 +603,7 @@ describe("generate", () => {
           noun: "slot",
           verb: ["is at", "is not at"],
           ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Color",
@@ -641,7 +621,7 @@ describe("generate", () => {
 });
 
 describe("generate with multiple ordered categories", () => {
-  const hedgeFundCategories = [
+  const hedgeFundCategories: Category[] = [
     {
       name: "Manager",
       values: ["Alice", "Bob", "Carol", "Dan"],
@@ -655,6 +635,7 @@ describe("generate with multiple ordered categories", () => {
       verb: ["was begun in", "was not begun in"] as [string, string],
       subjectPriority: -1,
       ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
     },
     {
       name: "Return",
@@ -666,6 +647,7 @@ describe("generate with multiple ordered categories", () => {
       ],
       subjectPriority: -1,
       ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
     },
     {
       name: "Strategy",

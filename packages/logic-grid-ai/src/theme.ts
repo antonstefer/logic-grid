@@ -96,21 +96,8 @@ function buildSchema(size: number, categories: number): JSONSchema {
         maxItems: categories,
         description: `Exactly ${categories} categories`,
       },
-      positionNoun: {
-        type: "array",
-        items: { type: "string" },
-        minItems: 2,
-        maxItems: 2,
-        description:
-          'Singular and plural position noun, e.g. ["dock", "docks"]',
-      },
-      positionPreposition: {
-        type: "string",
-        description:
-          'Preposition for positional phrases, e.g. "at" → "lives at the first dock"',
-      },
     },
-    required: ["categories", "positionNoun", "positionPreposition"],
+    required: ["categories"],
   };
 }
 
@@ -145,10 +132,6 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 
 **\`positionAdjective\`** — set ONLY when the position noun is naturally modified by an adjective category, like a HOUSE has a color ("the red house"). DO NOT use this for position nouns like "dock", "ship", "fund", "station", "slot", "year" — these aren't naturally characterized by an adjective from another category. Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1. Use sparingly — when in doubt, don't.
 
-## Position noun
-
-The position noun labels ordered slots. Default ["house", "houses"] with preposition "in" → "lives in the first house". Pick a thematic alternative: ["station", "stations"] preposition "at", ["dock", "docks"] preposition "at", etc.
-
 ## Ordered categories
 
 At least one category must have \`ordered: true\` so comparative constraints can reference it. Use ordered categories when the values have a canonical sequence (sorted returns, years, times, prices, house numbers). Ordered categories can carry:
@@ -157,7 +140,22 @@ At least one category must have \`ordered: true\` so comparative constraints can
 - orderingPhrases.comparators: full-phrase overrides describing the ordering. Keys: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. Each is either a string (forward only) or a [forward, reverse] tuple. Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string.
 - For directional comparators (\`before\` and \`left_of\`), prefer the tuple form for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\`.
 
-**IMPORTANT — rank vs value phrasing:** \`next_to\` and \`left_of\` mean "adjacent in rank" (no other value between them), NOT "close in value" or "exactly 1 unit apart". With non-equidistant numericValues like [3, 5, 8, 12], rank-adjacent values have different gaps. NEVER use phrasing that implies specific value distances for these constraints: no "closest", "nearest", "adjacent to" (implies proximity), "within N units of", or "exactly one X before/after". Use rank-order phrasing instead: "right before or after", "right above or below", "the next higher/lower". Only \`exact_distance\` may claim specific value gaps (it uses numericValues to compute the actual difference).
+**HOW COMPARATORS RENDER:** Each comparator phrase is inserted verbatim into \`"{Subject} {comparator} {Object}."\` For example: \`"has a lower return than"\` → "Alice has a lower return than Bob."
+
+The phrase must be a grammatical verb phrase connecting two noun phrases. Test: say "Alice {phrase} Bob" and "The ramen cook {phrase} the french chef" — both must read naturally.
+
+**Comparators are OPTIONAL** — but without them, clues fall back to generic "lives next to" / "lives left of" phrasing that only works for spatial themes (houses, docks, seats). For any non-spatial ordered category (scores, times, prices, years), you MUST set comparators for at least: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`.
+
+Keep phrases short and simple. Examples of good patterns:
+- before: \`["scored lower than", "scored higher than"]\`
+- left_of: \`["scored right below", "scored right above"]\`
+- next_to: \`"scored right before or after"\`
+- not_next_to: \`"did not score right before or after"\`
+- between: \`"scored between"\`
+- not_between: \`"did not score between"\`
+- exact_distance: \`"scored exactly"\` (prefix before the distance number)
+
+**IMPORTANT — rank vs value phrasing:** \`next_to\` and \`left_of\` mean "adjacent in rank" (no other value between them), NOT "close in value" or "exactly 1 unit apart". With non-equidistant numericValues like [3, 5, 8, 12], rank-adjacent values have different gaps. NEVER use phrasing that implies specific value distances for these constraints: no "closest", "nearest", "adjacent to" (implies proximity), "within N units of", or "exactly one X before/after". Use rank-order phrasing instead: "right before or after", "right above or below", "scored right below/above". Only \`exact_distance\` may claim specific value gaps (it uses numericValues to compute the actual difference).
 
 ## Examples
 
@@ -170,8 +168,6 @@ For a "pirate adventure" theme with size 4 and 4 categories:
     { "name": "Treasure", "values": ["Gold", "Pearls", "Rubies", "Maps"], "noun": "hoarder", "subjectPriority": 1, "verb": ["hoards", "does not hoard"] },
     { "name": "Hideout", "values": ["Tortuga", "Nassau", "Madagascar", "Cuba"], "noun": "captain", "subjectPriority": 1, "verb": ["hides in", "does not hide in"] }
   ],
-  "positionNoun": ["dock", "docks"],
-  "positionPreposition": "at"
 }
 
 Note: Hideout has plain values ("Tortuga"), no valueSuffix needed because "hides in Tortuga" reads naturally. If values were "tortuga bay" they'd need valueSuffix: "hideout" → "hides in the tortuga bay hideout."
@@ -181,12 +177,10 @@ For a "hedge fund" theme:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
-    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return than", "has the next higher return than"], "next_to": "has the return right above or below", "not_next_to": "does not have the return right above or below", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has a return right below", "has a return right above"], "next_to": "has the return right above or below", "not_next_to": "does not have the return right above or below", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
-  "positionNoun": ["fund", "funds"],
-  "positionPreposition": "at"
 }
 
 ## Decision guide
@@ -208,7 +202,7 @@ Generate themed categories for: "${theme}"
 - Set subjectPriority on EVERY category (2 person, 1 animate, 0 neutral, -1 describer)
 - Set valueSuffix when values need a clarifying noun in object position
 - Verb pairs MUST read naturally in "{subject} {positive verb} {value}{valueSuffix?}"
-- Pick a thematic position noun and preposition`;
+- Every ordered category MUST have orderingPhrases.comparators with all 7 keys`;
 
   if (constraints && constraints.length > 0) {
     prompt += `\n- Additional constraints: ${constraints.join(", ")}`;
@@ -224,7 +218,7 @@ Generate themed categories for: "${theme}"
 /**
  * Generate themed categories for a logic grid puzzle using AI.
  *
- * Calls the AI client to produce categories, position noun, and preposition
+ * Calls the AI client to produce categories with ordering phrases
  * that fit the given theme. Validates the result and retries up to 3 times
  * if the AI output fails validation, feeding errors back into the prompt.
  *

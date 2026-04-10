@@ -96,7 +96,7 @@
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
-        <th class="position-noun-header" colspan={grid.size}>{posCat ? posCat.name : grid.positionNoun[1]}</th>
+        <th class="position-noun-header" colspan={grid.size}>{posCat.name}</th>
       </tr>
       <tr>
         <th class="category-header"></th>

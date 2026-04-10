@@ -31,21 +31,11 @@ export function createPuzzleState() {
     theme?: string;
     clueStyle?: string;
     customCategories?: Category[];
-    positionNoun?: [string, string];
-    positionPreposition?: string;
   }
 
   function newPuzzle(opts: NewPuzzleOptions) {
-    const {
-      size,
-      categories,
-      difficulty,
-      theme,
-      clueStyle,
-      customCategories,
-      positionNoun,
-      positionPreposition,
-    } = opts;
+    const { size, categories, difficulty, theme, clueStyle, customCategories } =
+      opts;
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
@@ -78,8 +68,6 @@ export function createPuzzleState() {
               difficulty,
               seed: Date.now(),
               categoryNames: themeResult.categories,
-              positionNoun: themeResult.positionNoun,
-              positionPreposition: themeResult.positionPreposition,
             });
           } else {
             puzzle = generate({
@@ -88,8 +76,6 @@ export function createPuzzleState() {
               difficulty,
               seed: Date.now(),
               categoryNames: customCategories,
-              positionNoun,
-              positionPreposition,
             });
           }
           if (clueStyle && puzzle) {

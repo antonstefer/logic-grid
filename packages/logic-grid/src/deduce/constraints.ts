@@ -4,7 +4,7 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { ordinal, posNoun, posNounPlural, posPrep } from "../grid-utils";
+import { ordinal } from "../grid-utils";
 import { resolveAxis } from "../axis";
 import {
   type DeduceState,
@@ -154,7 +154,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}.`,
+    `Clue ${ci + 1}: ${c.value} must be ${"in"} the ${ordinal(c.position)} ${"position"}.`,
   );
 }
 
@@ -171,14 +171,14 @@ function tryNotAtPosition(
     ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
-      ? `, so ${c.value} must be ${posPrep(state.grid)} the ${ordinal(assigns[0].position)} ${posNoun(state.grid)}.`
+      ? `, so ${c.value} must be ${"in"} the ${ordinal(assigns[0].position)} ${"position"}.`
       : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `Clue ${ci + 1}: ${c.value} is not ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not ${"in"} the ${ordinal(c.position)} ${"position"}${suffix}`,
   );
 }
 
@@ -217,8 +217,8 @@ function trySamePosition(
   const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const noun = posNoun(state.grid);
-  const prep = posPrep(state.grid);
+  const noun = "position";
+  const prep = "in";
   let explanation: string;
   if (assigns.length > 0) {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}both are ${prep} the ${ordinal(assigns[0].position)} ${noun}.`;
@@ -254,8 +254,8 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const noun = posNoun(state.grid);
-  const prep = posPrep(state.grid);
+  const noun = "position";
+  const prep = "in";
   const assignSuffix =
     assigns.length > 0
       ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
@@ -265,7 +265,7 @@ function tryNotSamePosition(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are ${prep} different ${posNounPlural(state.grid)}. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are ${prep} different ${"positions"}. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -580,8 +580,8 @@ function tryBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = posNoun(state.grid);
-    const prep = posPrep(state.grid);
+    const noun = "position";
+    const prep = "in";
     const parts = [
       `${c.outer1} is ${prep} the ${ordinal(a1)} ${noun}`,
       `${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}`,
@@ -664,8 +664,8 @@ function tryNotBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = posNoun(state.grid);
-    const prep = posPrep(state.grid);
+    const noun = "position";
+    const prep = "in";
     because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
   } else {
     // At least one outer always has a description for supported grid sizes (3–8):
@@ -848,10 +848,11 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
-  const unit = state.grid.spatialWords.distanceUnit;
+  const axisForUnit = resolveAxis(state.grid, c.axis);
+  const unit = axisForUnit.orderingPhrases?.unit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)}`;
+    : `${c.distance} ${c.distance === 1 ? "position" : "positions"}`;
   // At least one value always has a description for supported grid sizes (3–8).
   const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
   const because = ` ${ctx}, so `;

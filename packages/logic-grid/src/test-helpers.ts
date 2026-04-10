@@ -1,14 +1,20 @@
-import type { Category, Grid, SpatialWords } from "./types";
-import {
-  DEFAULT_SPATIAL_WORDS,
-  DEFAULT_POSITION_NOUN,
-  DEFAULT_POSITION_PREPOSITION,
-  defaultHouseCategory,
-} from "./default-config";
+import type { Category, ComparatorMap, Grid } from "./types";
+import { defaultHouseCategory } from "./default-config";
+
+/** Generic comparators for test ordered categories. */
+export const TEST_COMPARATORS: ComparatorMap = {
+  before: ["is before", "is after"],
+  left_of: ["is right before", "is right after"],
+  next_to: "is right next to",
+  not_next_to: "is not right next to",
+  between: "is between",
+  not_between: "is not between",
+  exact_distance: "is exactly",
+};
 
 /**
- * Build a Grid from a minimal description, filling in default rendering fields.
- * For tests only — production code should use generate().
+ * Build a Grid from a minimal description. For tests only — production code
+ * should use generate().
  *
  * Prepends a default House ordered category if none of the supplied categories
  * is ordered, matching the buildGrid behavior in generate().
@@ -16,14 +22,8 @@ import {
 export function makeGrid(partial: {
   size: number;
   categories: Category[];
-  positionNoun?: [string, string];
-  positionPreposition?: string;
-  spatialWords?: SpatialWords;
   displayAxis?: string;
 }): Grid {
-  const positionNoun = partial.positionNoun ?? DEFAULT_POSITION_NOUN;
-  const positionPreposition =
-    partial.positionPreposition ?? DEFAULT_POSITION_PREPOSITION;
   let categories = partial.categories;
   if (!categories.some((c) => c.ordered === true)) {
     categories = [defaultHouseCategory(partial.size), ...categories];
@@ -31,9 +31,6 @@ export function makeGrid(partial: {
   return {
     size: partial.size,
     categories,
-    positionNoun,
-    positionPreposition,
-    spatialWords: partial.spatialWords ?? { ...DEFAULT_SPATIAL_WORDS },
     displayAxis: partial.displayAxis,
   };
 }

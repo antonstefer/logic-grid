@@ -2,60 +2,33 @@ import { describe, it, expect } from "vitest";
 import { describeResult, describeKnown, createState } from "./state";
 import { makeGrid } from "../test-helpers";
 
-const defaultGrid = makeGrid({
+const grid = makeGrid({
   size: 3,
   categories: [
     { name: "Name", values: ["Alice", "Bob", "Carol"] },
     { name: "Color", values: ["Red", "Blue", "Green"] },
   ],
-});
-
-const seatGrid = makeGrid({
-  size: 3,
-  categories: [
-    { name: "Name", values: ["Alice", "Bob", "Carol"] },
-    { name: "Color", values: ["Red", "Blue", "Green"] },
-  ],
-  positionNoun: ["seat", "seats"],
-  positionPreposition: "at",
 });
 
 describe("describeResult", () => {
-  it("uses default house/in when no custom noun", () => {
-    const result = describeResult(
-      defaultGrid,
-      [{ value: "Alice", position: 0 }],
-      [],
-    );
-    expect(result).toBe("Alice must be in the first house");
+  it("describes assignments", () => {
+    const result = describeResult(grid, [{ value: "Alice", position: 0 }], []);
+    expect(result).toBe("Alice must be in the first position");
   });
 
-  it("uses custom noun and preposition for assignments", () => {
-    const result = describeResult(
-      seatGrid,
-      [{ value: "Alice", position: 0 }],
-      [],
-    );
-    expect(result).toBe("Alice must be at the first seat");
+  it("describes eliminations", () => {
+    const result = describeResult(grid, [], [{ value: "Bob", position: 1 }]);
+    expect(result).toBe("Bob can't be in the second position");
   });
 
-  it("uses custom noun and preposition for eliminations", () => {
+  it("combines assignments and eliminations", () => {
     const result = describeResult(
-      seatGrid,
-      [],
-      [{ value: "Bob", position: 1 }],
-    );
-    expect(result).toBe("Bob can't be at the second seat");
-  });
-
-  it("combines assignments and eliminations with custom noun", () => {
-    const result = describeResult(
-      seatGrid,
+      grid,
       [{ value: "Alice", position: 0 }],
       [{ value: "Bob", position: 2 }],
     );
     expect(result).toBe(
-      "Alice must be at the first seat; Bob can't be at the third seat",
+      "Alice must be in the first position; Bob can't be in the third position",
     );
   });
 });
@@ -68,9 +41,6 @@ describe("createState invariant", () => {
         { name: "A", values: ["a1", "a2", "a3"] },
         { name: "B", values: ["b1", "b2", "b3"] },
       ],
-      positionNoun: ["house", "houses"] as [string, string],
-      positionPreposition: "in",
-      spatialWords: defaultGrid.spatialWords,
     };
     expect(() => createState(bare)).toThrow("no ordered category");
   });
@@ -78,29 +48,22 @@ describe("createState invariant", () => {
 
 describe("describeKnown", () => {
   // makeGrid auto-prepends a House category; Name is now categories[1].
-  it("uses default house/in for assigned value", () => {
-    const state = createState(defaultGrid);
-    // Pin Alice (categories[1] = Name, values[0] = "Alice") to position 0
+  it("describes assigned value", () => {
+    const state = createState(grid);
     state.possible[1][0].clear();
     state.possible[1][0].add(0);
-    expect(describeKnown(state, "Alice")).toBe("Alice is in the first house");
+    expect(describeKnown(state, "Alice")).toBe(
+      "Alice is in the first position",
+    );
   });
 
-  it("uses custom noun and preposition for assigned value", () => {
-    const state = createState(seatGrid);
-    state.possible[1][0].clear();
-    state.possible[1][0].add(0);
-    expect(describeKnown(state, "Alice")).toBe("Alice is at the first seat");
-  });
-
-  it("uses custom noun for possible positions", () => {
-    const state = createState(seatGrid);
-    // Restrict Bob to positions 0 and 2
+  it("describes possible positions", () => {
+    const state = createState(grid);
     state.possible[1][1].clear();
     state.possible[1][1].add(0);
     state.possible[1][1].add(2);
     expect(describeKnown(state, "Bob")).toBe(
-      "Bob can only be at the first or third seat",
+      "Bob can only be in the first or third position",
     );
   });
 });

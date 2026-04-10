@@ -1,4 +1,4 @@
-import type { Category, Constraint, Grid } from "./types";
+import type { Category, Constraint, Grid, OrderedCategory } from "./types";
 
 /**
  * Return the list of `ordered: true` categories in declaration order.
@@ -12,7 +12,7 @@ export function orderedCategories(grid: Grid): Category[] {
  * Resolve an axis name to its ordered category. Throws if the name does not
  * match any category or if the matching category is not ordered.
  */
-export function resolveAxis(grid: Grid, axisName: string): Category {
+export function resolveAxis(grid: Grid, axisName: string): OrderedCategory {
   const cat = grid.categories.find((c) => c.name === axisName);
   if (!cat) {
     throw new RangeError(`Unknown axis: "${axisName}"`);
@@ -22,7 +22,7 @@ export function resolveAxis(grid: Grid, axisName: string): Category {
       `Axis "${axisName}" must reference an ordered category`,
     );
   }
-  return cat;
+  return cat as OrderedCategory;
 }
 
 /**

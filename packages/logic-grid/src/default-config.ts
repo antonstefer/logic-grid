@@ -1,4 +1,4 @@
-import type { Category, SpatialWords } from "./types";
+import type { Category } from "./types";
 
 /**
  * Default non-position category pool for the classic Einstein's riddle style.
@@ -111,22 +111,6 @@ export const DEFAULT_CATEGORIES: Category[] = [
   },
 ];
 
-/** Generic fallback vocabulary used when an axis category supplies no overrides. */
-export const DEFAULT_SPATIAL_WORDS: SpatialWords = {
-  verb: ["lives", "does not live"],
-  adjacency: "next to",
-  direction: ["left of", "right of"],
-  between: "somewhere between",
-  atPosition: ["lives in", "does not live in"],
-  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-};
-
-/** Default singular/plural position noun for the auto-added House category's display. */
-export const DEFAULT_POSITION_NOUN: [string, string] = ["house", "houses"];
-
-/** Default preposition for positional phrases. */
-export const DEFAULT_POSITION_PREPOSITION = "in";
-
 /**
  * Build the auto-added House ordered category. Used by `buildGrid` when the
  * user supplies no ordered category. noun + valueSuffix both set so label()
@@ -154,5 +138,17 @@ export function defaultHouseCategory(size: number): Category {
     valueSuffix: "house",
     ordered: true,
     values: ordinals.slice(0, size),
+    orderingPhrases: {
+      unit: ["house", "houses"],
+      comparators: {
+        before: ["lives somewhere left of", "lives somewhere right of"],
+        left_of: ["lives directly left of", "lives directly right of"],
+        next_to: "lives next to",
+        not_next_to: "does not live next to",
+        between: "lives somewhere between",
+        not_between: "does not live somewhere between",
+        exact_distance: "lives exactly",
+      },
+    },
   };
 }

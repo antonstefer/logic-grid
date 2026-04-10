@@ -6,7 +6,7 @@ import {
   displayAxisCategory,
   validateConstraints,
 } from "./axis";
-import { makeGrid } from "./test-helpers";
+import { makeGrid, TEST_COMPARATORS } from "./test-helpers";
 
 const grid = makeGrid({
   size: 3,
@@ -18,6 +18,7 @@ const grid = makeGrid({
       noun: "fund",
       verb: ["started in", "did not start in"],
       ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
     },
     {
       name: "Return",
@@ -25,6 +26,7 @@ const grid = makeGrid({
       noun: "fund",
       verb: ["has a return of", "does not have a return of"],
       ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
     },
   ],
 });
