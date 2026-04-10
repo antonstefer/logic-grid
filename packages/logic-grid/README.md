@@ -68,7 +68,56 @@ const puzzle = generate({
 });
 ```
 
-The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-house phrasing as `[positive, negative]`. Both are optional — built-in defaults exist for Name, Color, Pet, Drink, Food, Hobby, Music, and Sport.
+The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-position phrasing as `[positive, negative]`. Both are optional — built-in defaults exist for Name, Color, Pet, Drink, Food, Hobby, Music, and Sport.
+
+### Ordered categories and multi-axis puzzles
+
+Categories with `ordered: true` define a canonical ordering on their values. Comparative constraints (`before`, `left_of`, `next_to`, etc.) reference an ordered category by name via the `axis` field. A puzzle can have multiple ordered axes — e.g. both Year and Return:
+
+```typescript
+const puzzle = generate({
+  size: 4,
+  categoryNames: [
+    { name: "Manager", values: ["Nadine", "Sal", "Terry", "Walter"] },
+    {
+      name: "Year",
+      values: ["1972", "1983", "1997", "2005"],
+      noun: "fund",
+      verb: ["started in", "did not start in"],
+      ordered: true,
+      numericValues: [1972, 1983, 1997, 2005],
+      orderingPhrases: {
+        unit: ["year", "years"],
+        comparators: {
+          before: ["started earlier than", "started later than"],
+        },
+      },
+    },
+    {
+      name: "Return",
+      values: ["6%", "7%", "8%", "9%"],
+      noun: "fund",
+      verb: ["has a return of", "does not have a return of"],
+      ordered: true,
+      orderingPhrases: {
+        unit: ["percentage point", "percentage points"],
+        comparators: {
+          before: ["has a lower return than", "has a higher return than"],
+        },
+      },
+    },
+    {
+      name: "Fund",
+      values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"],
+      noun: "fund",
+      verb: ["runs", "does not run"],
+      valueSuffix: "fund",
+    },
+  ],
+});
+```
+
+When no category has `ordered: true`, a default "House" category is auto-added. `numericValues` enables value-based distance for `exact_distance` ("exactly 25 years from"). `orderingPhrases.comparators` provides per-axis clue phrasing.
 
 ### `solve(constraints, grid)`
 
@@ -102,8 +151,8 @@ Build constraints programmatically:
 
 ```typescript
 import {
-  sameHouse,
-  notSameHouse,
+  samePosition,
+  notSamePosition,
   nextTo,
   notNextTo,
   leftOf,
@@ -116,13 +165,16 @@ import {
 } from "logic-grid";
 
 const constraints = [
-  sameHouse("Red", "Cat"), // Red and Cat are at the same position
-  nextTo("Alice", "Bob"), // Alice is adjacent to Bob
-  leftOf("Blue", "Green"), // Blue is directly left of Green
-  between("Alice", "Bob", "Carol"), // Bob is between Alice and Carol
-  atPosition("Red", 0), // Red is at position 0
+  samePosition("Red", "Cat"), // Red and Cat are at the same position
+  nextTo("Alice", "Bob", "House"), // Alice is adjacent to Bob on the House axis
+  leftOf("Blue", "Green", "House"), // Blue is directly left of Green
+  between("Alice", "Bob", "Carol", "House"), // Bob is between Alice and Carol
+  before("Alice", "Bob", "Year"), // Alice's Year rank < Bob's Year rank
+  atPosition("Red", 0), // Red is at row 0
 ];
 ```
+
+Comparative constraints (`nextTo`, `leftOf`, `between`, `notBetween`, `before`, `notNextTo`, `exactDistance`) take a required `axis` parameter naming an `ordered: true` category.
 
 ### `deduce(constraints, grid)`
 
@@ -139,7 +191,6 @@ for (const step of result.steps) {
   console.log(step.explanation);
   // "Red is in the first house."
   // "Red and Cat are in the same house: the first house."
-  // "Blue must be in the second house, so no other Color can be there."
 }
 ```
 
@@ -153,53 +204,53 @@ Each step includes:
 
 Techniques:
 
-| Technique        | Description                                                    |
-| ---------------- | -------------------------------------------------------------- |
-| `direct`         | Value forced to a specific position by `at_position`           |
-| `elimination`    | Position ruled out by `not_at_position`                        |
-| `same_house`     | Two values share possible positions — intersect them           |
-| `not_same_house` | Pinned value excludes its position from the other              |
-| `next_to`        | Positions incompatible with adjacency are removed              |
-| `not_next_to`    | Pinned value excludes its neighbors from the other             |
-| `left_of`        | Value directly left of another — constrain both                |
-| `before`         | Value somewhere left of another — constrain range              |
-| `between`        | Middle must lie strictly between two outers                    |
-| `not_between`    | Middle cannot lie between two pinned outers                    |
-| `exact_distance` | Two values must be exactly N positions apart                   |
-| `naked_single`   | One value is the only candidate for a position in its category |
-| `hidden_single`  | One position is the only candidate for a value in its category |
-| `naked_pair`     | Two values share the same two positions — exclude others       |
-| `naked_triple`   | Three values share three positions — exclude others            |
-| `hidden_pair`    | Two positions are exclusively reachable by two values          |
-| `hidden_triple`  | Three positions are exclusively reachable by three values      |
-| `contradiction`  | Placing a value at a position leads to an impossible state     |
+| Technique           | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `direct`            | Value forced to a specific position by `at_position`           |
+| `elimination`       | Position ruled out by `not_at_position`                        |
+| `same_position`     | Two values share possible positions — intersect them           |
+| `not_same_position` | Pinned value excludes its position from the other              |
+| `next_to`           | Positions incompatible with adjacency are removed              |
+| `not_next_to`       | Pinned value excludes its neighbors from the other             |
+| `left_of`           | Value directly left of another — constrain both                |
+| `before`            | Value somewhere left of another — constrain range              |
+| `between`           | Middle must lie strictly between two outers                    |
+| `not_between`       | Middle cannot lie between two pinned outers                    |
+| `exact_distance`    | Two values must be exactly N apart on the axis                 |
+| `naked_single`      | One value is the only candidate for a position in its category |
+| `hidden_single`     | One position is the only candidate for a value in its category |
+| `naked_pair`        | Two values share the same two positions — exclude others       |
+| `naked_triple`      | Three values share three positions — exclude others            |
+| `hidden_pair`       | Two positions are exclusively reachable by two values          |
+| `hidden_triple`     | Three positions are exclusively reachable by three values      |
+| `contradiction`     | Placing a value at a position leads to an impossible state     |
 
 ### `renderClue(constraint, grid)`
 
-Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names (e.g. "Alice owns the dog" for Name+Pet, "The red house has a cat" for Color+Pet).
+Convert a constraint to a human-readable clue. Produces natural English phrasing based on category names and per-axis `orderingPhrases`.
 
 ```typescript
-import { renderClue, sameHouse } from "logic-grid";
+import { renderClue, samePosition } from "logic-grid";
 
-const clue = renderClue(sameHouse("Red", "Cat"), grid);
-// { constraint: ..., text: "The red house has a cat." }
+const clue = renderClue(samePosition("Red", "Cat"), grid);
+// { constraint: ..., text: "The cat owner lives in the red house." }
 ```
 
 ## Constraint Types
 
-| Type              | Meaning                                      |
-| ----------------- | -------------------------------------------- |
-| `same_house`      | Two values are at the same position          |
-| `not_same_house`  | Two values are at different positions        |
-| `next_to`         | Two values are at adjacent positions         |
-| `not_next_to`     | Two values are not adjacent                  |
-| `left_of`         | First value is directly left of second       |
-| `between`         | Middle value is somewhere between two outers |
-| `not_between`     | Middle value is not between two outers       |
-| `before`          | First value is somewhere left of second      |
-| `exact_distance`  | Two values are exactly N positions apart     |
-| `at_position`     | Value is at a specific position (0-indexed)  |
-| `not_at_position` | Value is not at a specific position          |
+| Type                | Meaning                                                |
+| ------------------- | ------------------------------------------------------ |
+| `same_position`     | Two values are at the same position                    |
+| `not_same_position` | Two values are at different positions                  |
+| `next_to`           | Two values are rank-adjacent on the named axis         |
+| `not_next_to`       | Two values are not rank-adjacent                       |
+| `left_of`           | First value's rank is exactly one less than second's   |
+| `between`           | Middle value's rank is strictly between two outers     |
+| `not_between`       | Middle value's rank is not between two outers          |
+| `before`            | First value's rank is strictly less than second's      |
+| `exact_distance`    | Two values are exactly N apart (rank steps or numeric) |
+| `at_position`       | Value is at a specific row (0-indexed)                 |
+| `not_at_position`   | Value is not at a specific row                         |
 
 ## Types
 
@@ -209,14 +260,24 @@ type Difficulty = "easy" | "medium" | "hard" | "expert";
 interface Grid {
   size: number;
   categories: Category[];
+  positionNoun: [string, string];
+  positionPreposition: string;
+  spatialWords: SpatialWords;
+  displayAxis?: string;
 }
 
-interface Category {
+type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
+
+// See types.ts for the full discriminated union. Key fields:
+interface CategoryCore {
   name: string;
   values: string[];
-  noun?: string; // label noun for clues
-  verb?: [string, string]; // [positive, negative] verb phrases
+  noun?: string;
+  verb?: [string, string];
+  subjectPriority?: number;
 }
+// ordered: true enables numericValues and orderingPhrases.
+// valueSuffix enables positionAdjective.
 
 type Solution = Assignment[]; // one per category
 type Assignment = Record<string, number>; // value → position (0-indexed)
@@ -229,11 +290,11 @@ interface Clue {
 
 ## How It Works
 
-1. **SAT encoding** — each puzzle is encoded as a boolean satisfiability problem (CNF). Variable `x(v, p)` represents "value v is at position p". At-least-one and at-most-one constraints ensure valid assignments.
+1. **SAT encoding** — each puzzle is encoded as a boolean satisfiability problem (CNF). Variable `x(v, p)` represents "value v is at position p". At-least-one and at-most-one constraints ensure valid assignments. Comparative constraints on non-identity-pinned axes use rank-forbidding clauses.
 
 2. **DPLL solver** — a minimal DPLL SAT solver with watched literals and flat `Int32Array` storage. No external dependencies.
 
-3. **Generation** — a random valid solution is generated, all true constraints are enumerated, then a minimal diverse subset is selected through constructive round-robin minimization: constraints are added one per type in rotation until uniqueness is achieved, then redundant ones are trimmed. An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
+3. **Generation** — a random valid solution is generated, all true constraints are enumerated per ordered axis, then a minimal diverse subset is selected through constructive round-robin minimization: constraints are added one per type in rotation until uniqueness is achieved, then redundant ones are trimmed. An incremental solver with assumption literals avoids rebuilding the solver for each uniqueness check.
 
 4. **Difficulty** — classified by constraint type complexity and whether the puzzle is solvable by direct elimination alone.
 
