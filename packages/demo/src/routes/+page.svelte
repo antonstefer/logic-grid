@@ -27,13 +27,13 @@
           ordered: true,
           numericValues: [3, 5, 8, 12],
           orderingPhrases: {
-            unit: ["percentage point", "percentage points"] as [string, string],
+            unit: ["percentage point", "percentage points"],
             comparators: {
-              before: ["has a lower return than", "has a higher return than"] as [string, string],
+              before: ["has a lower return than", "has a higher return than"],
               left_of: [
                 "has the next lower return than",
                 "has the next higher return than",
-              ] as [string, string],
+              ],
               next_to: "has the return right above or below",
               not_next_to: "does not have the return right above or below",
               between: "has a return somewhere between",
@@ -60,16 +60,16 @@
           ordered: true,
           numericValues: [7, 8, 9, 10],
           orderingPhrases: {
-            unit: ["hour", "hours"] as [string, string],
+            unit: ["hour", "hours"],
             comparators: {
               before: [
                 "has an earlier appointment than",
                 "has a later appointment than",
-              ] as [string, string],
+              ],
               left_of: [
                 "has the appointment right before",
                 "has the appointment right after",
-              ] as [string, string],
+              ],
               next_to: "has an appointment right before or after",
               not_next_to: "does not have an appointment right before or after",
               between: "has an appointment somewhere between",
@@ -96,10 +96,10 @@
           ordered: true,
           numericValues: [1972, 1983, 1997, 2005],
           orderingPhrases: {
-            unit: ["year", "years"] as [string, string],
+            unit: ["year", "years"],
             comparators: {
-              before: ["started earlier than", "started later than"] as [string, string],
-              left_of: ["started right before", "started right after"] as [string, string],
+              before: ["started earlier than", "started later than"],
+              left_of: ["started right before", "started right after"],
               next_to: "started right before or after",
               not_next_to: "did not start right before or after",
               between: "started between",
@@ -116,10 +116,10 @@
           subjectPriority: -1,
           ordered: true,
           orderingPhrases: {
-            unit: ["percentage point", "percentage points"] as [string, string],
+            unit: ["percentage point", "percentage points"],
             comparators: {
-              before: ["has a lower return than", "has a higher return than"] as [string, string],
-              left_of: ["has the next lower return than", "has the next higher return than"] as [string, string],
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: ["has the next lower return than", "has the next higher return than"],
               next_to: "has the return right above or below",
               not_next_to: "does not have the return right above or below",
               between: "has a return between",
