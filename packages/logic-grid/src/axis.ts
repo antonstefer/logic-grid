@@ -66,17 +66,6 @@ export function displayAxisCategory(grid: Grid): OrderedCategory {
   return first;
 }
 
-/** Constraint types that carry an `axis` field. */
-const AXIS_CONSTRAINT_TYPES = new Set([
-  "next_to",
-  "not_next_to",
-  "left_of",
-  "between",
-  "not_between",
-  "before",
-  "exact_distance",
-]);
-
 /**
  * Validate that every comparative constraint in `constraints` references an
  * ordered category that exists in the grid. Throws on the first violation.
@@ -86,9 +75,8 @@ export function validateConstraints(
   grid: Grid,
 ): void {
   for (const c of constraints) {
-    if (AXIS_CONSTRAINT_TYPES.has(c.type)) {
-      const axisName = (c as { axis: string }).axis;
-      resolveAxis(grid, axisName);
+    if ("axis" in c && typeof c.axis === "string") {
+      resolveAxis(grid, c.axis);
     }
   }
 }
