@@ -16,7 +16,7 @@ import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-import { orderedCategories, resolveAxis } from "./axis";
+import { isOrdered, orderedCategories, resolveAxis } from "./axis";
 import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
@@ -209,7 +209,7 @@ function sliceCategory(c: Category, size: number): Category {
     c.valueSuffix !== undefined
       ? { valueSuffix: c.valueSuffix, positionAdjective: c.positionAdjective }
       : {};
-  if (c.ordered === true) {
+  if (isOrdered(c)) {
     return {
       ...base,
       ordered: true,
@@ -217,7 +217,7 @@ function sliceCategory(c: Category, size: number): Category {
       orderingPhrases: c.orderingPhrases,
       displayLabels: c.displayLabels?.slice(0, size),
       ...withSuffix,
-    } as Category;
+    } as Category; // spread loses union discrimination
   }
   return { ...base, ...withSuffix } as Category;
 }

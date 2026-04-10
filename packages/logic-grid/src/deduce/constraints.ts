@@ -154,7 +154,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be ${"in"} the ${ordinal(c.position)} ${"position"}.`,
+    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} position.`,
   );
 }
 
@@ -171,14 +171,14 @@ function tryNotAtPosition(
     ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
-      ? `, so ${c.value} must be ${"in"} the ${ordinal(assigns[0].position)} ${"position"}.`
+      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} position.`
       : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `Clue ${ci + 1}: ${c.value} is not ${"in"} the ${ordinal(c.position)} ${"position"}${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} position${suffix}`,
   );
 }
 
@@ -265,7 +265,7 @@ function tryNotSamePosition(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are ${prep} different ${"positions"}. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are ${prep} different positions. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -848,8 +848,7 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
-  const axisForUnit = resolveAxis(state.grid, c.axis);
-  const unit = axisForUnit.orderingPhrases?.unit;
+  const unit = axis.orderingPhrases.unit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
     : `${c.distance} ${c.distance === 1 ? "position" : "positions"}`;

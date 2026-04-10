@@ -20,6 +20,7 @@ export {
 
 export { renderClue } from "./clues/templates";
 export {
+  isOrdered,
   resolveAxis,
   orderedCategories,
   axisRank,

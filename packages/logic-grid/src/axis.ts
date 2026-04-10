@@ -1,12 +1,17 @@
 import type { Category, Constraint, Grid, OrderedCategory } from "./types";
 
+/** Type predicate: narrows Category to OrderedCategory. */
+export function isOrdered(c: Category): c is OrderedCategory {
+  return c.ordered === true;
+}
+
 /**
  * Return the list of `ordered: true` categories in declaration order.
  * These are the axes available to comparative constraints.
  * Returns an empty array (never throws) if no ordered category exists.
  */
 export function orderedCategories(grid: Grid): OrderedCategory[] {
-  return grid.categories.filter((c) => c.ordered === true) as OrderedCategory[];
+  return grid.categories.filter(isOrdered);
 }
 
 /**
@@ -18,12 +23,12 @@ export function resolveAxis(grid: Grid, axisName: string): OrderedCategory {
   if (!cat) {
     throw new RangeError(`Unknown axis: "${axisName}"`);
   }
-  if (cat.ordered !== true) {
+  if (!isOrdered(cat)) {
     throw new RangeError(
       `Axis "${axisName}" must reference an ordered category`,
     );
   }
-  return cat as OrderedCategory;
+  return cat;
 }
 
 /**

@@ -3,18 +3,8 @@ import { generate } from "./generator";
 import { deduce } from "./deduce";
 import { hasUniqueSolution, solve } from "./solver";
 import { resolveAxis } from "./axis";
-import type { Category, ComparatorMap, Grid } from "./types";
-
-/** Generic comparators for test ordered categories. */
-const TEST_COMPARATORS: ComparatorMap = {
-  before: ["is before", "is after"],
-  left_of: ["is right before", "is right after"],
-  next_to: "is right next to",
-  not_next_to: "is not right next to",
-  between: "is between",
-  not_between: "is not between",
-  exact_distance: "is exactly",
-};
+import { TEST_COMPARATORS } from "./test-helpers";
+import type { Category, Grid } from "./types";
 
 describe("generate", () => {
   it("returns a valid puzzle with defaults", () => {
