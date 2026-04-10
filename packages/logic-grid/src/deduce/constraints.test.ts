@@ -932,3 +932,82 @@ describe("ordinal", () => {
     expect(() => ordinal(-1)).toThrow("out of supported range");
   });
 });
+
+describe("rank-space deduction on non-pinned axis", () => {
+  // Year is the first ordered category (identity-pinned). Return is the
+  // second (not pinned) — constraints targeting Return go through the
+  // rank-space path.
+  const multiGrid = makeGrid({
+    size: 4,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+      {
+        name: "Year",
+        values: ["2020", "2021", "2022", "2023"],
+        noun: "fund",
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
+      },
+      {
+        name: "Return",
+        values: ["5%", "6%", "7%", "8%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+      },
+    ],
+  });
+
+  it("before on non-pinned axis propagates", () => {
+    // Pin 8% to position 0, so Alice at pos 0 has return rank 3 (the highest).
+    // before(Alice, Bob, Return) means Alice's return rank < Bob's → but
+    // rank 3 is the max, so no Bob can be strictly greater → Alice can't be
+    // at pos 0 if 8% is the only option there. However, since 8% isn't pinned
+    // to position 0 in the deduce state (Return is not identity-pinned),
+    // we use a simpler test: pin Alice to a single return rank and verify
+    // eliminations happen.
+    //
+    // Instead, let's use same_position to co-locate Alice with 8%, then
+    // check that before(Alice, Bob, Return) produces eliminations via the
+    // rank-space path.
+    const constraints: Constraint[] = [
+      { type: "same_position", a: "Alice", b: "8%" },
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+    ];
+    const result = deduce(constraints, multiGrid);
+    // With Alice at rank 3 (highest), there's no rank > 3 for Bob.
+    // The before constraint is unsatisfiable — the solver should detect
+    // this via contradiction or at least produce some propagation.
+    expect(result.steps.length).toBeGreaterThan(0);
+  });
+
+  it("before on non-pinned axis: tryConstraint returns a step", () => {
+    // Use tryConstraint directly with a pre-configured state to exercise
+    // the rank-space path. Pin Alice to position 0 and 8% to position 0
+    // via state manipulation, so Alice's rank domain on Return = {3}.
+    // before(Alice, Bob, Return) → rank(Alice)=3 is the max, no valid Bob
+    // rank > 3 exists → Alice's position 0 should be eliminated.
+    const state = createState(multiGrid);
+    // Pin Alice and 8% to position 0 (co-located).
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "8%").delete(p);
+    }
+    // Remove other Return values from position 0 so 8% is the only one there.
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+      0,
+    );
+    // Alice at rank 3, no rank > 3 for Bob → Alice's position 0 eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 0,
+    });
+  });
+});

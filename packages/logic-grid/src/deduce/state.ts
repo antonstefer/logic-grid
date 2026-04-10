@@ -1,4 +1,9 @@
-import type { Grid, DeductionStep, DeductionTechnique } from "../types";
+import type {
+  Category,
+  Grid,
+  DeductionStep,
+  DeductionTechnique,
+} from "../types";
 import { ordinal, posNoun, posPrep } from "../grid-utils";
 
 // --- Display utilities ---
@@ -169,4 +174,59 @@ export function collectAssigns(
     if (ps.size === 1) assigns.push({ value: e.value, position: first(ps) });
   }
   return assigns;
+}
+
+// --- Rank-space helpers for multi-axis deduction ---
+
+/**
+ * Compute the set of ranks `value` could occupy on `axis`. A rank k is
+ * possible iff there exists a position p where both `value` and
+ * `axis.values[k]` are currently possible.
+ */
+export function axisRankDomain(
+  state: DeduceState,
+  value: string,
+  axis: Category,
+): Set<number> {
+  const ps = getPossible(state, value);
+  const ranks = new Set<number>();
+  for (const p of ps) {
+    for (let k = 0; k < axis.values.length; k++) {
+      if (getPossible(state, axis.values[k]).has(p)) {
+        ranks.add(k);
+      }
+    }
+  }
+  return ranks;
+}
+
+/**
+ * Project rank eliminations back to position eliminations. For each position
+ * currently possible for `value`, if the ONLY axis rank still possible at
+ * that position is in `eliminatedRanks`, then that position is eliminated.
+ */
+export function projectRanksToPositions(
+  state: DeduceState,
+  value: string,
+  axis: Category,
+  eliminatedRanks: Set<number>,
+): { value: string; position: number }[] {
+  const elims: { value: string; position: number }[] = [];
+  const ps = getPossible(state, value);
+  for (const p of ps) {
+    // Find all axis ranks still possible at position p.
+    let allEliminated = true;
+    for (let k = 0; k < axis.values.length; k++) {
+      if (getPossible(state, axis.values[k]).has(p)) {
+        if (!eliminatedRanks.has(k)) {
+          allEliminated = false;
+          break;
+        }
+      }
+    }
+    if (allEliminated) {
+      elims.push({ value, position: p });
+    }
+  }
+  return elims;
 }
