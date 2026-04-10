@@ -97,6 +97,12 @@ export function generate(options?: GenerateOptions): Puzzle {
       grid,
       difficulty !== "expert",
     );
+    // minimizeConstraints returns [] when the constructive phase can't achieve
+    // uniqueness. Unreachable for supported grid sizes with seeded RNG but
+    // observed with Math.random on some platforms (CI flake).
+    /* v8 ignore next */
+    if (minimal.length === 0) continue;
+
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry

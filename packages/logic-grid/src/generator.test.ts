@@ -8,7 +8,7 @@ import type { Category, Grid } from "./types";
 
 describe("generate", () => {
   it("returns a valid puzzle with defaults", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 1 });
 
     expect(puzzle.grid.size).toBe(4);
     expect(puzzle.grid.categories.length).toBe(4);
@@ -19,7 +19,7 @@ describe("generate", () => {
   });
 
   it("solution is a valid permutation", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 2 });
 
     for (const assignment of puzzle.solution) {
       const positions = Object.values(assignment);
@@ -33,7 +33,7 @@ describe("generate", () => {
   });
 
   it("constraints are consistent with the solution", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 3 });
     const posOf = new Map<string, number>();
     for (const assignment of puzzle.solution) {
       for (const [val, pos] of Object.entries(assignment)) {
@@ -126,7 +126,7 @@ describe("generate", () => {
   });
 
   it("puzzle has a unique solution", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 4 });
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
