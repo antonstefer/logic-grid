@@ -33,8 +33,6 @@ interface CategoryCore {
   values: string[];
   /** Noun for clue phrases. `"owner"` → "the cat owner". Empty string = bare value ("Alice"). */
   noun?: string;
-  /** Verb phrases for same-position clues: `[positive, negative]`. Required when noun !== "". */
-  verb?: [string, string];
   /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
   subjectPriority?: number;
 }
@@ -45,12 +43,15 @@ interface CategoryCore {
  * `ordered: true` implies:
  * - `values` array defines the canonical total order (rank = array index).
  * - The category may be referenced as `axis` on any comparative constraint.
+ * - `verb` is required (used for at_position rendering).
  * - `numericValues` and `orderingPhrases` become legal.
  * - The category participates in multi-axis generation, deduction, rendering.
  */
 type OrderednessFields =
   | {
       ordered: true;
+      /** Verb phrases for same-position / at_position clues: `[positive, negative]`. Required on ordered categories. */
+      verb: [string, string];
       /** Per-rank numeric values for non-equidistant `exact_distance`. Must match `values` length and be ascending. */
       numericValues?: number[];
       /** Domain-specific phrasing for ordering constraints on this axis. Required on all ordered categories. */
@@ -60,6 +61,8 @@ type OrderednessFields =
     }
   | {
       ordered?: false;
+      /** Verb phrases for same-position clues: `[positive, negative]`. Required when noun !== "" (runtime check). */
+      verb?: [string, string];
       numericValues?: never;
       orderingPhrases?: never;
     };
@@ -88,6 +91,7 @@ export type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
 /** A Category known to be ordered (returned by resolveAxis). */
 export type OrderedCategory = CategoryCore & {
   ordered: true;
+  verb: [string, string];
   numericValues?: number[];
   orderingPhrases: OrderingPhrases;
   displayLabels?: string[];

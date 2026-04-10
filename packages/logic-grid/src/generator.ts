@@ -60,7 +60,7 @@ function validateCategories(categories: Category[]): void {
       );
     }
 
-    if (c.ordered === true) {
+    if (isOrdered(c)) {
       if (c.numericValues !== undefined) {
         if (c.numericValues.length !== c.values.length) {
           throw new RangeError(

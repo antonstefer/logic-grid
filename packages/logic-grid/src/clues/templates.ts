@@ -205,8 +205,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
       if (cat.positionAdjective) {
         return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
       }
-      if (!axis.verb)
-        throw new Error(`Ordered category "${axis.name}" has no verb`);
       return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
     }
     case "not_at_position": {
@@ -217,8 +215,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
       if (cat.positionAdjective) {
         return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
       }
-      if (!axis.verb)
-        throw new Error(`Ordered category "${axis.name}" has no verb`);
       return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
-import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
+import { makeGrid } from "../test-helpers";
 import type { Grid } from "../types";
 
 const grid = makeGrid({
@@ -600,45 +600,6 @@ describe("at_position / not_at_position invariants", () => {
     ).toThrow("no ordered category");
   });
 
-  it("at_position throws when ordered category has no verb", () => {
-    const noVerbGrid: Grid = {
-      size: 3,
-      categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-        {
-          name: "Axis",
-          values: ["X", "Y", "Z"],
-          ordered: true,
-          orderingPhrases: { comparators: TEST_COMPARATORS },
-        },
-      ],
-    };
-    expect(() =>
-      renderClue(
-        { type: "at_position", value: "Alice", position: 0 },
-        noVerbGrid,
-      ),
-    ).toThrow("has no verb");
-  });
-
-  it("not_at_position throws when ordered category has no verb", () => {
-    const noVerbGrid: Grid = {
-      size: 3,
-      categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-        {
-          name: "Axis",
-          values: ["X", "Y", "Z"],
-          ordered: true,
-          orderingPhrases: { comparators: TEST_COMPARATORS },
-        },
-      ],
-    };
-    expect(() =>
-      renderClue(
-        { type: "not_at_position", value: "Alice", position: 0 },
-        noVerbGrid,
-      ),
-    ).toThrow("has no verb");
-  });
+  // "ordered category has no verb" is now a compile-time error:
+  // the OrderednessFields union requires verb on ordered: true.
 });
