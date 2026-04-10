@@ -429,7 +429,7 @@ export function createPuzzleState() {
     for (const candidate of hintSteps) {
       const newElims = candidate.eliminations.filter((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
-        return cell === "empty" || cell === "confirmed";
+        return cell === "empty";
       });
       const newAssigns = candidate.assignments.filter((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";
