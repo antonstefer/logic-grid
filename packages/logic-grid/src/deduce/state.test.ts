@@ -60,6 +60,22 @@ describe("describeResult", () => {
   });
 });
 
+describe("createState invariant", () => {
+  it("throws when grid has no ordered category", () => {
+    const bare = {
+      size: 3,
+      categories: [
+        { name: "A", values: ["a1", "a2", "a3"] },
+        { name: "B", values: ["b1", "b2", "b3"] },
+      ],
+      positionNoun: ["house", "houses"] as [string, string],
+      positionPreposition: "in",
+      spatialWords: defaultGrid.spatialWords,
+    };
+    expect(() => createState(bare)).toThrow("no ordered category");
+  });
+});
+
 describe("describeKnown", () => {
   // makeGrid auto-prepends a House category; Name is now categories[1].
   it("uses default house/in for assigned value", () => {

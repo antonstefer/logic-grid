@@ -323,6 +323,14 @@ describe("grid-level comparator overrides", () => {
     },
   };
 
+  it("left_of uses grid comparator when set", () => {
+    const clue = renderClue(
+      { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
+      withComparators,
+    );
+    expect(clue.text).toBe("Alice is directly before Bob.");
+  });
+
   it("before uses grid comparator when set", () => {
     const clue = renderClue(
       { type: "before", a: "Alice", b: "Bob", axis: "House" },
@@ -339,6 +347,34 @@ describe("grid-level comparator overrides", () => {
     expect(clue.text).toMatch(
       /^(Alice is adjacent to Bob|Bob is adjacent to Alice)\.$/,
     );
+  });
+
+  it("not_between uses grid comparator when set", () => {
+    const clue = renderClue(
+      {
+        type: "not_between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "House",
+      },
+      withComparators,
+    );
+    expect(clue.text).toBe("Bob is not between Alice and Carol.");
+  });
+
+  it("exact_distance uses grid comparator when set", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "House",
+      },
+      withComparators,
+    );
+    expect(clue.text).toContain("is exactly");
   });
 
   it("between uses grid comparator when set", () => {
@@ -423,6 +459,36 @@ describe("distance unit from spatialWords.distanceUnit", () => {
     expect(clue.text).toBe(
       "Alice lives exactly 2 percentage points from the cat owner.",
     );
+  });
+});
+
+describe("left_of with tuple comparator picks forward or reverse", () => {
+  const withTupleLeftOf: Grid = {
+    ...grid,
+    spatialWords: {
+      ...grid.spatialWords,
+      comparators: {
+        left_of: ["is right before", "is right after"] as [string, string],
+      },
+    },
+  };
+
+  it("picks reverse phrasing when hash tiebreaker selects b as subject", () => {
+    // simpleHash("Alice"+"Bob") % 2 === 1 → reverse: Bob is subject
+    const clue = renderClue(
+      { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
+      withTupleLeftOf,
+    );
+    expect(clue.text).toBe("Bob is right after Alice.");
+  });
+
+  it("picks forward phrasing when hash tiebreaker selects a as subject", () => {
+    // simpleHash("Bob"+"Carol") % 2 === 0 → forward: Bob is subject
+    const clue = renderClue(
+      { type: "left_of", a: "Bob", b: "Carol", axis: "House" },
+      withTupleLeftOf,
+    );
+    expect(clue.text).toBe("Bob is right before Carol.");
   });
 });
 
@@ -532,6 +598,72 @@ describe("per-axis orderingPhrases in rendering", () => {
     );
     // Year has no unit → falls through to cardinals ("two houses").
     expect(clue.text).toContain("two houses");
+  });
+});
+
+describe("at_position / not_at_position invariants", () => {
+  const bareGrid: Grid = {
+    size: 3,
+    categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" }],
+    positionNoun: ["house", "houses"],
+    positionPreposition: "in",
+    spatialWords: DEFAULT_SPATIAL_WORDS,
+  };
+
+  it("at_position throws when grid has no ordered category", () => {
+    expect(() =>
+      renderClue(
+        { type: "at_position", value: "Alice", position: 0 },
+        bareGrid,
+      ),
+    ).toThrow("no ordered category");
+  });
+
+  it("not_at_position throws when grid has no ordered category", () => {
+    expect(() =>
+      renderClue(
+        { type: "not_at_position", value: "Alice", position: 0 },
+        bareGrid,
+      ),
+    ).toThrow("no ordered category");
+  });
+
+  it("at_position throws when ordered category has no verb", () => {
+    const noVerbGrid: Grid = {
+      size: 3,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        { name: "Axis", values: ["X", "Y", "Z"], ordered: true },
+      ],
+      positionNoun: ["house", "houses"],
+      positionPreposition: "in",
+      spatialWords: DEFAULT_SPATIAL_WORDS,
+    };
+    expect(() =>
+      renderClue(
+        { type: "at_position", value: "Alice", position: 0 },
+        noVerbGrid,
+      ),
+    ).toThrow("has no verb");
+  });
+
+  it("not_at_position throws when ordered category has no verb", () => {
+    const noVerbGrid: Grid = {
+      size: 3,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        { name: "Axis", values: ["X", "Y", "Z"], ordered: true },
+      ],
+      positionNoun: ["house", "houses"],
+      positionPreposition: "in",
+      spatialWords: DEFAULT_SPATIAL_WORDS,
+    };
+    expect(() =>
+      renderClue(
+        { type: "not_at_position", value: "Alice", position: 0 },
+        noVerbGrid,
+      ),
+    ).toThrow("has no verb");
   });
 });
 

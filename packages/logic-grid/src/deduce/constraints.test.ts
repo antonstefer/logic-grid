@@ -1010,4 +1010,207 @@ describe("rank-space deduction on non-pinned axis", () => {
       position: 0,
     });
   });
+
+  it("left_of on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 3 (8%). left_of(Alice, Bob, Return) means
+    // rank(Bob) = rank(Alice) + 1 = 4, which doesn't exist → eliminate.
+    const state = createState(multiGrid);
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "8%").delete(p);
+    }
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      { type: "left_of", a: "Alice", b: "Bob", axis: "Return" },
+      0,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 0,
+    });
+  });
+
+  it("not_between on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 1 (6%), Bob at rank 0 (5%), Carol at rank 3 (8%).
+    // not_between(Bob, Alice, Carol, Return): Alice at rank 1 is strictly
+    // between ranks 0 and 3 → violated → Alice's position eliminated.
+    const state = createState(multiGrid);
+    // Pin 5% to pos 0 only, 6% to pos 1 only, 8% to pos 3 only.
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "5%").delete(p);
+      if (p !== 1) getPossible(state, "6%").delete(p);
+      if (p !== 3) getPossible(state, "8%").delete(p);
+    }
+    // Pin Bob to pos 0 (rank 0 via 5%), Alice to pos 1 (rank 1 via 6%),
+    // Carol to pos 3 (rank 3 via 8%).
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "Bob").delete(p);
+      if (p !== 1) getPossible(state, "Alice").delete(p);
+      if (p !== 3) getPossible(state, "Carol").delete(p);
+    }
+    // Remove other Return values from those positions.
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "7%").delete(1);
+    getPossible(state, "7%").delete(3);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "not_between",
+        outer1: "Bob",
+        middle: "Alice",
+        outer2: "Carol",
+        axis: "Return",
+      },
+      0,
+    );
+    // Alice at rank 1 is between ranks 0 and 3 → not_between violated →
+    // Alice's position 1 should be eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 1,
+    });
+  });
+
+  it("between rank-space returns null when a rank domain is empty", () => {
+    const state = createState(multiGrid);
+    // Clear all positions for Alice → empty rank domain.
+    getPossible(state, "Alice").clear();
+    const result = tryConstraint(
+      state,
+      {
+        type: "between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "Return",
+      },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("exact_distance rank-space with numericValues uses value distance", () => {
+    // Use a grid where Return has numericValues and is non-pinned.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Year",
+          values: ["2020", "2021", "2022", "2023"],
+          noun: "fund",
+          verb: ["started in", "did not start in"],
+          ordered: true,
+        },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
+          numericValues: [3, 5, 8, 12],
+        },
+      ],
+    });
+    const state = createState(numGrid);
+    // Pin Alice at position 0, 3% at position 0 → Alice has Return rank 0.
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "3%").delete(p);
+    }
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "8%").delete(0);
+    getPossible(state, "12%").delete(0);
+
+    // distance=2 with numericValues [3,5,8,12]: |3-5|=2 → rank 1 valid.
+    // No other rank has value distance 2 from rank 0.
+    const result = tryConstraint(
+      state,
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
+      0,
+    );
+    expect(result).not.toBeNull();
+  });
+
+  it("exact_distance rank-space without numericValues uses rank steps", () => {
+    // Year has no numericValues in multiGrid → rank-step distance.
+    // But Year IS identity-pinned (first ordered), so we need a grid where
+    // a non-pinned axis has no numericValues. Return has none in multiGrid.
+    const state = createState(multiGrid);
+    // Pin Alice at rank 0 (5%) by clearing all other positions and values.
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "5%").delete(p);
+    }
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "8%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 3,
+        axis: "Return",
+      },
+      0,
+    );
+    // Alice at rank 0, distance 3 → Bob must be at rank 3.
+    // This should produce some propagation.
+    expect(result).not.toBeNull();
+  });
+
+  it("between on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 3 (8%), Bob at rank 0 (5%).
+    // between(Bob, Carol, Alice, Return): Carol must be strictly between
+    // ranks 0 and 3. Pin Carol at rank 0 (5% at same pos) → violated.
+    const state = createState(multiGrid);
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "5%").delete(p);
+      if (p !== 3) getPossible(state, "8%").delete(p);
+    }
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "Bob").delete(p);
+      if (p !== 0) getPossible(state, "Carol").delete(p);
+      if (p !== 3) getPossible(state, "Alice").delete(p);
+    }
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "6%").delete(3);
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "7%").delete(3);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "between",
+        outer1: "Bob",
+        middle: "Carol",
+        outer2: "Alice",
+        axis: "Return",
+      },
+      0,
+    );
+    // Carol at rank 0 (same as Bob) is not strictly between 0 and 3 →
+    // Carol's position 0 should be eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Carol",
+      position: 0,
+    });
+  });
 });

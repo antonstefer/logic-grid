@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { createContext, variable, encodeBase, encodePuzzle } from "./encoding";
 import { solveSAT, solveAllSAT } from "./sat";
 import { makeGrid } from "./test-helpers";
-import type { Constraint } from "./types";
+import { DEFAULT_SPATIAL_WORDS } from "./default-config";
+import type { Constraint, Grid } from "./types";
 
 const grid3x3 = makeGrid({
   size: 3,
@@ -330,6 +331,23 @@ describe("encodeConstraint", () => {
     expect(decoded["Green"]).toBe(2);
     expect(decoded["Fish"]).toBe(2);
     expect(decoded["Water"]).toBe(2);
+  });
+});
+
+describe("encodeBase invariant", () => {
+  it("throws when grid has no ordered category", () => {
+    const bare: Grid = {
+      size: 3,
+      categories: [
+        { name: "A", values: ["a1", "a2", "a3"] },
+        { name: "B", values: ["b1", "b2", "b3"] },
+      ],
+      positionNoun: ["house", "houses"],
+      positionPreposition: "in",
+      spatialWords: { ...DEFAULT_SPATIAL_WORDS },
+    };
+    const ctx = createContext(bare);
+    expect(() => encodeBase(ctx)).toThrow("no ordered category");
   });
 });
 

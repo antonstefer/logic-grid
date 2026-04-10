@@ -241,15 +241,13 @@ export function encodeBase(ctx: EncodingContext): number[][] {
     }
   }
 
-  // Phase 1: identity-pin the first ordered category. This matches the
-  // generator's randomSolution behavior and keeps the row-based encoder
+  // Identity-pin the first ordered category. This matches the generator's
+  // randomSolution behavior and keeps the row-based positional encoder
   // semantically consistent with the axis-tagged comparative constraints.
-  // Phase 2 removes this when the encoder switches to rank-forbidding.
   const firstOrdered = grid.categories.find((c) => c.ordered === true);
-  if (firstOrdered) {
-    for (let i = 0; i < firstOrdered.values.length; i++) {
-      clauses.push([variable(ctx, firstOrdered.values[i], i)]);
-    }
+  if (!firstOrdered) throw new Error("Grid has no ordered category");
+  for (let i = 0; i < firstOrdered.values.length; i++) {
+    clauses.push([variable(ctx, firstOrdered.values[i], i)]);
   }
 
   return clauses;

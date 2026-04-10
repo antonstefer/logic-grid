@@ -386,6 +386,79 @@ describe("generate", () => {
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
 
+  it("throws on duplicate category names", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Dupe",
+            values: ["A", "B", "C"],
+            noun: "x",
+            verb: ["is", "is not"],
+          },
+          {
+            name: "Dupe",
+            values: ["D", "E", "F"],
+            noun: "y",
+            verb: ["has", "has not"],
+          },
+        ],
+      }),
+    ).toThrow("Duplicate category name");
+  });
+
+  it("throws when numericValues length does not match values", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["started in", "did not start in"],
+            ordered: true,
+            numericValues: [2020, 2021],
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "color",
+            verb: ["wears", "does not wear"],
+          },
+        ],
+      }),
+    ).toThrow("numericValues length must match values length");
+  });
+
+  it("throws when displayAxis references a non-ordered category", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["started in", "did not start in"],
+            ordered: true,
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "color",
+            verb: ["wears", "does not wear"],
+          },
+        ],
+        displayAxis: "Color",
+      }),
+    ).toThrow("must reference an ordered category");
+  });
+
   it("throws when non-person category lacks verb", () => {
     expect(() =>
       generate({

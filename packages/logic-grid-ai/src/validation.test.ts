@@ -234,6 +234,16 @@ describe("validateThemeResult", () => {
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
 
+  it("rejects when no category is ordered", () => {
+    const r = validResult();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    delete (r.categories[1] as any).ordered;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors).toContainEqual(
+      expect.stringContaining("No ordered category found"),
+    );
+  });
+
   it("accepts multiple ordered categories", () => {
     const r = validResult();
     r.categories[2].ordered = true;

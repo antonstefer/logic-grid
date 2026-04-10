@@ -6,7 +6,7 @@ import type {
   OrderingComparatorType,
 } from "../types";
 import { posNoun, posNounPlural } from "../grid-utils";
-import { orderedCategories } from "../axis";
+import { orderedCategories, resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -36,16 +36,11 @@ function objectValue(value: string, grid: Grid): string {
 function comparator(
   grid: Grid,
   type: OrderingComparatorType,
-  axisName?: string,
+  axisName: string,
 ): string | [string, string] | undefined {
-  if (axisName) {
-    const axis = grid.categories.find((c) => c.name === axisName);
-    if (axis?.ordered === true) {
-      const phrase = axis.orderingPhrases?.comparators?.[type];
-      if (phrase !== undefined) return phrase;
-    }
-  }
-  return grid.spatialWords.comparators?.[type];
+  const axis = resolveAxis(grid, axisName);
+  const phrase = axis.orderingPhrases?.comparators?.[type];
+  return phrase ?? grid.spatialWords.comparators?.[type];
 }
 
 /**
@@ -55,7 +50,7 @@ function comparator(
 function symmetricComp(
   grid: Grid,
   type: OrderingComparatorType,
-  axisName?: string,
+  axisName: string,
 ): string | undefined {
   return comparator(grid, type, axisName) as string | undefined;
 }
@@ -71,7 +66,7 @@ function directionalComp(
   type: OrderingComparatorType,
   a: string,
   b: string,
-  axisName?: string,
+  axisName: string,
 ): { subject: string; object: string; phrase: string } | undefined {
   const c = comparator(grid, type, axisName);
   if (c === undefined) return undefined;
@@ -218,14 +213,8 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const la = label(s, grid);
       const lb = label(o, grid);
       // Per-axis unit takes precedence over grid-level distanceUnit.
-      const axisCategory = grid.categories.find(
-        (c) => c.name === constraint.axis,
-      );
-      const axisUnit =
-        axisCategory?.ordered === true
-          ? axisCategory.orderingPhrases?.unit
-          : undefined;
-      const unit = axisUnit ?? w.distanceUnit;
+      const axisCategory = resolveAxis(grid, constraint.axis);
+      const unit = axisCategory.orderingPhrases?.unit ?? w.distanceUnit;
       const prefix =
         symmetricComp(grid, "exact_distance", constraint.axis) ??
         `${w.verb[0]} exactly`;
@@ -244,36 +233,27 @@ function renderText(constraint: Constraint, grid: Grid): string {
       // its verb to produce "Alice lives in the first house" (House's verb),
       // not "The first house plays piano" (Instrument's verb).
       const axis = orderedCategories(grid)[0];
-      if (axis) {
-        const axisVal = axis.values[constraint.position];
-        const cat = findCategory(constraint.value, grid);
-        const idx = 0;
-        // positionAdjective path: "The first house is red."
-        if (cat.positionAdjective) {
-          return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[idx]} ${constraint.value.toLowerCase()}.`;
-        }
-        const verb = axis.verb;
-        if (verb) {
-          return `${capitalize(label(constraint.value, grid))} ${verb[idx]} ${objectValue(axisVal, grid)}.`;
-        }
+      if (!axis) throw new Error("Grid has no ordered category");
+      const axisVal = axis.values[constraint.position];
+      const cat = findCategory(constraint.value, grid);
+      if (cat.positionAdjective) {
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} position ${constraint.position + 1}.`;
+      if (!axis.verb)
+        throw new Error(`Ordered category "${axis.name}" has no verb`);
+      return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
     }
     case "not_at_position": {
       const axis = orderedCategories(grid)[0];
-      if (axis) {
-        const axisVal = axis.values[constraint.position];
-        const cat = findCategory(constraint.value, grid);
-        const idx = 1;
-        if (cat.positionAdjective) {
-          return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[idx]} ${constraint.value.toLowerCase()}.`;
-        }
-        const verb = axis.verb;
-        if (verb) {
-          return `${capitalize(label(constraint.value, grid))} ${verb[idx]} ${objectValue(axisVal, grid)}.`;
-        }
+      if (!axis) throw new Error("Grid has no ordered category");
+      const axisVal = axis.values[constraint.position];
+      const cat = findCategory(constraint.value, grid);
+      if (cat.positionAdjective) {
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} position ${constraint.position + 1}.`;
+      if (!axis.verb)
+        throw new Error(`Ordered category "${axis.name}" has no verb`);
+      return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
   }
 }
