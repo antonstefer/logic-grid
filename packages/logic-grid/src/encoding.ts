@@ -63,64 +63,47 @@ function badBinaryRankPairs(
 }
 
 /**
- * Rank-forbidding encoder for binary comparative constraints. For each bad
- * rank pair (i, j) and each ordered position pair (p1, p2) with p1 ≠ p2,
- * emits the 4-literal clause
- *   [¬x(a, p1), ¬x(axis[i], p1), ¬x(b, p2), ¬x(axis[j], p2)]
- * which forbids the simultaneous assignment.
+ * Rank-var encoder for binary comparative constraints. For each bad rank pair
+ * (i, j), emits a 2-literal clause [-r(a,i), -r(b,j)]. Channeling clauses
+ * link rank vars to position vars (emitted once per (axis, value) pair via
+ * the RankVarAllocator).
  *
- * Clause count per constraint: |bad pairs| × n(n−1). Worst case O(M²·n²).
+ * Clause count per constraint: |bad pairs| × 1 + channeling.
  */
 function encodeBinaryAxis(
   ctx: EncodingContext,
+  alloc: RankVarAllocator,
   a: string,
   b: string,
   axis: Category,
   badPairs: [number, number][],
 ): number[][] {
-  const n = ctx.numPositions;
   const clauses: number[][] = [];
   for (const [i, j] of badPairs) {
-    const ai = axis.values[i];
-    const aj = axis.values[j];
-    for (let p1 = 0; p1 < n; p1++) {
-      for (let p2 = 0; p2 < n; p2++) {
-        // When i ≠ j and p1 = p2, base clauses forbid two distinct axis
-        // values coexisting at the same position, so the clause is vacuous.
-        // When i = j, we MUST emit the p1 = p2 case — it forbids `a` and
-        // `b` sharing the same position (and thus the same rank).
-        if (p1 === p2 && i !== j) continue;
-        clauses.push([
-          -variable(ctx, a, p1),
-          -variable(ctx, ai, p1),
-          -variable(ctx, b, p2),
-          -variable(ctx, aj, p2),
-        ]);
-      }
-    }
+    clauses.push([
+      -alloc.rankVar(ctx, axis, a, i),
+      -alloc.rankVar(ctx, axis, b, j),
+    ]);
   }
   return clauses;
 }
 
 /**
- * Rank-forbidding encoder for ternary between/not_between. For each bad
- * (rank_o1, rank_o2, rank_middle) triple and each position triple (p1, p2, p3)
- * with all positions distinct, emits a 6-literal clause forbidding the
- * assignment.
+ * Rank-var encoder for ternary between/not_between. For each bad rank triple
+ * (i, j, k), emits a 3-literal clause [-r(outer1,i), -r(outer2,j), -r(middle,k)].
  *
- * Complexity: O(M³·n³) worst case — ~260k clause candidates at M=n=8.
- * Acceptable for the supported grid size range (3–8) but would need
- * optimization (e.g. exploiting ALO/AMO redundancy) if the range expanded.
+ * Complexity: O(M³) constraint clauses + O(V·M·n) channeling. At M=n=8
+ * with 3 values: ~512 + ~192 + ~84 + 3 ≈ ~800 clauses instead of ~260k.
  */
 function encodeBetweenAxis(
   ctx: EncodingContext,
+  alloc: RankVarAllocator,
   outer1: string,
   middle: string,
   outer2: string,
   axis: Category,
   forbidStrictlyBetween: boolean,
 ): number[][] {
-  const n = ctx.numPositions;
   const M = axis.values.length;
   const clauses: number[][] = [];
   for (let i = 0; i < M; i++) {
@@ -128,37 +111,16 @@ function encodeBetweenAxis(
       for (let k = 0; k < M; k++) {
         const lo = Math.min(i, j);
         const hi = Math.max(i, j);
-        // "strictly between" requires i ≠ j (non-degenerate outer pair) and
-        // k lies strictly inside the open interval (lo, hi).
         const strictlyBetween = i !== j && k > lo && k < hi;
-        // `between` is violated when middle is NOT strictly between outers.
-        // `not_between` is violated when middle IS strictly between outers.
         const violates = forbidStrictlyBetween
           ? strictlyBetween
           : !strictlyBetween;
         if (!violates) continue;
-        const ai = axis.values[i];
-        const aj = axis.values[j];
-        const ak = axis.values[k];
-        for (let p1 = 0; p1 < n; p1++) {
-          for (let p2 = 0; p2 < n; p2++) {
-            // When i ≠ j and p1 = p2, a_i and a_j collide → vacuous.
-            if (p1 === p2 && i !== j) continue;
-            for (let p3 = 0; p3 < n; p3++) {
-              // Same vacuous-collision skips for the middle's axis slot.
-              if (p3 === p1 && k !== i) continue;
-              if (p3 === p2 && k !== j) continue;
-              clauses.push([
-                -variable(ctx, outer1, p1),
-                -variable(ctx, ai, p1),
-                -variable(ctx, outer2, p2),
-                -variable(ctx, aj, p2),
-                -variable(ctx, middle, p3),
-                -variable(ctx, ak, p3),
-              ]);
-            }
-          }
-        }
+        clauses.push([
+          -alloc.rankVar(ctx, axis, outer1, i),
+          -alloc.rankVar(ctx, axis, outer2, j),
+          -alloc.rankVar(ctx, axis, middle, k),
+        ]);
       }
     }
   }
@@ -188,6 +150,86 @@ export function createContext(grid: Grid): EncodingContext {
     numPositions: grid.size,
     numValues: idx,
   };
+}
+
+/**
+ * Allocates rank auxiliary variables r(v,k) = "value v has rank k on axis".
+ * These variables decouple rank from position, letting comparative constraints
+ * use compact 2-3 literal clauses instead of the O(M²·n²)/O(M³·n³) rank-
+ * forbidding clauses.
+ *
+ * Channeling clauses are emitted exactly once per (axis, value) pair. The
+ * allocator caches variable IDs so constraints sharing an axis reuse them.
+ */
+export class RankVarAllocator {
+  /** Next available variable ID, starting above position variables. */
+  private nextVar: number;
+  /** Cache: "axisName:value" → base var index for that value's rank vars. */
+  private cache = new Map<string, number>();
+  /** Accumulated channeling clauses (forward + AMO + ALO). */
+  readonly channeling: number[][] = [];
+
+  constructor(ctx: EncodingContext) {
+    this.nextVar = ctx.numValues * ctx.numPositions + 1;
+  }
+
+  /** High-water mark: the first variable ID NOT used by this allocator. */
+  get varCeiling(): number {
+    return this.nextVar;
+  }
+
+  /**
+   * Get or create the rank variable for (value, rank) on the given axis.
+   * If this is the first request for this (axis, value) pair, allocates M
+   * rank vars and emits channeling + AMO + ALO clauses.
+   */
+  rankVar(
+    ctx: EncodingContext,
+    axis: Category,
+    value: string,
+    rank: number,
+  ): number {
+    const key = `${axis.name}:${value}`;
+    let base = this.cache.get(key);
+    if (base === undefined) {
+      base = this.nextVar;
+      const M = axis.values.length;
+      this.nextVar += M;
+      this.cache.set(key, base);
+      this.emitChanneling(ctx, axis, value, base, M);
+    }
+    return base + rank;
+  }
+
+  private emitChanneling(
+    ctx: EncodingContext,
+    axis: Category,
+    value: string,
+    base: number,
+    M: number,
+  ): void {
+    const n = ctx.numPositions;
+    // Forward: x(v,p) ∧ x(axis[k],p) → r(v,k)
+    for (let k = 0; k < M; k++) {
+      for (let p = 0; p < n; p++) {
+        this.channeling.push([
+          -variable(ctx, value, p),
+          -variable(ctx, axis.values[k], p),
+          base + k,
+        ]);
+      }
+    }
+    // AMO: at most one rank per value
+    for (let k1 = 0; k1 < M; k1++) {
+      for (let k2 = k1 + 1; k2 < M; k2++) {
+        this.channeling.push([-(base + k1), -(base + k2)]);
+      }
+    }
+    // ALO: at least one rank per value
+    const alo: number[] = [];
+    for (let k = 0; k < M; k++) alo.push(base + k);
+    this.channeling.push(alo);
+  }
 }
 
 /** SAT variable for "value v is at position p". 1-based. */
@@ -451,6 +493,7 @@ function encodePositionalExactDistance(
 export function encodeConstraint(
   ctx: EncodingContext,
   constraint: Constraint,
+  alloc?: RankVarAllocator,
 ): number[][] {
   const n = ctx.numPositions;
 
@@ -497,7 +540,7 @@ export function encodeConstraint(
         0,
         undefined,
       );
-      return encodeBinaryAxis(ctx, constraint.a, constraint.b, axis, bad);
+      return encodeBinaryAxis(ctx, alloc!, constraint.a, constraint.b, axis, bad);
     }
 
     case "exact_distance": {
@@ -517,7 +560,7 @@ export function encodeConstraint(
         constraint.distance,
         axis.numericValues,
       );
-      return encodeBinaryAxis(ctx, constraint.a, constraint.b, axis, bad);
+      return encodeBinaryAxis(ctx, alloc!, constraint.a, constraint.b, axis, bad);
     }
 
     case "between":
@@ -540,6 +583,7 @@ export function encodeConstraint(
       }
       return encodeBetweenAxis(
         ctx,
+        alloc!,
         constraint.outer1,
         constraint.middle,
         constraint.outer2,
@@ -563,9 +607,11 @@ export function encodePuzzle(
   ctx: EncodingContext,
   constraints: Constraint[],
 ): number[][] {
+  const alloc = new RankVarAllocator(ctx);
   const clauses = encodeBase(ctx);
   for (const c of constraints) {
-    for (const clause of encodeConstraint(ctx, c)) clauses.push(clause);
+    for (const clause of encodeConstraint(ctx, c, alloc)) clauses.push(clause);
   }
+  for (const clause of alloc.channeling) clauses.push(clause);
   return clauses;
 }

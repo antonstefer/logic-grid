@@ -10,7 +10,7 @@ import type {
 } from "./types";
 import type { SolverContext } from "./solver";
 import { createSolverContext } from "./solver";
-import { encodeConstraint } from "./encoding";
+import { encodeConstraint, RankVarAllocator } from "./encoding";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
@@ -85,10 +85,17 @@ export function generate(options?: GenerateOptions): Puzzle {
     shuffle(filtered, rng);
 
     // Pre-encode all constraint clauses once
-    const clauseCache = filtered.map((c) => encodeConstraint(solverCtx.ctx, c));
+    const alloc = new RankVarAllocator(solverCtx.ctx);
+    const clauseCache = filtered.map((c) =>
+      encodeConstraint(solverCtx.ctx, c, alloc),
+    );
 
     // Build ONE incremental solver with activation literals for all constraints
-    const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
+    const incSolver = buildIncrementalSolver(
+      solverCtx,
+      clauseCache,
+      alloc,
+    );
 
     const minimal = minimizeConstraints(
       filtered,
@@ -462,12 +469,16 @@ interface IncSolverCtx {
 function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
+  alloc: RankVarAllocator,
 ): IncSolverCtx {
-  const { numValues, numPositions } = solverCtx.ctx;
-  const actBase = numValues * numPositions + 1;
+  // Activation literals must start above ALL variable ranges: position vars
+  // AND rank auxiliary vars allocated during constraint encoding.
+  const actBase = alloc.varCeiling;
   const total = clauseCache.length;
 
   const allClauses: number[][] = [...solverCtx.baseClauses];
+  // Add rank channeling clauses (shared across constraints, not guarded)
+  for (const clause of alloc.channeling) allClauses.push(clause);
   for (let i = 0; i < total; i++) {
     const actVar = actBase + i;
     for (const clause of clauseCache[i]) {
