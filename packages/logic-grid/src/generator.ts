@@ -2,7 +2,6 @@ import type {
   Puzzle,
   GenerateOptions,
   Grid,
-  ComparatorMap,
   Solution,
   Constraint,
   Category,
@@ -16,71 +15,45 @@ import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-import { ORDINALS } from "./grid-utils";
-import { DEFAULT_CONFIG } from "./default-config";
+import { isOrdered, orderedCategories, resolveAxis } from "./axis";
+import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
 
-// Symmetric constraint types — comparators must be a single string, not a tuple.
-// NOTE: duplicated in logic-grid-ai/src/validation.ts so the AI retry loop can
-// catch this without depending on the core package. Keep both lists in sync.
-const SYMMETRIC_COMPARATORS = new Set([
-  "next_to",
-  "not_next_to",
-  "between",
-  "not_between",
-  "exact_distance",
-]);
-
-function checkComparators(
-  scope: string,
-  comparators: ComparatorMap | undefined,
-): void {
-  if (!comparators) return;
-  for (const [type, value] of Object.entries(comparators)) {
-    if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
-      throw new RangeError(
-        `${scope} comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
-      );
-    }
-  }
-}
-
 /**
- * Validate per-category invariants. Called by buildGrid before constructing
- * dependent fields (e.g. spatialWords.atPosition from posCat.verb), so
- * downstream code can rely on these invariants.
+ * Validate per-category invariants. Called by buildGrid before the grid is
+ * used for anything, so downstream code can rely on these invariants.
  */
 function validateCategories(categories: Category[]): void {
-  let positionCount = 0;
+  const names = new Set<string>();
   for (const c of categories) {
-    if (c.isPosition) positionCount++;
-    if (c.numericValues) {
-      for (let i = 1; i < c.numericValues.length; i++) {
-        if (c.numericValues[i] <= c.numericValues[i - 1]) {
-          throw new RangeError(
-            `Category "${c.name}" numericValues must be in ascending order`,
-          );
-        }
-      }
+    if (names.has(c.name)) {
+      throw new RangeError(`Duplicate category name "${c.name}"`);
     }
-    if (c.isPosition && c.positionAdjective) {
-      throw new RangeError(
-        `Category "${c.name}" cannot be both isPosition and positionAdjective`,
-      );
-    }
+    names.add(c.name);
+
     if (c.noun !== "" && !c.verb) {
       throw new RangeError(
         `Category "${c.name}" requires a verb (only the person category may omit it)`,
       );
     }
-    if (c.isPosition && !c.verb) {
-      throw new RangeError(`Position category "${c.name}" requires a verb`);
+
+    if (isOrdered(c)) {
+      if (c.numericValues !== undefined) {
+        if (c.numericValues.length !== c.values.length) {
+          throw new RangeError(
+            `Category "${c.name}" numericValues length must match values length`,
+          );
+        }
+        for (let i = 1; i < c.numericValues.length; i++) {
+          if (c.numericValues[i] <= c.numericValues[i - 1]) {
+            throw new RangeError(
+              `Category "${c.name}" numericValues must be in ascending order`,
+            );
+          }
+        }
+      }
     }
-    checkComparators(`Category "${c.name}"`, c.orderingPhrases?.comparators);
-  }
-  if (positionCount > 1) {
-    throw new RangeError("At most one category can have isPosition: true");
   }
 }
 
@@ -124,6 +97,12 @@ export function generate(options?: GenerateOptions): Puzzle {
       grid,
       difficulty !== "expert",
     );
+    // minimizeConstraints returns [] when the constructive phase can't achieve
+    // uniqueness. Unreachable for supported grid sizes with seeded RNG but
+    // observed with Math.random on some platforms (CI flake).
+    /* v8 ignore next */
+    if (minimal.length === 0) continue;
+
     const actualDifficulty = classify(minimal, grid);
 
     // If specific difficulty requested and doesn't match, retry
@@ -152,18 +131,6 @@ function buildGrid(
   options?: GenerateOptions,
 ): Grid {
   const categoryNames = options?.categoryNames;
-  if (options?.positionNoun !== undefined) {
-    const [singular, plural] = options.positionNoun;
-    if (!singular || !plural)
-      throw new RangeError(
-        "positionNoun singular and plural must be non-empty",
-      );
-  }
-  if (
-    options?.positionPreposition !== undefined &&
-    !options.positionPreposition
-  )
-    throw new RangeError("positionPreposition must be non-empty");
   let categories: Category[];
 
   if (categoryNames) {
@@ -177,77 +144,74 @@ function buildGrid(
         );
       }
     }
-    categories = categoryNames.map((c) => {
-      const noun = c.noun ?? "";
-      // Default subjectPriority: 2 for person, 0 for everything else.
-      const subjectPriority = c.subjectPriority ?? (noun === "" ? 2 : 0);
-      return {
-        name: c.name,
-        values: c.values.slice(0, size),
-        noun,
-        verb: c.verb,
-        subjectPriority,
-        valueSuffix: c.valueSuffix,
-        positionAdjective: c.positionAdjective,
-        isPosition: c.isPosition,
-        numericValues: c.numericValues?.slice(0, size),
-        orderingPhrases: c.orderingPhrases,
-      };
-    });
+    categories = categoryNames.map((c) => sliceCategory(c, size));
+    // Ensure at least one ordered category; auto-prepend House if the user's
+    // categories include none.
+    if (!categories.some((c) => c.ordered === true)) {
+      categories = [defaultHouseCategory(size), ...categories];
+    }
   } else {
-    categories = DEFAULT_CONFIG.categories.slice(0, numCategories).map((c) => ({
-      ...c,
-      values: c.values.slice(0, size),
-    }));
+    // Default pool has no ordered category; House is always prepended as the
+    // first ordered slot. Total category count is preserved.
+    categories = [
+      defaultHouseCategory(size),
+      ...DEFAULT_CATEGORIES.slice(0, numCategories - 1).map((c) =>
+        sliceCategory(c, size),
+      ),
+    ];
   }
 
-  const posNoun = options?.positionNoun ?? DEFAULT_CONFIG.positionNoun;
-  const posPrep =
-    options?.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
-  const posCat = categories.find((c) => c.isPosition);
-
-  // Validate per-category invariants before constructing dependent fields.
   validateCategories(categories);
 
   const grid: Grid = {
     size,
     categories,
-    positionNoun: posNoun,
-    positionPreposition: posPrep,
-    spatialWords: posCat
-      ? {
-          ...DEFAULT_CONFIG.spatialWords,
-          verb: ["is", "is not"],
-          adjacency: "adjacent to",
-          direction: ["before", "after"],
-          atPosition: posCat.verb as [string, string],
-          comparators: posCat.orderingPhrases?.comparators,
-          distanceUnit: posCat.orderingPhrases?.unit,
-        }
-      : {
-          ...DEFAULT_CONFIG.spatialWords,
-          // Derive atPosition from positionPreposition so custom prepositions
-          // ("at" → "lives at") work without a position category.
-          atPosition: [
-            `${DEFAULT_CONFIG.spatialWords.verb[0]} ${posPrep}`,
-            `${DEFAULT_CONFIG.spatialWords.verb[1]} ${posPrep}`,
-          ],
-        },
-    positionLabels: posCat
-      ? posCat.values.slice()
-      : Array.from(
-          { length: size },
-          (_, i) => `the ${ORDINALS[i]} ${posNoun[0]}`,
-        ),
+    displayAxis: options?.displayAxis,
   };
-  checkComparators("Grid spatialWords", grid.spatialWords.comparators);
+
+  // Validate displayAxis references an ordered category if set.
+  if (grid.displayAxis !== undefined) {
+    resolveAxis(grid, grid.displayAxis);
+  }
   return grid;
 }
 
+/** Copy a user-provided category, slicing values/numericValues to grid size. */
+function sliceCategory(c: Category, size: number): Category {
+  const noun = c.noun ?? "";
+  const subjectPriority = c.subjectPriority ?? (noun === "" ? 2 : 0);
+  const base = {
+    name: c.name,
+    values: c.values.slice(0, size),
+    noun,
+    verb: c.verb,
+    subjectPriority,
+  };
+  // Spread optional valueSuffix/positionAdjective respecting the discriminated union.
+  const withSuffix =
+    c.valueSuffix !== undefined
+      ? { valueSuffix: c.valueSuffix, positionAdjective: c.positionAdjective }
+      : {};
+  if (isOrdered(c)) {
+    return {
+      ...base,
+      ordered: true,
+      numericValues: c.numericValues?.slice(0, size),
+      orderingPhrases: c.orderingPhrases,
+      displayLabels: c.displayLabels?.slice(0, size),
+      ...withSuffix,
+    } as Category; // spread loses union discrimination
+  }
+  return { ...base, ...withSuffix } as Category;
+}
+
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  return grid.categories.map((cat) => {
-    if (cat.isPosition) {
-      // Identity mapping: value[i] → position i
+  // Identity-assign the first ordered category so row = axis rank for it.
+  // This lets the positional fast-path encoder handle constraints on this axis
+  // cheaply. Other ordered axes use the rank-forbidding encoder.
+  const firstOrdered = grid.categories.findIndex((c) => c.ordered === true);
+  return grid.categories.map((cat, idx) => {
+    if (idx === firstOrdered) {
       const assignment: Assignment = {};
       for (let i = 0; i < cat.values.length; i++) {
         assignment[cat.values[i]] = i;
@@ -268,8 +232,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const constraints: Constraint[] = [];
   const n = grid.size;
 
-  // Find position category index (if any)
-  const posCatIndex = grid.categories.findIndex((c) => c.isPosition);
+  const orderedCats = orderedCategories(grid);
 
   // Build indexed arrays for fast access (avoid Map lookups in hot loops)
   const allValues: string[] = [];
@@ -282,137 +245,178 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       catArr.push(ci);
     }
   }
-  // Also keep a Map for position constraints below
+  // Map from value name → its row position. Used for the at_position block.
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Cap negative pairwise types independently — a shared counter would starve not_next_to.
+  // --- Axis-free constraints (same_position, not_same_position) ---
+  // Cap negative pairwise types independently — a shared counter would
+  // starve not_next_to (which is enumerated per-axis below).
   const maxPerType = n * n;
   let notSameCount = 0;
-  let notNextCount = 0;
-
-  const numVals =
-    posCatIndex >= 0 ? grid.categories[posCatIndex].numericValues : undefined;
 
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
     const posA = posArr[i];
     const catA = catArr[i];
-
     for (let j = i + 1; j < allValues.length; j++) {
       if (catArr[j] === catA) continue;
       const b = allValues[j];
       const posB = posArr[j];
-
       if (posA === posB) {
         constraints.push({ type: "same_position", a, b });
       } else if (notSameCount < maxPerType) {
         constraints.push({ type: "not_same_position", a, b });
         notSameCount++;
       }
-
-      if (Math.abs(posA - posB) === 1) {
-        constraints.push({ type: "next_to", a, b });
-      } else if (posA !== posB && notNextCount < maxPerType) {
-        constraints.push({ type: "not_next_to", a, b });
-        notNextCount++;
-      }
-
-      if (posA === posB - 1) {
-        constraints.push({ type: "left_of", a, b });
-      }
-      if (posB === posA - 1) {
-        constraints.push({ type: "left_of", a: b, b: a });
-      }
-
-      // before: a is somewhere left of b (not necessarily adjacent)
-      if (posA < posB) {
-        constraints.push({ type: "before", a, b });
-      } else if (posB < posA) {
-        constraints.push({ type: "before", a: b, b: a });
-      }
-
-      // exact_distance: emit when meaningful (not redundant with other clue types).
-      if (numVals) {
-        // Value-based distance: emit any non-zero value gap. Even when positions
-        // are adjacent, the constraint is more specific than next_to (it pins
-        // the exact value pair, not just adjacency).
-        const valDist = Math.abs(numVals[posA] - numVals[posB]);
-        if (valDist > 0) {
-          constraints.push({ type: "exact_distance", a, b, distance: valDist });
-        }
-      } else {
-        // Position-based: distance 1 is exactly equivalent to next_to, skip it.
-        const dist = Math.abs(posA - posB);
-        if (dist >= 2) {
-          constraints.push({ type: "exact_distance", a, b, distance: dist });
-        }
-      }
     }
   }
 
-  // Between constraints (triples from different categories)
-  // Cap loop iterations — O(n³) without bound
-  const maxBetween = n * n;
-  let betweenCount = 0;
-  outer: for (
-    let i = 0;
-    i < allValues.length && betweenCount < maxBetween;
-    i++
-  ) {
-    const ai = allValues[i],
-      catAi = catArr[i],
-      posAi = posArr[i];
-    for (
-      let j = i + 1;
-      j < allValues.length && betweenCount < maxBetween;
-      j++
-    ) {
-      const catAj = catArr[j];
-      if (catAj === catAi) continue;
-      const aj = allValues[j],
-        posAj = posArr[j];
-      for (let k = j + 1; k < allValues.length; k++) {
-        const catAk = catArr[k];
-        if (catAk === catAi || catAk === catAj) continue;
-        const ak = allValues[k],
-          posAk = posArr[k];
-        // Check each of the 3 values as potential middle
-        const vals = [ai, aj, ak];
-        const positions = [posAi, posAj, posAk];
-        for (let m = 0; m < 3; m++) {
-          const o0 = m === 0 ? 1 : 0;
-          const o1 = m === 2 ? 1 : 2;
-          const lo = Math.min(positions[o0], positions[o1]);
-          const hi = Math.max(positions[o0], positions[o1]);
-          const [v1, v2] =
-            vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
-          if (positions[m] > lo && positions[m] < hi) {
+  // --- Per-axis comparative constraints ---
+  // For each ordered category, compute each value's rank on that axis and
+  // emit constraints whose semantics match. Values belonging to the axis
+  // category itself are skipped — their rank is trivially their own index.
+  for (const axis of orderedCats) {
+    const axisName = axis.name;
+    const axisCatIdx = grid.categories.indexOf(axis);
+    // Rank lookup: for each row r in [0..n), which axis value index sits there?
+    // (i.e. rankAtRow[r] = k means axis.values[k] is assigned to row r.)
+    const rankAtRow = new Array<number>(n);
+    for (let k = 0; k < axis.values.length; k++) {
+      rankAtRow[solution[axisCatIdx][axis.values[k]]] = k;
+    }
+    const numVals = axis.numericValues;
+
+    let nextCount = 0;
+    let notNextCount = 0;
+    for (let i = 0; i < allValues.length; i++) {
+      if (catArr[i] === axisCatIdx) continue;
+      const a = allValues[i];
+      const rankA = rankAtRow[posArr[i]];
+      const catA = catArr[i];
+      for (let j = i + 1; j < allValues.length; j++) {
+        if (catArr[j] === catA) continue;
+        if (catArr[j] === axisCatIdx) continue;
+        const b = allValues[j];
+        const rankB = rankAtRow[posArr[j]];
+
+        if (Math.abs(rankA - rankB) === 1 && nextCount < maxPerType) {
+          constraints.push({ type: "next_to", a, b, axis: axisName });
+          nextCount++;
+        } else if (rankA !== rankB && notNextCount < maxPerType) {
+          constraints.push({ type: "not_next_to", a, b, axis: axisName });
+          notNextCount++;
+        }
+
+        if (rankA === rankB - 1) {
+          constraints.push({ type: "left_of", a, b, axis: axisName });
+        }
+        if (rankB === rankA - 1) {
+          constraints.push({ type: "left_of", a: b, b: a, axis: axisName });
+        }
+
+        // before: a's rank is strictly less than b's rank
+        if (rankA < rankB) {
+          constraints.push({ type: "before", a, b, axis: axisName });
+        } else if (rankB < rankA) {
+          constraints.push({ type: "before", a: b, b: a, axis: axisName });
+        }
+
+        // exact_distance
+        if (numVals) {
+          const valDist = Math.abs(numVals[rankA] - numVals[rankB]);
+          if (valDist > 0) {
             constraints.push({
-              type: "between",
-              outer1: v1,
-              middle: vals[m],
-              outer2: v2,
-            });
-          } else {
-            constraints.push({
-              type: "not_between",
-              outer1: v1,
-              middle: vals[m],
-              outer2: v2,
+              type: "exact_distance",
+              a,
+              b,
+              distance: valDist,
+              axis: axisName,
             });
           }
-          if (++betweenCount >= maxBetween) continue outer;
+        } else {
+          const dist = Math.abs(rankA - rankB);
+          if (dist >= 2) {
+            constraints.push({
+              type: "exact_distance",
+              a,
+              b,
+              distance: dist,
+              axis: axisName,
+            });
+          }
+        }
+      }
+    }
+
+    // --- Per-axis between / not_between (triples) ---
+    // Cap to O(n²) emissions per axis to match the single-axis budget.
+    const maxBetween = n * n;
+    let betweenCount = 0;
+    betweenOuter: for (
+      let i = 0;
+      i < allValues.length && betweenCount < maxBetween;
+      i++
+    ) {
+      if (catArr[i] === axisCatIdx) continue;
+      const ai = allValues[i];
+      const catAi = catArr[i];
+      const rankAi = rankAtRow[posArr[i]];
+      for (
+        let j = i + 1;
+        j < allValues.length && betweenCount < maxBetween;
+        j++
+      ) {
+        if (catArr[j] === axisCatIdx) continue;
+        if (catArr[j] === catAi) continue;
+        const aj = allValues[j];
+        const catAj = catArr[j];
+        const rankAj = rankAtRow[posArr[j]];
+        for (let k = j + 1; k < allValues.length; k++) {
+          if (catArr[k] === axisCatIdx) continue;
+          if (catArr[k] === catAi || catArr[k] === catAj) continue;
+          const ak = allValues[k];
+          const rankAk = rankAtRow[posArr[k]];
+          const vals = [ai, aj, ak];
+          const ranks = [rankAi, rankAj, rankAk];
+          for (let m = 0; m < 3; m++) {
+            const o0 = m === 0 ? 1 : 0;
+            const o1 = m === 2 ? 1 : 2;
+            const lo = Math.min(ranks[o0], ranks[o1]);
+            const hi = Math.max(ranks[o0], ranks[o1]);
+            const [v1, v2] =
+              vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
+            if (ranks[m] > lo && ranks[m] < hi) {
+              constraints.push({
+                type: "between",
+                outer1: v1,
+                middle: vals[m],
+                outer2: v2,
+                axis: axisName,
+              });
+            } else {
+              constraints.push({
+                type: "not_between",
+                outer1: v1,
+                middle: vals[m],
+                outer2: v2,
+                axis: axisName,
+              });
+            }
+            if (++betweenCount >= maxBetween) continue betweenOuter;
+          }
         }
       }
     }
   }
 
-  // Position constraints (skip position category values — their assignments are trivially known)
-  const posCatValues =
-    posCatIndex >= 0 ? new Set(grid.categories[posCatIndex].values) : undefined;
+  // --- Position constraints ---
+  // Skip values in the first ordered category — identity pinning makes their
+  // rows trivially determined by encodeBase's identity pinning.
+  const firstOrdered = orderedCats[0];
+  const firstOrderedValues = new Set(firstOrdered.values);
   for (const [val, pos] of posOf) {
-    if (posCatValues?.has(val)) continue;
+    if (firstOrderedValues.has(val)) continue;
     constraints.push({ type: "at_position", value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
@@ -525,7 +529,7 @@ function minimizeConstraints(
   }
   shuffle(rotation, rng);
 
-  // Phase 1: Constructive — add one constraint per rotation slot until unique
+  // Constructive phase: add one constraint per rotation slot until unique
   const cursors = new Map<string, number>();
   for (const type of byType.keys()) cursors.set(type, 0);
 
@@ -554,7 +558,7 @@ function minimizeConstraints(
   /* v8 ignore next */
   if (!unique) return [];
 
-  // Phase 2: Destructive trim — remove redundant in random order,
+  // Destructive trim: remove redundant in random order,
   // but keep constraints needed to avoid proof-by-contradiction.
   const activeIndices: number[] = [];
   for (let i = 0; i < total; i++) if (active[i]) activeIndices.push(i);

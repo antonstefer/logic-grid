@@ -17,8 +17,6 @@ export interface ThemeOptions {
 /** Result of theme generation. */
 export interface ThemeResult {
   categories: Category[];
-  positionNoun: [string, string];
-  positionPreposition: string;
 }
 
 /** Minimal AI client interface. */

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { findPositionCategory, type Grid } from "logic-grid";
+  import { displayAxisCategory, type Grid } from "logic-grid";
   import type { CellState } from "./puzzle-state.svelte";
 
   let {
@@ -16,13 +16,15 @@
     onEliminate: (valueIdx: number, position: number) => void;
   } = $props();
 
-  const posCat = $derived(findPositionCategory(puzzleGrid));
+  // The display-axis category provides column headers. It's identity-pinned,
+  // so its values are excluded from the mystery rows.
+  const posCat = $derived(displayAxisCategory(puzzleGrid));
 
-  /** Categories to display as rows (excludes position category). */
+  /** Categories to display as rows (excludes display-axis category). */
   const displayCategories = $derived(
     puzzleGrid.categories
       .map((cat, idx) => ({ cat, idx }))
-      .filter(({ cat }) => !cat.isPosition),
+      .filter(({ cat }) => cat !== posCat),
   );
 
   /** Compute the flat value index using the full categories array. */
@@ -94,13 +96,13 @@
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
-        <th class="position-noun-header" colspan={grid.size}>{posCat ? posCat.name : grid.positionNoun[1]}</th>
+        <th class="position-noun-header" colspan={grid.size}>{posCat.name}</th>
       </tr>
       <tr>
         <th class="category-header"></th>
         <th class="value-header"></th>
         {#each Array(grid.size) as _, p}
-          <th class="position-number">{posCat ? posCat.values[p] : p + 1}</th>
+          <th class="position-number">{posCat.displayLabels?.[p] ?? posCat.values[p]}</th>
         {/each}
       </tr>
     </thead>

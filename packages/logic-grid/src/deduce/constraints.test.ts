@@ -3,17 +3,8 @@ import { deduce } from ".";
 import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
-import { makeGrid } from "../test-helpers";
-import type { Constraint, SpatialWords } from "../types";
-
-const POSITIONAL_WORDS: SpatialWords = {
-  verb: ["is", "is not"],
-  adjacency: "adjacent to",
-  direction: ["before", "after"],
-  between: "somewhere between",
-  atPosition: ["is at", "is not at"],
-  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-};
+import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
+import type { Constraint } from "../types";
 
 const grid = makeGrid({
   size: 4,
@@ -72,7 +63,7 @@ describe("deduce constraint types", () => {
   it("next_to constrains to adjacent positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "next_to", a: "Red", b: "Alice" },
+      { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "next_to");
@@ -86,7 +77,7 @@ describe("deduce constraint types", () => {
   it("not_next_to eliminates adjacent positions when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_next_to");
@@ -98,7 +89,7 @@ describe("deduce constraint types", () => {
   it("not_next_to eliminates adjacent positions when b is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 1 },
-      { type: "not_next_to", a: "Red", b: "Alice" },
+      { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_next_to");
@@ -113,7 +104,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_next_to", a: "Red", b: "Blue" },
+      { type: "not_next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -146,7 +137,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 5 },
       { type: "not_at_position", value: "Blue", position: 6 },
       { type: "not_at_position", value: "Blue", position: 7 },
-      { type: "next_to", a: "Red", b: "Blue" },
+      { type: "next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -156,7 +147,7 @@ describe("deduce constraint types", () => {
   it("left_of pins b to a+1 when a is pinned", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 1 },
-      { type: "left_of", a: "Red", b: "Alice" },
+      { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "left_of");
@@ -169,7 +160,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Alice", position: 0 },
       { type: "not_at_position", value: "Alice", position: 1 },
-      { type: "left_of", a: "Red", b: "Alice" },
+      { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -203,7 +194,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "left_of", a: "Red", b: "Blue" },
+      { type: "left_of", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -236,7 +227,7 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "before", a: "Red", b: "Blue" },
+      { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -249,7 +240,7 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Red", position: 2 },
-      { type: "next_to", a: "Red", b: "Alice" },
+      { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -260,7 +251,7 @@ describe("deduce constraint types", () => {
   it("before eliminates positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 2 },
-      { type: "before", a: "Red", b: "Alice" },
+      { type: "before", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "before");
@@ -274,7 +265,7 @@ describe("deduce constraint types", () => {
     // After Red becomes {0,1}, Blue can't be at 0 (≤ minRed=0).
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "before", a: "Red", b: "Blue" },
+      { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -290,7 +281,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "not_at_position", value: "Blue", position: 2 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "exact_distance", a: "Red", b: "Blue", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Blue",
+        distance: 2,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -321,7 +318,13 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "exact_distance", a: "Red", b: "Blue", distance: 5 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Blue",
+        distance: 5,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid8);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -330,10 +333,81 @@ describe("deduce constraint types", () => {
     expect(step!.eliminations).toContainEqual({ value: "Blue", position: 3 });
   });
 
+  it("exact_distance explanation uses generic 'positions' when axis has no unit", () => {
+    // Build a grid with an ordered category that has comparators but no unit.
+    const noUnitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: TEST_COMPARATORS,
+          },
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, noUnitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 positions");
+  });
+
+  it("exact_distance explanation uses singular 'position' when distance=1 and no unit", () => {
+    const noUnitGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "at_position", value: "Alice", position: 0 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, noUnitGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("1 position");
+  });
+
   it("exact_distance constrains positions", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
-      { type: "exact_distance", a: "Red", b: "Alice", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Alice",
+        distance: 2,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -353,8 +427,9 @@ describe("deduce constraint types", () => {
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });
@@ -362,7 +437,13 @@ describe("deduce constraint types", () => {
     // at positions (0,1) — so Bob is at position 1.
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, numGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -382,14 +463,21 @@ describe("deduce constraint types", () => {
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
       ],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 6 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 6,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, numGrid);
     // Bob has no valid position; this should be detected as inconsistent
@@ -403,7 +491,13 @@ describe("deduce constraint types", () => {
     // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Red", b: "Alice", distance: 1 },
+      {
+        type: "exact_distance",
+        a: "Red",
+        b: "Alice",
+        distance: 1,
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -412,7 +506,7 @@ describe("deduce constraint types", () => {
     expect(step!.explanation).toContain("1 house apart");
   });
 
-  it("exact_distance explanation uses unit from position category", () => {
+  it("exact_distance explanation uses unit from orderingPhrases", () => {
     const unitGrid = makeGrid({
       size: 4,
       categories: [
@@ -421,22 +515,25 @@ describe("deduce constraint types", () => {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
-          isPosition: true,
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"],
+            comparators: TEST_COMPARATORS,
           },
         },
       ],
-      spatialWords: {
-        ...POSITIONAL_WORDS,
-        distanceUnit: ["percentage point", "percentage points"],
-      },
-      positionLabels: ["6%", "7%", "8%", "9%"],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, unitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -453,22 +550,25 @@ describe("deduce constraint types", () => {
           name: "Return",
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
-          isPosition: true,
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"],
+            comparators: TEST_COMPARATORS,
           },
         },
       ],
-      spatialWords: {
-        ...POSITIONAL_WORDS,
-        distanceUnit: ["percentage point", "percentage points"],
-      },
-      positionLabels: ["6%", "7%", "8%", "9%"],
     });
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 0 },
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Return",
+      },
     ];
     const result = deduce(constraints, unitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
@@ -487,7 +587,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 4 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "between");
@@ -508,7 +614,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Red", position: 3 },
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -537,7 +649,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Red", position: 5 },
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid6);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -550,7 +668,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 2 },
       { type: "at_position", value: "Red", position: 0 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -566,7 +690,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 1 },
       { type: "at_position", value: "Red", position: 3 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -583,7 +713,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Alice", position: 2 },
       { type: "at_position", value: "Blue", position: 0 },
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -615,7 +751,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -642,7 +784,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 2 },
       { type: "not_at_position", value: "Blue", position: 3 },
       { type: "not_at_position", value: "Blue", position: 4 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -654,7 +802,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "at_position", value: "Blue", position: 3 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "not_between");
@@ -669,7 +823,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -682,7 +842,13 @@ describe("deduce constraint types", () => {
     const constraints: Constraint[] = [
       { type: "at_position", value: "Blue", position: 3 },
       { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -710,7 +876,13 @@ describe("deduce constraint types", () => {
       { type: "at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Red", position: 0 },
       { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid6);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -725,7 +897,13 @@ describe("deduce constraint types", () => {
       { type: "not_at_position", value: "Blue", position: 0 },
       { type: "not_at_position", value: "Blue", position: 1 },
       { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);
@@ -740,7 +918,7 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "before", a: "Red", b: "Alice" },
+      { type: "before", a: "Red", b: "Alice", axis: "House" },
       0,
     );
     expect(result).toBeNull();
@@ -756,7 +934,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Blue").clear();
     const result = tryConstraint(
       state,
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();
@@ -767,7 +951,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "not_between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();
@@ -778,7 +968,13 @@ describe("empty-set guards", () => {
     getPossible(state, "Red").clear();
     const result = tryConstraint(
       state,
-      { type: "between", outer1: "Red", middle: "Alice", outer2: "Blue" },
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Alice",
+        outer2: "Blue",
+        axis: "House",
+      },
       0,
     );
     expect(result).toBeNull();
@@ -792,5 +988,291 @@ describe("ordinal", () => {
   it("throws for out-of-range positions", () => {
     expect(() => ordinal(8)).toThrow("out of supported range");
     expect(() => ordinal(-1)).toThrow("out of supported range");
+  });
+});
+
+describe("rank-space deduction on non-pinned axis", () => {
+  // Year is the first ordered category (identity-pinned). Return is the
+  // second (not pinned) — constraints targeting Return go through the
+  // rank-space path.
+  const multiGrid = makeGrid({
+    size: 4,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+      {
+        name: "Year",
+        values: ["2020", "2021", "2022", "2023"],
+        noun: "fund",
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
+      },
+      {
+        name: "Return",
+        values: ["5%", "6%", "7%", "8%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
+      },
+    ],
+  });
+
+  it("before on non-pinned axis propagates", () => {
+    // Pin 8% to position 0, so Alice at pos 0 has return rank 3 (the highest).
+    // before(Alice, Bob, Return) means Alice's return rank < Bob's → but
+    // rank 3 is the max, so no Bob can be strictly greater → Alice can't be
+    // at pos 0 if 8% is the only option there. However, since 8% isn't pinned
+    // to position 0 in the deduce state (Return is not identity-pinned),
+    // we use a simpler test: pin Alice to a single return rank and verify
+    // eliminations happen.
+    //
+    // Instead, let's use same_position to co-locate Alice with 8%, then
+    // check that before(Alice, Bob, Return) produces eliminations via the
+    // rank-space path.
+    const constraints: Constraint[] = [
+      { type: "same_position", a: "Alice", b: "8%" },
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+    ];
+    const result = deduce(constraints, multiGrid);
+    // With Alice at rank 3 (highest), there's no rank > 3 for Bob.
+    // The before constraint is unsatisfiable — the solver should detect
+    // this via contradiction or at least produce some propagation.
+    expect(result.steps.length).toBeGreaterThan(0);
+  });
+
+  it("before on non-pinned axis: tryConstraint returns a step", () => {
+    // Use tryConstraint directly with a pre-configured state to exercise
+    // the rank-space path. Pin Alice to position 0 and 8% to position 0
+    // via state manipulation, so Alice's rank domain on Return = {3}.
+    // before(Alice, Bob, Return) → rank(Alice)=3 is the max, no valid Bob
+    // rank > 3 exists → Alice's position 0 should be eliminated.
+    const state = createState(multiGrid);
+    // Pin Alice and 8% to position 0 (co-located).
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "8%").delete(p);
+    }
+    // Remove other Return values from position 0 so 8% is the only one there.
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+      0,
+    );
+    // Alice at rank 3, no rank > 3 for Bob → Alice's position 0 eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 0,
+    });
+  });
+
+  it("left_of on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 3 (8%). left_of(Alice, Bob, Return) means
+    // rank(Bob) = rank(Alice) + 1 = 4, which doesn't exist → eliminate.
+    const state = createState(multiGrid);
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "8%").delete(p);
+    }
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      { type: "left_of", a: "Alice", b: "Bob", axis: "Return" },
+      0,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 0,
+    });
+  });
+
+  it("not_between on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 1 (6%), Bob at rank 0 (5%), Carol at rank 3 (8%).
+    // not_between(Bob, Alice, Carol, Return): Alice at rank 1 is strictly
+    // between ranks 0 and 3 → violated → Alice's position eliminated.
+    const state = createState(multiGrid);
+    // Pin 5% to pos 0 only, 6% to pos 1 only, 8% to pos 3 only.
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "5%").delete(p);
+      if (p !== 1) getPossible(state, "6%").delete(p);
+      if (p !== 3) getPossible(state, "8%").delete(p);
+    }
+    // Pin Bob to pos 0 (rank 0 via 5%), Alice to pos 1 (rank 1 via 6%),
+    // Carol to pos 3 (rank 3 via 8%).
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "Bob").delete(p);
+      if (p !== 1) getPossible(state, "Alice").delete(p);
+      if (p !== 3) getPossible(state, "Carol").delete(p);
+    }
+    // Remove other Return values from those positions.
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "7%").delete(1);
+    getPossible(state, "7%").delete(3);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "not_between",
+        outer1: "Bob",
+        middle: "Alice",
+        outer2: "Carol",
+        axis: "Return",
+      },
+      0,
+    );
+    // Alice at rank 1 is between ranks 0 and 3 → not_between violated →
+    // Alice's position 1 should be eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Alice",
+      position: 1,
+    });
+  });
+
+  it("between rank-space returns null when a rank domain is empty", () => {
+    const state = createState(multiGrid);
+    // Clear all positions for Alice → empty rank domain.
+    getPossible(state, "Alice").clear();
+    const result = tryConstraint(
+      state,
+      {
+        type: "between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "Return",
+      },
+      0,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("exact_distance rank-space with numericValues uses value distance", () => {
+    // Use a grid where Return has numericValues and is non-pinned.
+    const numGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Year",
+          values: ["2020", "2021", "2022", "2023"],
+          noun: "fund",
+          verb: ["started in", "did not start in"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+        {
+          name: "Return",
+          values: ["3%", "5%", "8%", "12%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
+          numericValues: [3, 5, 8, 12],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+      ],
+    });
+    const state = createState(numGrid);
+    // Pin Alice at position 0, 3% at position 0 → Alice has Return rank 0.
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "3%").delete(p);
+    }
+    getPossible(state, "5%").delete(0);
+    getPossible(state, "8%").delete(0);
+    getPossible(state, "12%").delete(0);
+
+    // distance=2 with numericValues [3,5,8,12]: |3-5|=2 → rank 1 valid.
+    // No other rank has value distance 2 from rank 0.
+    const result = tryConstraint(
+      state,
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
+      0,
+    );
+    expect(result).not.toBeNull();
+  });
+
+  it("exact_distance rank-space without numericValues uses rank steps", () => {
+    // Year has no numericValues in multiGrid → rank-step distance.
+    // But Year IS identity-pinned (first ordered), so we need a grid where
+    // a non-pinned axis has no numericValues. Return has none in multiGrid.
+    const state = createState(multiGrid);
+    // Pin Alice at rank 0 (5%) by clearing all other positions and values.
+    for (let p = 1; p < 4; p++) {
+      getPossible(state, "Alice").delete(p);
+      getPossible(state, "5%").delete(p);
+    }
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "8%").delete(0);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 3,
+        axis: "Return",
+      },
+      0,
+    );
+    // Alice at rank 0, distance 3 → Bob must be at rank 3.
+    // This should produce some propagation.
+    expect(result).not.toBeNull();
+  });
+
+  it("between on non-pinned axis: tryConstraint returns a step", () => {
+    // Pin Alice at rank 3 (8%), Bob at rank 0 (5%).
+    // between(Bob, Carol, Alice, Return): Carol must be strictly between
+    // ranks 0 and 3. Pin Carol at rank 0 (5% at same pos) → violated.
+    const state = createState(multiGrid);
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "5%").delete(p);
+      if (p !== 3) getPossible(state, "8%").delete(p);
+    }
+    for (let p = 0; p < 4; p++) {
+      if (p !== 0) getPossible(state, "Bob").delete(p);
+      if (p !== 0) getPossible(state, "Carol").delete(p);
+      if (p !== 3) getPossible(state, "Alice").delete(p);
+    }
+    getPossible(state, "6%").delete(0);
+    getPossible(state, "6%").delete(3);
+    getPossible(state, "7%").delete(0);
+    getPossible(state, "7%").delete(3);
+
+    const result = tryConstraint(
+      state,
+      {
+        type: "between",
+        outer1: "Bob",
+        middle: "Carol",
+        outer2: "Alice",
+        axis: "Return",
+      },
+      0,
+    );
+    // Carol at rank 0 (same as Bob) is not strictly between 0 and 3 →
+    // Carol's position 0 should be eliminated.
+    expect(result).not.toBeNull();
+    expect(result!.eliminations).toContainEqual({
+      value: "Carol",
+      position: 0,
+    });
   });
 });

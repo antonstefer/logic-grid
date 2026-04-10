@@ -1,5 +1,5 @@
 export { generate } from "./generator";
-export { DEFAULT_CONFIG } from "./default-config";
+export { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 export { solve, hasUniqueSolution } from "./solver";
 export { classify } from "./difficulty";
 export { deduce } from "./deduce";
@@ -19,15 +19,20 @@ export {
 } from "./clues/constraints";
 
 export { renderClue } from "./clues/templates";
-export { findPositionCategory, positionLabel } from "./grid-utils";
+export {
+  isOrdered,
+  resolveAxis,
+  orderedCategories,
+  axisRank,
+  displayAxisCategory,
+  validateConstraints,
+} from "./axis";
 
 export type {
   Category,
   OrderingPhrases,
   OrderingComparatorType,
-  ComparatorPhrase,
   ComparatorMap,
-  SpatialWords,
   Grid,
   Assignment,
   Solution,

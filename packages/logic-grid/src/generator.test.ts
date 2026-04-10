@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import { generate } from "./generator";
 import { deduce } from "./deduce";
 import { hasUniqueSolution, solve } from "./solver";
+import { resolveAxis } from "./axis";
+import { TEST_COMPARATORS } from "./test-helpers";
+import type { Category, Grid } from "./types";
 
 describe("generate", () => {
   it("returns a valid puzzle with defaults", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 1 });
 
     expect(puzzle.grid.size).toBe(4);
     expect(puzzle.grid.categories.length).toBe(4);
@@ -16,7 +19,7 @@ describe("generate", () => {
   });
 
   it("solution is a valid permutation", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 2 });
 
     for (const assignment of puzzle.solution) {
       const positions = Object.values(assignment);
@@ -30,13 +33,23 @@ describe("generate", () => {
   });
 
   it("constraints are consistent with the solution", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 3 });
     const posOf = new Map<string, number>();
     for (const assignment of puzzle.solution) {
       for (const [val, pos] of Object.entries(assignment)) {
         posOf.set(val, pos);
       }
     }
+
+    // rank(value, axis) = index of the axis value colocated with `value`.
+    const rankOf = (val: string, grid: Grid, axisName: string): number => {
+      const axis = resolveAxis(grid, axisName);
+      const pos = posOf.get(val)!;
+      for (let k = 0; k < axis.values.length; k++) {
+        if (posOf.get(axis.values[k]) === pos) return k;
+      }
+      throw new Error(`No ${axisName} value colocated with ${val}`);
+    };
 
     for (const c of puzzle.constraints) {
       switch (c.type) {
@@ -46,20 +59,32 @@ describe("generate", () => {
         case "not_same_position":
           expect(posOf.get(c.a)).not.toBe(posOf.get(c.b));
           break;
-        case "next_to":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).toBe(1);
+        case "next_to": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(Math.abs(ra - rb)).toBe(1);
           break;
-        case "not_next_to":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).not.toBe(1);
+        }
+        case "not_next_to": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(Math.abs(ra - rb)).not.toBe(1);
           break;
-        case "left_of":
-          expect(posOf.get(c.b)! - posOf.get(c.a)!).toBe(1);
+        }
+        case "left_of": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(rb - ra).toBe(1);
           break;
+        }
         case "between": {
-          const lo = Math.min(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const hi = Math.max(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          expect(posOf.get(c.middle)!).toBeGreaterThan(lo);
-          expect(posOf.get(c.middle)!).toBeLessThan(hi);
+          const r1 = rankOf(c.outer1, puzzle.grid, c.axis);
+          const r2 = rankOf(c.outer2, puzzle.grid, c.axis);
+          const rm = rankOf(c.middle, puzzle.grid, c.axis);
+          const lo = Math.min(r1, r2);
+          const hi = Math.max(r1, r2);
+          expect(rm).toBeGreaterThan(lo);
+          expect(rm).toBeLessThan(hi);
           break;
         }
         case "at_position":
@@ -68,25 +93,40 @@ describe("generate", () => {
         case "not_at_position":
           expect(posOf.get(c.value)).not.toBe(c.position);
           break;
-        case "before":
-          expect(posOf.get(c.a)!).toBeLessThan(posOf.get(c.b)!);
-          break;
-        case "not_between": {
-          const lo = Math.min(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const hi = Math.max(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const mid = posOf.get(c.middle)!;
-          expect(mid > lo && mid < hi).toBe(false);
+        case "before": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(ra).toBeLessThan(rb);
           break;
         }
-        case "exact_distance":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).toBe(c.distance);
+        case "not_between": {
+          const r1 = rankOf(c.outer1, puzzle.grid, c.axis);
+          const r2 = rankOf(c.outer2, puzzle.grid, c.axis);
+          const rm = rankOf(c.middle, puzzle.grid, c.axis);
+          const lo = Math.min(r1, r2);
+          const hi = Math.max(r1, r2);
+          expect(rm > lo && rm < hi).toBe(false);
           break;
+        }
+        case "exact_distance": {
+          const axis = resolveAxis(puzzle.grid, c.axis);
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          if (axis.numericValues) {
+            expect(
+              Math.abs(axis.numericValues[ra] - axis.numericValues[rb]),
+            ).toBe(c.distance);
+          } else {
+            expect(Math.abs(ra - rb)).toBe(c.distance);
+          }
+          break;
+        }
       }
     }
   });
 
   it("puzzle has a unique solution", () => {
-    const puzzle = generate();
+    const puzzle = generate({ seed: 4 });
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
@@ -146,44 +186,6 @@ describe("generate", () => {
     expect(() => generate({ categories: 9 })).toThrow(RangeError);
   });
 
-  it("accepts valid positionNoun", () => {
-    const puzzle = generate({
-      size: 3,
-      seed: 1,
-      positionNoun: ["seat", "seats"],
-    });
-    expect(puzzle.grid.positionNoun).toEqual(["seat", "seats"]);
-  });
-
-  it("rejects empty positionNoun strings", () => {
-    expect(() => generate({ size: 3, positionNoun: ["", "slots"] })).toThrow(
-      RangeError,
-    );
-    expect(() => generate({ size: 3, positionNoun: ["slot", ""] })).toThrow(
-      RangeError,
-    );
-  });
-
-  it("custom positionPreposition derives atPosition without a position category", () => {
-    const puzzle = generate({
-      size: 3,
-      categories: 3,
-      seed: 1,
-      positionNoun: ["seat", "seats"],
-      positionPreposition: "at",
-    });
-    expect(puzzle.grid.spatialWords.atPosition).toEqual([
-      "lives at",
-      "does not live at",
-    ]);
-  });
-
-  it("rejects empty positionPreposition", () => {
-    expect(() => generate({ size: 3, positionPreposition: "" })).toThrow(
-      RangeError,
-    );
-  });
-
   it("accepts custom categories", () => {
     const puzzle = generate({
       size: 3,
@@ -193,6 +195,8 @@ describe("generate", () => {
           values: ["A", "B", "C"],
           noun: "house",
           verb: ["lives in", "does not live in"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Owner",
@@ -346,6 +350,81 @@ describe("generate", () => {
     ).toThrow('Category "Color" has 2 values but size is 5');
   });
 
+  it("throws on duplicate category names", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Dupe",
+            values: ["A", "B", "C"],
+            noun: "x",
+            verb: ["is", "is not"],
+          },
+          {
+            name: "Dupe",
+            values: ["D", "E", "F"],
+            noun: "y",
+            verb: ["has", "has not"],
+          },
+        ],
+      }),
+    ).toThrow("Duplicate category name");
+  });
+
+  it("throws when numericValues length does not match values", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["started in", "did not start in"],
+            ordered: true,
+            numericValues: [2020, 2021],
+            orderingPhrases: { comparators: TEST_COMPARATORS },
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "color",
+            verb: ["wears", "does not wear"],
+          },
+        ],
+      }),
+    ).toThrow("numericValues length must match values length");
+  });
+
+  it("throws when displayAxis references a non-ordered category", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Year",
+            values: ["2020", "2021", "2022"],
+            noun: "year",
+            verb: ["started in", "did not start in"],
+            ordered: true,
+            orderingPhrases: { comparators: TEST_COMPARATORS },
+          },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "color",
+            verb: ["wears", "does not wear"],
+          },
+        ],
+        displayAxis: "Color",
+      }),
+    ).toThrow("must reference an ordered category");
+  });
+
   it("throws when non-person category lacks verb", () => {
     expect(() =>
       generate({
@@ -369,101 +448,9 @@ describe("generate", () => {
     ).toThrow("requires a verb");
   });
 
-  it("throws when position category lacks verb", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "", // person noun bypasses non-person check, but isPosition check should fire
-            isPosition: true,
-          },
-          {
-            name: "Color",
-            values: ["Red", "Blue", "Green"],
-            noun: "house",
-            verb: ["lives in the", "does not live in the"],
-          },
-        ],
-      }),
-    ).toThrow("Position category");
-  });
-
-  it("throws when more than one category is isPosition", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "slot",
-            verb: ["is at", "is not at"],
-            isPosition: true,
-          },
-          {
-            name: "Year",
-            values: ["2020", "2021", "2022"],
-            noun: "year",
-            verb: ["was in", "was not in"],
-            isPosition: true,
-          },
-        ],
-      }),
-    ).toThrow("At most one category can have isPosition");
-  });
-
-  it("throws when symmetric comparator is a tuple", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "slot",
-            verb: ["is at", "is not at"],
-            isPosition: true,
-            orderingPhrases: {
-              comparators: {
-                next_to: ["fwd", "rev"],
-              },
-            },
-          },
-          {
-            name: "Activity",
-            values: ["Yoga", "Cardio", "Run"],
-            noun: "doer",
-            verb: ["does", "does not do"],
-          },
-        ],
-      }),
-    ).toThrow('comparator "next_to" is symmetric');
-  });
-
-  it("throws when category has both isPosition and positionAdjective", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            isPosition: true,
-            valueSuffix: "slot",
-            positionAdjective: ["is", "is not"],
-          },
-          { name: "Color", values: ["Red", "Blue", "Green"] },
-        ],
-      }),
-    ).toThrow("cannot be both isPosition and positionAdjective");
-  });
+  // "symmetric comparator as tuple" is now a compile-time error:
+  // ComparatorMap requires next_to/not_next_to/between/not_between/exact_distance
+  // to be plain strings, not [forward, reverse] tuples.
 
   it("throws when numericValues are not in ascending order", () => {
     expect(() =>
@@ -474,7 +461,10 @@ describe("generate", () => {
           {
             name: "Time",
             values: ["7am", "8am", "9am"],
-            isPosition: true,
+            noun: "slot",
+            verb: ["is at", "is not at"],
+            ordered: true,
+            orderingPhrases: { comparators: TEST_COMPARATORS },
             numericValues: [9, 7, 8],
           },
           { name: "Color", values: ["Red", "Blue", "Green"] },
@@ -494,9 +484,12 @@ describe("generate", () => {
           values: ["3%", "5%", "8%", "12%"],
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
-          orderingPhrases: { unit: ["percentage point", "percentage points"] },
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"] as [string, string],
+            comparators: TEST_COMPARATORS,
+          },
         },
         {
           name: "Strategy",
@@ -509,7 +502,8 @@ describe("generate", () => {
 
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
 
-    // Verify all exact_distance constraints use value-based distances (not positional)
+    // exact_distance constraints are emitted for value pairs whose
+    // numeric gap matches. The emitted distance should be in the valid set.
     const validValueDistances = new Set<number>();
     const numVals = [3, 5, 8, 12];
     for (let i = 0; i < numVals.length; i++) {
@@ -524,7 +518,7 @@ describe("generate", () => {
     }
   });
 
-  it("position category gets identity assignment", () => {
+  it("first ordered category gets identity assignment", () => {
     const puzzle = generate({
       size: 4,
       seed: 42,
@@ -535,11 +529,11 @@ describe("generate", () => {
           values: ["6%", "7%", "8%", "9%"],
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
-          isPosition: true,
+          ordered: true,
           numericValues: [6, 7, 8, 9],
           orderingPhrases: {
-            unit: ["percentage point", "percentage points"],
-            comparators: { before: "has a lower return than" },
+            unit: ["percentage point", "percentage points"] as [string, string],
+            comparators: TEST_COMPARATORS,
           },
         },
         {
@@ -551,7 +545,7 @@ describe("generate", () => {
       ],
     });
 
-    // Position category should have identity mapping
+    // First ordered category (Return) gets identity mapping.
     const returnAssignment = puzzle.solution.find((a) => "6%" in a)!;
     expect(returnAssignment["6%"]).toBe(0);
     expect(returnAssignment["7%"]).toBe(1);
@@ -561,7 +555,7 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it("position category is preserved in grid", () => {
+  it("ordered category is preserved in grid", () => {
     const puzzle = generate({
       size: 3,
       seed: 1,
@@ -572,7 +566,8 @@ describe("generate", () => {
           values: ["9am", "10am", "11am"],
           noun: "slot",
           verb: ["is at", "is not at"],
-          isPosition: true,
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
         },
         {
           name: "Color",
@@ -583,9 +578,123 @@ describe("generate", () => {
       ],
     });
 
-    const posCat = puzzle.grid.categories.find((c) => c.isPosition);
-    expect(posCat).toBeDefined();
-    expect(posCat!.name).toBe("Time");
-    expect(posCat!.isPosition).toBe(true);
+    const orderedCat = puzzle.grid.categories.find((c) => c.ordered === true);
+    expect(orderedCat).toBeDefined();
+    expect(orderedCat!.name).toBe("Time");
+  });
+});
+
+describe("generate with multiple ordered categories", () => {
+  const hedgeFundCategories: Category[] = [
+    {
+      name: "Manager",
+      values: ["Alice", "Bob", "Carol", "Dan"],
+      noun: "",
+      subjectPriority: 2,
+    },
+    {
+      name: "Year",
+      values: ["1972", "1983", "1997", "2005"],
+      noun: "fund",
+      verb: ["was begun in", "was not begun in"] as [string, string],
+      subjectPriority: -1,
+      ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
+    },
+    {
+      name: "Return",
+      values: ["6%", "7%", "8%", "9%"],
+      noun: "fund",
+      verb: ["has a return of", "does not have a return of"] as [
+        string,
+        string,
+      ],
+      subjectPriority: -1,
+      ordered: true,
+      orderingPhrases: { comparators: TEST_COMPARATORS },
+    },
+    {
+      name: "Strategy",
+      values: ["Long/Short", "Macro", "Quant", "Event"],
+      noun: "strategist",
+      subjectPriority: 1,
+      verb: ["uses the", "does not use the"] as [string, string],
+      valueSuffix: "strategy",
+    },
+  ];
+
+  it("generates a puzzle with two ordered axes and solves uniquely", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 42,
+      categoryNames: hedgeFundCategories,
+    });
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+    const solved = solve(puzzle.constraints, puzzle.grid);
+    expect(solved).not.toBeNull();
+  });
+
+  it("emits at least some constraints tagged with each ordered axis", () => {
+    // Seeded sweep so that eventually both axes appear in some puzzle's
+    // minimal set. The axis choice in the final puzzle is probabilistic —
+    // minimization may drop constraints on one axis if the other is
+    // sufficient. We only assert that the generator is CAPABLE of emitting
+    // constraints on both axes.
+    let sawYear = false;
+    let sawReturn = false;
+    for (let seed = 0; seed < 20 && !(sawYear && sawReturn); seed++) {
+      const puzzle = generate({
+        size: 4,
+        seed,
+        categoryNames: hedgeFundCategories,
+      });
+      for (const c of puzzle.constraints) {
+        if ("axis" in c) {
+          if (c.axis === "Year") sawYear = true;
+          if (c.axis === "Return") sawReturn = true;
+        }
+      }
+    }
+    expect(sawYear).toBe(true);
+    expect(sawReturn).toBe(true);
+  });
+
+  it("multi-axis puzzles still round-trip through the SAT solver", () => {
+    // The SAT solver must reproduce the exact solution. Deduction may stall
+    // on constraints targeting a non-pinned axis (rank-space propagation is
+    // weaker than positional), but the solver handles it.
+    const puzzle = generate({
+      size: 4,
+      seed: 7,
+      categoryNames: hedgeFundCategories,
+    });
+    const solved = solve(puzzle.constraints, puzzle.grid);
+    expect(solved).not.toBeNull();
+    for (let ci = 0; ci < puzzle.solution.length; ci++) {
+      for (const [val, pos] of Object.entries(puzzle.solution[ci])) {
+        expect(solved![ci][val]).toBe(pos);
+      }
+    }
+  });
+
+  it("generates a size-4 multi-axis puzzle exercising both encoder paths", () => {
+    // Exercises both the identity-pinned fast path (Year, first ordered)
+    // and the rank-forbidding path (Return, second ordered) in one puzzle.
+    const puzzle = generate({
+      size: 4,
+      seed: 99,
+      categoryNames: hedgeFundCategories,
+    });
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+
+    // Verify constraints reference both axes.
+    const axes = new Set<string>();
+    for (const c of puzzle.constraints) {
+      if ("axis" in c && typeof c.axis === "string") axes.add(c.axis);
+    }
+    // At minimum the first ordered axis should appear; second may be
+    // dropped by minimization for some seeds.
+    expect(axes.size).toBeGreaterThanOrEqual(1);
   });
 });

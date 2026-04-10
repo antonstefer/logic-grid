@@ -1,11 +1,11 @@
-import type { Constraint, DeductionStep, DeductionTechnique } from "../types";
-import {
-  ordinal,
-  posNoun,
-  posNounPlural,
-  posPrep,
-  findPositionCategory,
-} from "../grid-utils";
+import type {
+  Category,
+  Constraint,
+  DeductionStep,
+  DeductionTechnique,
+} from "../types";
+import { ordinal } from "../grid-utils";
+import { resolveAxis } from "../axis";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -18,6 +18,8 @@ import {
   describeResult,
   clueRef,
   describeKnown,
+  axisRankDomain,
+  projectRanksToPositions,
 } from "./state";
 
 /** Check whether every position in `set` is adjacent to `p`. */
@@ -26,6 +28,78 @@ function allAdjacent(set: Set<number>, p: number): boolean {
     if (q !== p - 1 && q !== p + 1) return false;
   }
   return true;
+}
+
+/** True when `axis` is the first ordered category (identity-pinned). */
+function isIdentityPinned(
+  grid: { categories: Category[] },
+  axis: Category,
+): boolean {
+  return grid.categories.find((c) => c.ordered === true) === axis;
+}
+
+/**
+ * Generic rank-space deduction for binary comparative constraints on a
+ * non-identity-pinned axis. Computes the rank domain of both values,
+ * applies the predicate `isValid(rankA, rankB)` to decide which ranks
+ * to eliminate, then projects back to position eliminations.
+ */
+function tryBinaryRankSpace(
+  state: DeduceState,
+  a: string,
+  b: string,
+  axis: Category,
+  ci: number,
+  technique: DeductionTechnique,
+  isValid: (rankA: number, rankB: number) => boolean,
+  description: string,
+): DeductionStep | null {
+  const rankA = axisRankDomain(state, a, axis);
+  const rankB = axisRankDomain(state, b, axis);
+  if (rankA.size === 0 || rankB.size === 0) return null;
+
+  // Find ranks to eliminate: a rank is bad for value X if no rank of Y satisfies the predicate.
+  const badRanksA = new Set<number>();
+  for (const ra of rankA) {
+    let hasValidB = false;
+    for (const rb of rankB) {
+      if (isValid(ra, rb)) {
+        hasValidB = true;
+        break;
+      }
+    }
+    if (!hasValidB) badRanksA.add(ra);
+  }
+  const badRanksB = new Set<number>();
+  for (const rb of rankB) {
+    let hasValidA = false;
+    for (const ra of rankA) {
+      if (isValid(ra, rb)) {
+        hasValidA = true;
+        break;
+      }
+    }
+    if (!hasValidA) badRanksB.add(rb);
+  }
+
+  if (badRanksA.size === 0 && badRanksB.size === 0) return null;
+
+  const elims = [
+    ...projectRanksToPositions(state, a, axis, badRanksA),
+    ...projectRanksToPositions(state, b, axis, badRanksB),
+  ];
+  const uniqueElims = dedup(elims);
+  if (uniqueElims.length === 0) return null;
+  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
+  const assigns = collectAssigns(state, uniqueElims);
+  return step(
+    technique,
+    [ci],
+    uniqueElims,
+    assigns,
+    `${clueRef(ci)}${description} ${describeResult(state.grid, assigns, uniqueElims)}.`,
+  );
 }
 
 // --- Constraint deductions ---
@@ -80,7 +154,7 @@ function tryAtPosition(
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}.`,
+    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} position.`,
   );
 }
 
@@ -97,14 +171,14 @@ function tryNotAtPosition(
     ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
-      ? `, so ${c.value} must be ${posPrep(state.grid)} the ${ordinal(assigns[0].position)} ${posNoun(state.grid)}.`
+      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} position.`
       : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `Clue ${ci + 1}: ${c.value} is not ${posPrep(state.grid)} the ${ordinal(c.position)} ${posNoun(state.grid)}${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} position${suffix}`,
   );
 }
 
@@ -143,8 +217,8 @@ function trySamePosition(
   const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const noun = posNoun(state.grid);
-  const prep = posPrep(state.grid);
+  const noun = "position";
+  const prep = "in";
   let explanation: string;
   if (assigns.length > 0) {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}both are ${prep} the ${ordinal(assigns[0].position)} ${noun}.`;
@@ -180,8 +254,8 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const noun = posNoun(state.grid);
-  const prep = posPrep(state.grid);
+  const noun = "position";
+  const prep = "in";
   const assignSuffix =
     assigns.length > 0
       ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
@@ -191,23 +265,49 @@ function tryNotSamePosition(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are ${prep} different ${posNounPlural(state.grid)}. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are ${prep} different positions. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
 function tryNextTo(
   state: DeduceState,
-  c: { a: string; b: string },
+  c: { a: string; b: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBinaryRankSpace(
+      state,
+      c.a,
+      c.b,
+      axis,
+      ci,
+      "next_to",
+      (ra, rb) => Math.abs(ra - rb) === 1,
+      `${c.a} is adjacent to ${c.b} on ${axis.name}.`,
+    );
+  }
   return tryAdjacency(state, c.a, c.b, ci, "next_to", true);
 }
 
 function tryNotNextTo(
   state: DeduceState,
-  c: { a: string; b: string },
+  c: { a: string; b: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBinaryRankSpace(
+      state,
+      c.a,
+      c.b,
+      axis,
+      ci,
+      "not_next_to",
+      (ra, rb) => Math.abs(ra - rb) !== 1,
+      `${c.a} is not adjacent to ${c.b} on ${axis.name}.`,
+    );
+  }
   return tryAdjacency(state, c.a, c.b, ci, "not_next_to", false);
 }
 
@@ -292,18 +392,29 @@ function tryAdjacency(
 
 function tryLeftOf(
   state: DeduceState,
-  c: { a: string; b: string },
+  c: { a: string; b: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBinaryRankSpace(
+      state,
+      c.a,
+      c.b,
+      axis,
+      ci,
+      "left_of",
+      (ra, rb) => rb === ra + 1,
+      `${c.a} is directly before ${c.b} on ${axis.name}.`,
+    );
+  }
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
 
-  // a is directly left of b: a can only be at p if b can be at p+1
   for (const p of pa) {
     if (!pb.has(p + 1)) elims.push({ value: c.a, position: p });
   }
-  // b can only be at p if a can be at p-1
   for (const p of pb) {
     if (!pa.has(p - 1)) elims.push({ value: c.b, position: p });
   }
@@ -328,14 +439,26 @@ function tryLeftOf(
 
 function tryBefore(
   state: DeduceState,
-  c: { a: string; b: string },
+  c: { a: string; b: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBinaryRankSpace(
+      state,
+      c.a,
+      c.b,
+      axis,
+      ci,
+      "before",
+      (ra, rb) => ra < rb,
+      `${c.a} is before ${c.b} on ${axis.name}.`,
+    );
+  }
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
 
-  // a must be left of b: eliminate positions for a where no valid b exists to the right
   if (pa.size === 0 || pb.size === 0) return null;
   const maxB = Math.max(...pb);
   for (const p of pa) {
@@ -366,9 +489,13 @@ function tryBefore(
 
 function tryBetween(
   state: DeduceState,
-  c: { outer1: string; middle: string; outer2: string },
+  c: { outer1: string; middle: string; outer2: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBetweenRankSpace(state, c, axis, ci, false);
+  }
   const po1 = getPossible(state, c.outer1);
   const pm = getPossible(state, c.middle);
   const po2 = getPossible(state, c.outer2);
@@ -453,8 +580,8 @@ function tryBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = posNoun(state.grid);
-    const prep = posPrep(state.grid);
+    const noun = "position";
+    const prep = "in";
     const parts = [
       `${c.outer1} is ${prep} the ${ordinal(a1)} ${noun}`,
       `${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}`,
@@ -479,9 +606,13 @@ function tryBetween(
 
 function tryNotBetween(
   state: DeduceState,
-  c: { outer1: string; middle: string; outer2: string },
+  c: { outer1: string; middle: string; outer2: string; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    return tryBetweenRankSpace(state, c, axis, ci, true);
+  }
   const a1 = getAssigned(state, c.outer1);
   const a2 = getAssigned(state, c.outer2);
   const pm = getPossible(state, c.middle);
@@ -533,8 +664,8 @@ function tryNotBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = posNoun(state.grid);
-    const prep = posPrep(state.grid);
+    const noun = "position";
+    const prep = "in";
     because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
   } else {
     // At least one outer always has a description for supported grid sizes (3–8):
@@ -552,16 +683,132 @@ function tryNotBetween(
   );
 }
 
+/**
+ * Rank-space deduction for between / not_between on non-identity-pinned axes.
+ */
+function tryBetweenRankSpace(
+  state: DeduceState,
+  c: { outer1: string; middle: string; outer2: string; axis: string },
+  axis: Category,
+  ci: number,
+  isNotBetween: boolean,
+): DeductionStep | null {
+  const technique: DeductionTechnique = isNotBetween
+    ? "not_between"
+    : "between";
+  const rO1 = axisRankDomain(state, c.outer1, axis);
+  const rO2 = axisRankDomain(state, c.outer2, axis);
+  const rM = axisRankDomain(state, c.middle, axis);
+  if (rO1.size === 0 || rO2.size === 0 || rM.size === 0) return null;
+
+  // For `between`: middle rank must be strictly between the two outers.
+  // Eliminate middle ranks where no valid outer pair exists on both sides.
+  // For `not_between`: middle rank must NOT be strictly between.
+  const badM = new Set<number>();
+  for (const rm of rM) {
+    let ok = false;
+    for (const r1 of rO1) {
+      for (const r2 of rO2) {
+        const lo = Math.min(r1, r2);
+        const hi = Math.max(r1, r2);
+        const isBetween = r1 !== r2 && rm > lo && rm < hi;
+        if (isNotBetween ? !isBetween : isBetween) {
+          ok = true;
+          break;
+        }
+      }
+      if (ok) break;
+    }
+    if (!ok) badM.add(rm);
+  }
+
+  // Similarly eliminate outer ranks that can't participate in any valid triple.
+  const badO1 = new Set<number>();
+  for (const r1 of rO1) {
+    let ok = false;
+    for (const r2 of rO2) {
+      for (const rm of rM) {
+        const lo = Math.min(r1, r2);
+        const hi = Math.max(r1, r2);
+        const isBetween = r1 !== r2 && rm > lo && rm < hi;
+        if (isNotBetween ? !isBetween : isBetween) {
+          ok = true;
+          break;
+        }
+      }
+      if (ok) break;
+    }
+    if (!ok) badO1.add(r1);
+  }
+  const badO2 = new Set<number>();
+  for (const r2 of rO2) {
+    let ok = false;
+    for (const r1 of rO1) {
+      for (const rm of rM) {
+        const lo = Math.min(r1, r2);
+        const hi = Math.max(r1, r2);
+        const isBetween = r1 !== r2 && rm > lo && rm < hi;
+        if (isNotBetween ? !isBetween : isBetween) {
+          ok = true;
+          break;
+        }
+      }
+      if (ok) break;
+    }
+    if (!ok) badO2.add(r2);
+  }
+
+  if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
+
+  const elims = [
+    ...projectRanksToPositions(state, c.middle, axis, badM),
+    ...projectRanksToPositions(state, c.outer1, axis, badO1),
+    ...projectRanksToPositions(state, c.outer2, axis, badO2),
+  ];
+  const uniqueElims = dedup(elims);
+  if (uniqueElims.length === 0) return null;
+  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (state.silent) return SILENT_STEP;
+  const assigns = collectAssigns(state, uniqueElims);
+  const verb = isNotBetween ? "is not between" : "is between";
+  return step(
+    technique,
+    [ci],
+    uniqueElims,
+    assigns,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.grid, assigns, uniqueElims)}.`,
+  );
+}
+
 function tryExactDistance(
   state: DeduceState,
-  c: { a: string; b: string; distance: number },
+  c: { a: string; b: string; distance: number; axis: string },
   ci: number,
 ): DeductionStep | null {
+  const axis = resolveAxis(state.grid, c.axis);
+  if (!isIdentityPinned(state.grid, axis)) {
+    const numVals = axis.numericValues;
+    return tryBinaryRankSpace(
+      state,
+      c.a,
+      c.b,
+      axis,
+      ci,
+      "exact_distance",
+      (ra, rb) => {
+        const d = numVals
+          ? Math.abs(numVals[ra] - numVals[rb])
+          : Math.abs(ra - rb);
+        return d === c.distance;
+      },
+      `${c.a} and ${c.b} are ${c.distance} apart on ${axis.name}.`,
+    );
+  }
   const n = state.n;
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
   const elims: { value: string; position: number }[] = [];
-  const numVals = findPositionCategory(state.grid)?.numericValues;
+  const numVals = axis.numericValues;
 
   if (numVals) {
     // Value-based distance: compute valid partner positions from numeric values
@@ -601,10 +848,10 @@ function tryExactDistance(
   for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, uniqueElims);
-  const unit = state.grid.spatialWords.distanceUnit;
+  const unit = axis.orderingPhrases.unit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? posNoun(state.grid) : posNounPlural(state.grid)}`;
+    : `${c.distance} ${c.distance === 1 ? "position" : "positions"}`;
   // At least one value always has a description for supported grid sizes (3–8).
   const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
   const because = ` ${ctx}, so `;

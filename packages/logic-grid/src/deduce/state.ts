@@ -1,15 +1,20 @@
-import type { Grid, DeductionStep, DeductionTechnique } from "../types";
-import { ordinal, posNoun, posPrep } from "../grid-utils";
+import type {
+  Category,
+  Grid,
+  DeductionStep,
+  DeductionTechnique,
+} from "../types";
+import { ordinal } from "../grid-utils";
 
 // --- Display utilities ---
 
 export function describeResult(
-  grid: Grid,
+  _grid: Grid,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const noun = posNoun(grid);
-  const prep = posPrep(grid);
+  const noun = "position";
+  const prep = "in";
   const parts: string[] = [];
   for (const a of assigns) {
     parts.push(`${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`);
@@ -35,9 +40,8 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const { grid } = state;
-  const noun = posNoun(grid);
-  const prep = posPrep(grid);
+  const noun = "position";
+  const prep = "in";
   const pos = getAssigned(state, value);
   if (pos !== null) return `${value} is ${prep} the ${ordinal(pos)} ${noun}`;
   const possible = getPossible(state, value);
@@ -81,6 +85,15 @@ export function createState(grid: Grid): DeduceState {
     for (let vi = 0; vi < grid.categories[ci].values.length; vi++) {
       valueInfo.set(grid.categories[ci].values[vi], [ci, vi]);
     }
+  }
+  // Identity-pin the first ordered category to match randomSolution and
+  // encodeBase behavior.
+  const firstOrderedIdx = grid.categories.findIndex((c) => c.ordered === true);
+  if (firstOrderedIdx < 0) throw new Error("Grid has no ordered category");
+  const pinCat = grid.categories[firstOrderedIdx];
+  for (let vi = 0; vi < pinCat.values.length; vi++) {
+    possible[firstOrderedIdx][vi].clear();
+    possible[firstOrderedIdx][vi].add(vi);
   }
   return { grid, n, possible, valueInfo, silent: false };
 }
@@ -159,4 +172,59 @@ export function collectAssigns(
     if (ps.size === 1) assigns.push({ value: e.value, position: first(ps) });
   }
   return assigns;
+}
+
+// --- Rank-space helpers for multi-axis deduction ---
+
+/**
+ * Compute the set of ranks `value` could occupy on `axis`. A rank k is
+ * possible iff there exists a position p where both `value` and
+ * `axis.values[k]` are currently possible.
+ */
+export function axisRankDomain(
+  state: DeduceState,
+  value: string,
+  axis: Category,
+): Set<number> {
+  const ps = getPossible(state, value);
+  const ranks = new Set<number>();
+  for (const p of ps) {
+    for (let k = 0; k < axis.values.length; k++) {
+      if (getPossible(state, axis.values[k]).has(p)) {
+        ranks.add(k);
+      }
+    }
+  }
+  return ranks;
+}
+
+/**
+ * Project rank eliminations back to position eliminations. For each position
+ * currently possible for `value`, if the ONLY axis rank still possible at
+ * that position is in `eliminatedRanks`, then that position is eliminated.
+ */
+export function projectRanksToPositions(
+  state: DeduceState,
+  value: string,
+  axis: Category,
+  eliminatedRanks: Set<number>,
+): { value: string; position: number }[] {
+  const elims: { value: string; position: number }[] = [];
+  const ps = getPossible(state, value);
+  for (const p of ps) {
+    // Find all axis ranks still possible at position p.
+    let allEliminated = true;
+    for (let k = 0; k < axis.values.length; k++) {
+      if (getPossible(state, axis.values[k]).has(p)) {
+        if (!eliminatedRanks.has(k)) {
+          allEliminated = false;
+          break;
+        }
+      }
+    }
+    if (allEliminated) {
+      elims.push({ value, position: p });
+    }
+  }
+  return elims;
 }

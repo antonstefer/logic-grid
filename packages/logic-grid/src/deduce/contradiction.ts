@@ -1,5 +1,5 @@
 import type { Constraint, DeductionStep } from "../types";
-import { ordinal, posNoun, posPrep } from "../grid-utils";
+import { ordinal } from "../grid-utils";
 import { type DeduceState, first, step, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
@@ -32,8 +32,8 @@ export function tryContradiction(
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
           const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
-          const noun = posNoun(state.grid);
-          const prep = posPrep(state.grid);
+          const noun = "position";
+          const prep = "in";
           const assignSuffix =
             assigns.length > 0
               ? ` So ${value} must be ${prep} the ${ordinal(assigns[0].position)} ${noun}.`

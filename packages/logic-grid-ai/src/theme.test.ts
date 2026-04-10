@@ -22,6 +22,18 @@ const VALID_THEME: ThemeResult = {
       values: ["Galleon", "Brigantine", "Sloop", "Frigate"],
       noun: "captain",
       verb: ["sails the", "does not sail the"],
+      ordered: true,
+      orderingPhrases: {
+        comparators: {
+          before: ["sails before", "sails after"],
+          left_of: ["sails right before", "sails right after"],
+          next_to: "sails right next to",
+          not_next_to: "does not sail right next to",
+          between: "sails between",
+          not_between: "does not sail between",
+          exact_distance: "sails exactly",
+        },
+      },
     },
     {
       name: "Treasure",
@@ -36,8 +48,6 @@ const VALID_THEME: ThemeResult = {
       verb: ["wields the", "does not wield the"],
     },
   ],
-  positionNoun: ["spot", "spots"],
-  positionPreposition: "at",
 };
 
 describe("generateTheme", () => {
@@ -51,8 +61,6 @@ describe("generateTheme", () => {
 
     expect(result.categories).toHaveLength(4);
     expect(result.categories[0].noun).toBe("");
-    expect(result.positionNoun).toEqual(["spot", "spots"]);
-    expect(result.positionPreposition).toBe("at");
   });
 
   it("uses default Anthropic client when none provided", async () => {
@@ -125,9 +133,14 @@ describe("generateTheme", () => {
   });
 
   it("throws after max retries", async () => {
+    // No ordered category → validation fails
     const badResult: ThemeResult = {
-      ...VALID_THEME,
-      positionPreposition: "",
+      categories: VALID_THEME.categories.map((c) => ({
+        name: c.name,
+        values: c.values,
+        noun: c.noun,
+        verb: c.verb,
+      })),
     };
 
     await expect(
@@ -191,21 +204,17 @@ describe("generateTheme", () => {
 
     const puzzle = generate({
       categoryNames: theme.categories,
-      positionNoun: theme.positionNoun,
-      positionPreposition: theme.positionPreposition,
       size: 4,
       seed: 0,
     });
 
     expect(puzzle.grid.size).toBe(4);
     expect(puzzle.grid.categories).toHaveLength(4);
-    expect(puzzle.grid.positionNoun).toEqual(["spot", "spots"]);
-    expect(puzzle.grid.positionPreposition).toBe("at");
     expect(puzzle.clues.length).toBeGreaterThan(0);
     expect(puzzle.solution).toBeDefined();
 
-    // Verify clues use the custom position noun
-    const positionalClue = puzzle.clues.find((c) => c.text.includes("spot"));
-    expect(positionalClue).toBeDefined();
+    // Verify clues render with the Ship category's verb/comparators
+    const sailClue = puzzle.clues.find((c) => c.text.includes("sail"));
+    expect(sailClue).toBeDefined();
   });
 });

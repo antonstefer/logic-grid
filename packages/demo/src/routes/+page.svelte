@@ -10,8 +10,6 @@
     label: string;
     size: number;
     categories: Category[];
-    positionNoun: [string, string];
-    positionPreposition: string;
   }
 
   const presets: Record<string, Preset> = {
@@ -26,7 +24,7 @@
           noun: "fund",
           verb: ["has a return of", "does not have a return of"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [3, 5, 8, 12],
           orderingPhrases: {
             unit: ["percentage point", "percentage points"],
@@ -36,8 +34,8 @@
                 "has the next lower return than",
                 "has the next higher return than",
               ],
-              next_to: "has an adjacent return to",
-              not_next_to: "does not have an adjacent return to",
+              next_to: "has the return right above or below",
+              not_next_to: "does not have the return right above or below",
               between: "has a return somewhere between",
               not_between: "does not have a return between",
               exact_distance: "is exactly",
@@ -47,8 +45,6 @@
         { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses the", "does not use the"], valueSuffix: "strategy" },
         { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", subjectPriority: 1, verb: ["is based in", "is not based in"] },
       ],
-      positionNoun: ["fund", "funds"],
-      positionPreposition: "at",
     },
     "morning-schedule": {
       label: "Morning Schedule",
@@ -61,7 +57,7 @@
           noun: "slot",
           verb: ["has an appointment at", "does not have an appointment at"],
           subjectPriority: -1,
-          isPosition: true,
+          ordered: true,
           numericValues: [7, 8, 9, 10],
           orderingPhrases: {
             unit: ["hour", "hours"],
@@ -71,11 +67,11 @@
                 "has a later appointment than",
               ],
               left_of: [
-                "has an appointment exactly one hour before",
-                "has an appointment exactly one hour after",
+                "has the appointment right before",
+                "has the appointment right after",
               ],
-              next_to: "has an appointment within one hour of",
-              not_next_to: "does not have an appointment within one hour of",
+              next_to: "has an appointment right before or after",
+              not_next_to: "does not have an appointment right before or after",
               between: "has an appointment somewhere between",
               not_between: "does not have an appointment between",
               exact_distance: "has an appointment exactly",
@@ -85,8 +81,55 @@
         { name: "Activity", values: ["Dentist", "Barber", "Therapist", "Optician"], noun: "attendee", subjectPriority: 1, verb: ["visits the", "does not visit the"] },
         { name: "Transport", values: ["Bus", "Bike", "Car", "Walk"], noun: "commuter", subjectPriority: 1, verb: ["takes the", "does not take the"] },
       ],
-      positionNoun: ["slot", "slots"],
-      positionPreposition: "at",
+    },
+    "hedge-fund-multi": {
+      label: "Hedge Funds (Multi-Axis)",
+      size: 4,
+      categories: [
+        { name: "Manager", values: ["Nadine", "Sal", "Terry", "Walter"], noun: "", subjectPriority: 2 },
+        {
+          name: "Year",
+          values: ["1972", "1983", "1997", "2005"],
+          noun: "fund",
+          verb: ["started in", "did not start in"],
+          subjectPriority: -1,
+          ordered: true,
+          numericValues: [1972, 1983, 1997, 2005],
+          orderingPhrases: {
+            unit: ["year", "years"],
+            comparators: {
+              before: ["started earlier than", "started later than"],
+              left_of: ["started right before", "started right after"],
+              next_to: "started right before or after",
+              not_next_to: "did not start right before or after",
+              between: "started between",
+              not_between: "did not start between",
+              exact_distance: "started exactly",
+            },
+          },
+        },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          subjectPriority: -1,
+          ordered: true,
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: {
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: ["has the next lower return than", "has the next higher return than"],
+              next_to: "has the return right above or below",
+              not_next_to: "does not have the return right above or below",
+              between: "has a return between",
+              not_between: "does not have a return between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        { name: "Fund", values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"], noun: "fund", subjectPriority: 1, verb: ["runs the", "does not run the"], valueSuffix: "fund" },
+      ],
     },
   };
 
@@ -108,8 +151,6 @@
         difficulty: diff,
         clueStyle: style,
         customCategories: p.categories,
-        positionNoun: p.positionNoun,
-        positionPreposition: p.positionPreposition,
       });
     } else {
       puzzleState.newPuzzle({

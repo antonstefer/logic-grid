@@ -1,11 +1,5 @@
-import type {
-  Category,
-  Constraint,
-  Clue,
-  Grid,
-  OrderingComparatorType,
-} from "../types";
-import { posNoun, posNounPlural } from "../grid-utils";
+import type { Category, Constraint, Clue, Grid } from "../types";
+import { orderedCategories, resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -28,41 +22,33 @@ function objectValue(value: string, grid: Grid): string {
   return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
-function comparator(
-  grid: Grid,
-  type: OrderingComparatorType,
-): string | [string, string] | undefined {
-  return grid.spatialWords.comparators?.[type];
-}
-
-/**
- * Resolve a symmetric comparator. Tuples on symmetric types are rejected
- * by validateGrid in the generator, so we trust the type at render time.
- */
+/** Look up a symmetric comparator (plain string). */
 function symmetricComp(
   grid: Grid,
-  type: OrderingComparatorType,
-): string | undefined {
-  return comparator(grid, type) as string | undefined;
+  type:
+    | "next_to"
+    | "not_next_to"
+    | "between"
+    | "not_between"
+    | "exact_distance",
+  axisName: string,
+): string {
+  return resolveAxis(grid, axisName).orderingPhrases.comparators[type];
 }
 
 /**
- * Pick the directional comparator phrase. For tuples, uses `ordered()` to
- * decide which side becomes the subject (priority first, then hash tiebreaker)
- * and selects the matching forward/reverse phrase. For string comparators,
- * always uses constraint.a as subject (forward only).
+ * Pick the directional comparator phrase. Uses `ordered()` to decide which
+ * side becomes the subject (priority first, then hash tiebreaker) and selects
+ * the matching forward/reverse phrase from the tuple.
  */
 function directionalComp(
   grid: Grid,
-  type: OrderingComparatorType,
+  type: "before" | "left_of",
   a: string,
   b: string,
-): { subject: string; object: string; phrase: string } | undefined {
-  const c = comparator(grid, type);
-  if (c === undefined) return undefined;
-  if (typeof c === "string") {
-    return { subject: a, object: b, phrase: c };
-  }
+  axisName: string,
+): { subject: string; object: string; phrase: string } {
+  const c = resolveAxis(grid, axisName).orderingPhrases.comparators[type];
   const [s] = ordered(a, b, grid);
   return s === a
     ? { subject: a, object: b, phrase: c[0] }
@@ -101,9 +87,23 @@ function renderSamePosition(
   grid: Grid,
   negative: boolean,
 ): string {
+  const catA = findCategory(constraint.a, grid);
+  const catB = findCategory(constraint.b, grid);
+  const idx = negative ? 1 : 0;
+
+  // Position-adjective path: if one side has positionAdjective and the other
+  // is an ordered category, render the ordered value as subject with the
+  // adjective verb. Recovers the classical Color+House idiom:
+  // `same_position(Red, "1st")` → "The 1st house is red."
+  if (catA.positionAdjective && catB.ordered === true) {
+    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${constraint.a.toLowerCase()}.`;
+  }
+  if (catB.positionAdjective && catA.ordered === true) {
+    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${constraint.b.toLowerCase()}.`;
+  }
+
   const [subj, obj] = ordered(constraint.a, constraint.b, grid);
   const objCat = findCategory(obj, grid);
-  const idx = negative ? 1 : 0;
   const verb = objCat.verb;
   if (!verb) {
     throw new Error(
@@ -116,7 +116,6 @@ function renderSamePosition(
 // --- Main renderer ---
 
 function renderText(constraint: Constraint, grid: Grid): string {
-  const w = grid.spatialWords;
   switch (constraint.type) {
     case "same_position":
       return renderSamePosition(constraint, grid, false);
@@ -124,85 +123,83 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return renderSamePosition(constraint, grid, true);
     case "next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = symmetricComp(grid, "next_to");
-      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[0]} ${w.adjacency}`} ${label(o, grid)}.`;
+      const comp = symmetricComp(grid, "next_to", constraint.axis);
+      return `${capitalize(label(s, grid))} ${comp} ${label(o, grid)}.`;
     }
     case "not_next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = symmetricComp(grid, "not_next_to");
-      return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[1]} ${w.adjacency}`} ${label(o, grid)}.`;
+      const comp = symmetricComp(grid, "not_next_to", constraint.axis);
+      return `${capitalize(label(s, grid))} ${comp} ${label(o, grid)}.`;
     }
     case "left_of": {
-      const comp = directionalComp(grid, "left_of", constraint.a, constraint.b);
-      if (comp) {
-        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
-      }
-      const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
-      return `${capitalize(label(s, grid))} ${w.verb[0]} directly ${dir} ${label(o, grid)}.`;
+      const comp = directionalComp(
+        grid,
+        "left_of",
+        constraint.a,
+        constraint.b,
+        constraint.axis,
+      );
+      return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
     }
     case "between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = symmetricComp(grid, "between");
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective?.[0] ??
-        w.verb[0];
-      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
+      const comp = symmetricComp(grid, "between", constraint.axis);
+      return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
     }
     case "not_between": {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = symmetricComp(grid, "not_between");
-      if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
-      const middleVerb =
-        findCategory(constraint.middle, grid).positionAdjective?.[1] ??
-        w.verb[1];
-      return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
+      const comp = symmetricComp(grid, "not_between", constraint.axis);
+      return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
     }
     case "before": {
-      const comp = directionalComp(grid, "before", constraint.a, constraint.b);
-      if (comp) {
-        return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
-      }
-      const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const dir = s === constraint.a ? w.direction[0] : w.direction[1];
-      return `${capitalize(label(s, grid))} ${w.verb[0]} somewhere ${dir} ${label(o, grid)}.`;
+      const comp = directionalComp(
+        grid,
+        "before",
+        constraint.a,
+        constraint.b,
+        constraint.axis,
+      );
+      return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
     }
     case "exact_distance": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const la = label(s, grid);
       const lb = label(o, grid);
-      const unit = w.distanceUnit;
-      const prefix =
-        symmetricComp(grid, "exact_distance") ?? `${w.verb[0]} exactly`;
+      const axisCategory = resolveAxis(grid, constraint.axis);
+      const unit = axisCategory.orderingPhrases?.unit;
+      const prefix = symmetricComp(grid, "exact_distance", constraint.axis);
       if (unit) {
         const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
       }
-      const dist = w.cardinals[constraint.distance];
-      const noun =
-        constraint.distance === 1 ? posNoun(grid) : posNounPlural(grid);
-      return `${capitalize(la)} ${prefix} ${dist} ${noun} from ${lb}.`;
+      return `${capitalize(la)} ${prefix} ${constraint.distance} from ${lb}.`;
     }
     case "at_position": {
-      const posLabel = grid.positionLabels[constraint.position];
+      // Uses the first ordered category (identity-pinned), NOT displayAxis.
+      // at_position encodes row identity, which is tied to the identity-pinned
+      // axis. displayAxis is a presentation concern for column headers only.
+      const axis = orderedCategories(grid)[0];
+      if (!axis) throw new Error("Grid has no ordered category");
+      const axisVal = axis.values[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[0]} ${posLabel}.`;
+      return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
     }
     case "not_at_position": {
-      const posLabel = grid.positionLabels[constraint.position];
+      const axis = orderedCategories(grid)[0];
+      if (!axis) throw new Error("Grid has no ordered category");
+      const axisVal = axis.values[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(posLabel)} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
       }
-      return `${capitalize(label(constraint.value, grid))} ${w.atPosition[1]} ${posLabel}.`;
+      return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
   }
 }

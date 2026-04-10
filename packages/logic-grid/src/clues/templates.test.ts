@@ -1,17 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
-import { DEFAULT_CONFIG } from "../default-config";
 import { makeGrid } from "../test-helpers";
-import type { Grid, SpatialWords } from "../types";
-
-const POSITIONAL_WORDS: SpatialWords = {
-  verb: ["is", "is not"],
-  adjacency: "adjacent to",
-  direction: ["before", "after"],
-  between: "somewhere between",
-  atPosition: ["is at", "is not at"],
-  cardinals: ["zero", "one", "two", "three", "four", "five", "six", "seven"],
-};
+import type { Grid } from "../types";
 
 const grid = makeGrid({
   size: 3,
@@ -46,11 +36,9 @@ const grid = makeGrid({
       subjectPriority: 1,
     },
   ],
-  spatialWords: DEFAULT_CONFIG.spatialWords,
-  positionLabels: ["the first house", "the second house", "the third house"],
 });
 
-describe("renderClue", () => {
+describe("renderClue — classic same_position paths", () => {
   it("same_position: color + pet", () => {
     const clue = renderClue(
       { type: "same_position", a: "Red", b: "Cat" },
@@ -83,28 +71,12 @@ describe("renderClue", () => {
     expect(clue.text).toBe("Carol drinks tea.");
   });
 
-  it("same_position: pet + drink", () => {
-    const clue = renderClue(
-      { type: "same_position", a: "Cat", b: "Coffee" },
-      grid,
-    );
-    expect(clue.text).toBe("The cat owner drinks coffee.");
-  });
-
   it("not_same_position: name + pet", () => {
     const clue = renderClue(
       { type: "not_same_position", a: "Alice", b: "Dog" },
       grid,
     );
     expect(clue.text).toBe("Alice does not own the dog.");
-  });
-
-  it("not_same_position: name + color", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Bob", b: "Red" },
-      grid,
-    );
-    expect(clue.text).toBe("Bob does not live in the red house.");
   });
 
   it("not_same_position: color + pet", () => {
@@ -115,170 +87,7 @@ describe("renderClue", () => {
     expect(clue.text).toBe("The cat owner does not live in the red house.");
   });
 
-  it("not_same_position: name + drink", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Alice", b: "Tea" },
-      grid,
-    );
-    expect(clue.text).toBe("Alice does not drink tea.");
-  });
-
-  it("not_same_position: color + drink", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Blue", b: "Coffee" },
-      grid,
-    );
-    expect(clue.text).toBe(
-      "The coffee drinker does not live in the blue house.",
-    );
-  });
-
-  it("not_same_position: pet + drink", () => {
-    // Equal priority (Pet 1, Drink 1) → hash tiebreaker picks subject
-    const clue = renderClue(
-      { type: "not_same_position", a: "Dog", b: "Water" },
-      grid,
-    );
-    expect(clue.text).toBe("The water drinker does not own the dog.");
-  });
-
-  it("same_position tiebreak is deterministic across pairs", () => {
-    // Equal priority (both Pet+Drink, priority 1). Hash gives consistent
-    // results per value pair, but different pairs may get different subjects.
-    const clueA = renderClue(
-      { type: "same_position", a: "Dog", b: "Water" },
-      grid,
-    );
-    const clueB = renderClue(
-      { type: "same_position", a: "Cat", b: "Tea" },
-      grid,
-    );
-    // Both should be valid grammatical sentences
-    expect(clueA.text).toMatch(
-      /^(The dog owner drinks water|The water drinker owns the dog)\.$/,
-    );
-    expect(clueB.text).toMatch(
-      /^(The cat owner drinks tea|The tea drinker owns the cat)\.$/,
-    );
-    // Same input → same output (deterministic)
-    const clueA2 = renderClue(
-      { type: "same_position", a: "Dog", b: "Water" },
-      grid,
-    );
-    expect(clueA2.text).toBe(clueA.text);
-  });
-
-  it("next_to", () => {
-    const clue = renderClue({ type: "next_to", a: "Blue", b: "Cat" }, grid);
-    expect(clue.text).toBe("The cat owner lives next to the blue house.");
-  });
-
-  it("not_next_to", () => {
-    const clue = renderClue({ type: "not_next_to", a: "Tea", b: "Dog" }, grid);
-    expect(clue.text).toBe(
-      "The tea drinker does not live next to the dog owner.",
-    );
-  });
-
-  it("not_next_to: color + pet", () => {
-    const clue = renderClue({ type: "not_next_to", a: "Red", b: "Cat" }, grid);
-    expect(clue.text).toBe(
-      "The cat owner does not live next to the red house.",
-    );
-  });
-
-  it("left_of renders as left or right", () => {
-    const clue = renderClue({ type: "left_of", a: "Blue", b: "Green" }, grid);
-    // Deterministic per constraint — could be either phrasing
-    expect(
-      clue.text === "The blue house lives directly left of the green house." ||
-        clue.text === "The green house lives directly right of the blue house.",
-    ).toBe(true);
-  });
-
-  it("between", () => {
-    const clue = renderClue(
-      { type: "between", outer1: "Red", middle: "Cat", outer2: "Blue" },
-      grid,
-    );
-    expect(clue.text).toBe(
-      "The cat owner lives somewhere between the red house and the blue house.",
-    );
-  });
-
-  it("at_position", () => {
-    const clue = renderClue(
-      { type: "at_position", value: "Tea", position: 0 },
-      grid,
-    );
-    expect(clue.text).toBe("The tea drinker lives in the first house.");
-  });
-
-  it("not_at_position", () => {
-    const clue = renderClue(
-      { type: "not_at_position", value: "Red", position: 2 },
-      grid,
-    );
-    expect(clue.text).toBe("The third house is not red.");
-  });
-
-  it("not_between", () => {
-    const clue = renderClue(
-      {
-        type: "not_between",
-        outer1: "Red",
-        middle: "Cat",
-        outer2: "Blue",
-      },
-      grid,
-    );
-    expect(clue.text).toBe(
-      "The cat owner does not live somewhere between the red house and the blue house.",
-    );
-  });
-
-  it("not_between: house noun as middle", () => {
-    const clue = renderClue(
-      { type: "not_between", outer1: "Alice", middle: "Red", outer2: "Cat" },
-      grid,
-    );
-    expect(clue.text).toBe(
-      "The red house is not somewhere between Alice and the cat owner.",
-    );
-  });
-
-  it("before", () => {
-    const clue = renderClue({ type: "before", a: "Alice", b: "Cat" }, grid);
-    expect(clue.text).toMatch(/somewhere (left|right) of/);
-  });
-
-  it("exact_distance", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
-      grid,
-    );
-    expect(clue.text).toBe(
-      "Alice lives exactly two houses from the cat owner.",
-    );
-  });
-
-  it("exact_distance singular", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
-      grid,
-    );
-    expect(clue.text).toBe("Alice lives exactly one house from the cat owner.");
-  });
-
-  it("throws on unknown value", () => {
-    expect(() =>
-      renderClue({ type: "same_position", a: "Unknown", b: "Cat" }, grid),
-    ).toThrow("Unknown value: Unknown");
-  });
-
-  it("swaps subject/object when b has higher priority", () => {
-    // Cat (owner, priority 1) as a, Alice (person, priority 2) as b
-    // Should swap so Alice becomes the subject
+  it("subject priority swap", () => {
     const clue = renderClue(
       { type: "same_position", a: "Cat", b: "Alice" },
       grid,
@@ -290,6 +99,173 @@ describe("renderClue", () => {
     const constraint = { type: "same_position" as const, a: "Red", b: "Cat" };
     const clue = renderClue(constraint, grid);
     expect(clue.constraint).toBe(constraint);
+  });
+
+  it("throws on unknown value", () => {
+    expect(() =>
+      renderClue({ type: "same_position", a: "Unknown", b: "Cat" }, grid),
+    ).toThrow("Unknown value: Unknown");
+  });
+});
+
+describe("at_position / not_at_position", () => {
+  it("at_position renders via position label from first ordered category", () => {
+    const clue = renderClue(
+      { type: "at_position", value: "Alice", position: 0 },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives in the first house.");
+  });
+
+  it("not_at_position uses positionAdjective for Color+House", () => {
+    const clue = renderClue(
+      { type: "not_at_position", value: "Red", position: 2 },
+      grid,
+    );
+    expect(clue.text).toBe("The third house is not red.");
+  });
+
+  it("at_position uses positionAdjective for Color+House", () => {
+    const clue = renderClue(
+      { type: "at_position", value: "Red", position: 1 },
+      grid,
+    );
+    expect(clue.text).toBe("The second house is red.");
+  });
+});
+
+describe("positionAdjective + ordered rendering rule", () => {
+  // The auto-added House category is ordered; Color has positionAdjective.
+  // same_position(Red, "first") must render as "The first house is red."
+  it("recovers Color+House 'is red' phrasing via same_position", () => {
+    const clue = renderClue(
+      { type: "same_position", a: "Red", b: "first" },
+      grid,
+    );
+    expect(clue.text).toBe("The first house is red.");
+  });
+
+  it("negated variant renders 'is not red'", () => {
+    const clue = renderClue(
+      { type: "not_same_position", a: "Red", b: "second" },
+      grid,
+    );
+    expect(clue.text).toBe("The second house is not red.");
+  });
+
+  it("works with house value as constraint.a", () => {
+    const clue = renderClue(
+      { type: "same_position", a: "third", b: "Blue" },
+      grid,
+    );
+    expect(clue.text).toBe("The third house is blue.");
+  });
+
+  it("Name + House falls through to normal same_position path", () => {
+    const clue = renderClue(
+      { type: "same_position", a: "Alice", b: "first" },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives in the first house.");
+  });
+});
+
+describe("renderClue — comparatives on House axis", () => {
+  it("next_to", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Blue", b: "Cat", axis: "House" },
+      grid,
+    );
+    expect(clue.text).toBe("The cat owner lives next to the blue house.");
+  });
+
+  it("not_next_to", () => {
+    const clue = renderClue(
+      { type: "not_next_to", a: "Tea", b: "Dog", axis: "House" },
+      grid,
+    );
+    expect(clue.text).toBe(
+      "The tea drinker does not live next to the dog owner.",
+    );
+  });
+
+  it("left_of", () => {
+    const clue = renderClue(
+      { type: "left_of", a: "Blue", b: "Green", axis: "House" },
+      grid,
+    );
+    expect(
+      clue.text === "The blue house lives directly left of the green house." ||
+        clue.text === "The green house lives directly right of the blue house.",
+    ).toBe(true);
+  });
+
+  it("between", () => {
+    const clue = renderClue(
+      {
+        type: "between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+        axis: "House",
+      },
+      grid,
+    );
+    expect(clue.text).toBe(
+      "The cat owner lives somewhere between the red house and the blue house.",
+    );
+  });
+
+  it("not_between", () => {
+    const clue = renderClue(
+      {
+        type: "not_between",
+        outer1: "Red",
+        middle: "Cat",
+        outer2: "Blue",
+        axis: "House",
+      },
+      grid,
+    );
+    expect(clue.text).toBe(
+      "The cat owner does not live somewhere between the red house and the blue house.",
+    );
+  });
+
+  it("before", () => {
+    const clue = renderClue(
+      { type: "before", a: "Alice", b: "Cat", axis: "House" },
+      grid,
+    );
+    expect(clue.text).toMatch(/somewhere (left|right) of/);
+  });
+
+  it("exact_distance plural", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Cat",
+        distance: 2,
+        axis: "House",
+      },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives exactly 2 houses from the cat owner.");
+  });
+
+  it("exact_distance singular", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Cat",
+        distance: 1,
+        axis: "House",
+      },
+      grid,
+    );
+    expect(clue.text).toBe("Alice lives exactly 1 house from the cat owner.");
   });
 });
 
@@ -310,8 +286,6 @@ describe("custom category noun/verb", () => {
         noun: "lover",
       },
     ],
-    spatialWords: DEFAULT_CONFIG.spatialWords,
-    positionLabels: ["the first house", "the second house", "the third house"],
   });
 
   it("same_position with custom verb", () => {
@@ -322,73 +296,164 @@ describe("custom category noun/verb", () => {
     expect(clue.text).toBe("Alice drives the toyota.");
   });
 
-  it("not_same_position with custom verb", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Alice", b: "BMW" },
-      customGrid,
-    );
-    expect(clue.text).toBe("Alice does not drive the bmw.");
-  });
-
-  it("custom noun in label", () => {
-    const clue = renderClue(
-      { type: "next_to", a: "Toyota", b: "Apple" },
-      customGrid,
-    );
-    expect(clue.text).toBe("The toyota driver lives next to the apple lover.");
-  });
-
   it("throws when object category has no verb", () => {
     expect(() =>
       renderClue({ type: "same_position", a: "Alice", b: "Apple" }, customGrid),
     ).toThrow('category "Fruit" has no verb');
   });
+});
 
-  it("empty-string noun renders bare value", () => {
-    const bareGrid = makeGrid({
-      size: 3,
-      categories: [
-        {
-          name: "Player",
-          values: ["Alice", "Bob", "Carol"],
-          noun: "",
+describe("per-axis comparator overrides on House", () => {
+  // Build a grid with custom House comparators.
+  const withComparators = makeGrid({
+    size: 3,
+    categories: [
+      {
+        name: "House",
+        noun: "house",
+        verb: ["lives in the", "does not live in the"],
+        valueSuffix: "house",
+        ordered: true,
+        values: ["first", "second", "third"],
+        orderingPhrases: {
+          comparators: {
+            before: ["comes earlier than", "comes later than"],
+            left_of: ["is directly before", "is directly after"],
+            next_to: "is adjacent to",
+            not_next_to: "is not adjacent to",
+            between: "is between",
+            not_between: "is not between",
+            exact_distance: "is exactly",
+          },
         },
-        {
-          name: "Color",
-          values: ["Red", "Blue", "Green"],
-          noun: "house",
-          verb: ["lives in the", "does not live in the"],
-          subjectPriority: -1,
-          valueSuffix: "house",
-          positionAdjective: ["is", "is not"],
-        },
-      ],
-      spatialWords: DEFAULT_CONFIG.spatialWords,
-      positionLabels: [
-        "the first house",
-        "the second house",
-        "the third house",
-      ],
-    });
-    const clue = renderClue(
-      { type: "same_position", a: "Alice", b: "Red" },
-      bareGrid,
-    );
-    expect(clue.text).toBe("Alice lives in the red house.");
+      },
+      {
+        name: "Name",
+        values: ["Alice", "Bob", "Carol"],
+        noun: "",
+        subjectPriority: 2,
+      },
+      {
+        name: "Pet",
+        values: ["Cat", "Dog", "Fish"],
+        noun: "owner",
+        verb: ["owns the", "does not own the"],
+        subjectPriority: 1,
+      },
+    ],
   });
 
-  it("falls back to defaults when no custom noun/verb", () => {
-    // Standard grid with no custom fields — should work as before
+  it("left_of uses grid comparator when set", () => {
     const clue = renderClue(
-      { type: "same_position", a: "Alice", b: "Red" },
-      grid,
+      { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
+      withComparators,
     );
-    expect(clue.text).toBe("Alice lives in the red house.");
+    expect(clue.text).toBe("Bob is directly after Alice.");
+  });
+
+  it("before uses grid comparator when set", () => {
+    const clue = renderClue(
+      { type: "before", a: "Alice", b: "Bob", axis: "House" },
+      withComparators,
+    );
+    expect(clue.text).toBe("Bob comes later than Alice.");
+  });
+
+  it("next_to uses grid comparator when set", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Alice", b: "Bob", axis: "House" },
+      withComparators,
+    );
+    expect(clue.text).toMatch(
+      /^(Alice is adjacent to Bob|Bob is adjacent to Alice)\.$/,
+    );
+  });
+
+  it("not_between uses grid comparator when set", () => {
+    const clue = renderClue(
+      {
+        type: "not_between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "House",
+      },
+      withComparators,
+    );
+    expect(clue.text).toBe("Bob is not between Alice and Carol.");
+  });
+
+  it("exact_distance uses grid comparator when set", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "House",
+      },
+      withComparators,
+    );
+    expect(clue.text).toContain("is exactly");
+  });
+
+  it("between uses grid comparator when set", () => {
+    const clue = renderClue(
+      {
+        type: "between",
+        outer1: "Alice",
+        middle: "Bob",
+        outer2: "Carol",
+        axis: "House",
+      },
+      withComparators,
+    );
+    expect(clue.text).toBe("Bob is between Alice and Carol.");
   });
 });
 
-describe("custom positionNoun / positionPreposition", () => {
-  const seatGrid = makeGrid({
+describe("before with tuple comparator picks forward or reverse", () => {
+  // The default House category from grid has tuple comparators for before.
+  it("picks forward or reverse phrase deterministically", () => {
+    const aliceBob = renderClue(
+      { type: "before", a: "Alice", b: "Bob", axis: "House" },
+      grid,
+    );
+    expect(aliceBob.text).toMatch(
+      /^(Alice lives somewhere left of Bob|Bob lives somewhere right of Alice)\.$/,
+    );
+    // Deterministic: same input → same output.
+    const again = renderClue(
+      { type: "before", a: "Alice", b: "Bob", axis: "House" },
+      grid,
+    );
+    expect(again.text).toBe(aliceBob.text);
+  });
+});
+
+describe("left_of with tuple comparator picks forward or reverse", () => {
+  it("picks reverse phrasing when hash tiebreaker selects b as subject", () => {
+    // simpleHash("Alice"+"Bob") % 2 === 1 → reverse: Bob is subject
+    const clue = renderClue(
+      { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
+      grid,
+    );
+    expect(clue.text).toBe("Bob lives directly right of Alice.");
+  });
+
+  it("picks forward phrasing when hash tiebreaker selects a as subject", () => {
+    // simpleHash("Bob"+"Carol") % 2 === 0 → forward: Bob is subject
+    const clue = renderClue(
+      { type: "left_of", a: "Bob", b: "Carol", axis: "House" },
+      grid,
+    );
+    expect(clue.text).toBe("Bob lives directly left of Carol.");
+  });
+});
+
+describe("per-axis orderingPhrases in rendering", () => {
+  // Grid with two ordered axes, each with its own comparator phrases.
+  const multiGrid = makeGrid({
     size: 3,
     categories: [
       {
@@ -398,417 +463,143 @@ describe("custom positionNoun / positionPreposition", () => {
         subjectPriority: 2,
       },
       {
-        name: "Color",
-        values: ["Red", "Blue", "Green"],
-        noun: "house",
-        verb: ["lives at the", "does not live at the"],
-        subjectPriority: -1,
-        valueSuffix: "seat",
-        positionAdjective: ["is", "is not"],
-      },
-      {
-        name: "Pet",
-        values: ["Cat", "Dog", "Fish"],
-        noun: "owner",
-        verb: ["owns the", "does not own the"],
-        subjectPriority: 1,
-      },
-      {
-        name: "Drink",
-        values: ["Tea", "Coffee", "Water"],
-        noun: "drinker",
-        verb: ["drinks", "does not drink"],
-        subjectPriority: 1,
-      },
-    ],
-    positionNoun: ["seat", "seats"],
-    positionPreposition: "at",
-    spatialWords: {
-      ...DEFAULT_CONFIG.spatialWords,
-      atPosition: ["lives at", "does not live at"],
-    },
-    positionLabels: ["the first seat", "the second seat", "the third seat"],
-  });
-
-  it("at_position uses custom noun and preposition", () => {
-    const clue = renderClue(
-      { type: "at_position", value: "Tea", position: 0 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("The tea drinker lives at the first seat.");
-  });
-
-  it("at_position with color uses custom noun", () => {
-    const clue = renderClue(
-      { type: "at_position", value: "Red", position: 2 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("The third seat is red.");
-  });
-
-  it("not_at_position uses custom noun and preposition", () => {
-    const clue = renderClue(
-      { type: "not_at_position", value: "Alice", position: 1 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("Alice does not live at the second seat.");
-  });
-
-  it("not_at_position with color uses custom noun", () => {
-    const clue = renderClue(
-      { type: "not_at_position", value: "Red", position: 2 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("The third seat is not red.");
-  });
-
-  it("exact_distance singular uses custom noun", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Cat", distance: 1 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("Alice lives exactly one seat from the cat owner.");
-  });
-
-  it("exact_distance plural uses custom noun", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Cat", distance: 2 },
-      seatGrid,
-    );
-    expect(clue.text).toBe("Alice lives exactly two seats from the cat owner.");
-  });
-
-  it("same_position color + pet uses custom noun and preposition", () => {
-    const clue = renderClue(
-      { type: "same_position", a: "Red", b: "Cat" },
-      seatGrid,
-    );
-    expect(clue.text).toBe("The cat owner lives at the red seat.");
-  });
-
-  it("same_position name + color uses custom noun and preposition", () => {
-    const clue = renderClue(
-      { type: "same_position", a: "Alice", b: "Blue" },
-      seatGrid,
-    );
-    expect(clue.text).toBe("Alice lives at the blue seat.");
-  });
-
-  it("not_same_position color + pet uses custom noun and preposition", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Red", b: "Cat" },
-      seatGrid,
-    );
-    expect(clue.text).toBe("The cat owner does not live at the red seat.");
-  });
-
-  it("not_same_position color + drink uses custom noun", () => {
-    const clue = renderClue(
-      { type: "not_same_position", a: "Blue", b: "Coffee" },
-      seatGrid,
-    );
-    expect(clue.text).toBe(
-      "The coffee drinker does not live at the blue seat.",
-    );
-  });
-
-  it("throws when same_position rendering hits a verbless category", () => {
-    const minGrid = makeGrid({
-      size: 3,
-      categories: [
-        {
-          name: "Shape",
-          values: ["Circle", "Square", "Triangle"],
-          noun: "shape",
-        },
-        { name: "Size", values: ["Small", "Medium", "Large"], noun: "size" },
-      ],
-      positionNoun: ["slot", "slots"],
-      positionPreposition: "at",
-      spatialWords: DEFAULT_CONFIG.spatialWords,
-      positionLabels: ["the first slot", "the second slot", "the third slot"],
-    });
-    expect(() =>
-      renderClue({ type: "same_position", a: "Circle", b: "Small" }, minGrid),
-    ).toThrow("has no verb");
-  });
-
-  it("throws on empty positionNoun singular", () => {
-    const badGrid = makeGrid({
-      size: 3,
-      categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-      ],
-      positionNoun: ["", "seats"],
-      spatialWords: {
-        verb: ["is", "is not"],
-        adjacency: "next to",
-        direction: ["left of", "right of"],
-        between: "somewhere between",
-        atPosition: ["is in", "is not in"],
-        cardinals: ["zero", "one", "two", "three"],
-      },
-    });
-    expect(() =>
-      renderClue(
-        { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
-        badGrid,
-      ),
-    ).toThrow(RangeError);
-  });
-
-  it("throws on empty positionNoun plural", () => {
-    const badGrid = makeGrid({
-      size: 3,
-      categories: [
-        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-      ],
-      positionNoun: ["seat", ""],
-      spatialWords: {
-        verb: ["is", "is not"],
-        adjacency: "next to",
-        direction: ["left of", "right of"],
-        between: "somewhere between",
-        atPosition: ["is at", "is not at"],
-        cardinals: ["zero", "one", "two", "three"],
-      },
-    });
-    expect(() =>
-      renderClue(
-        { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
-        badGrid,
-      ),
-    ).toThrow(RangeError);
-  });
-});
-
-describe("position category", () => {
-  const posGrid = makeGrid({
-    size: 3,
-    categories: [
-      { name: "Manager", values: ["Alice", "Bob", "Carol"], noun: "" },
-      {
-        name: "Return",
-        values: ["6%", "7%", "8%"],
+        name: "Year",
+        values: ["2020", "2021", "2022"],
         noun: "fund",
-        isPosition: true,
-        numericValues: [6, 7, 8],
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
         orderingPhrases: {
-          unit: ["percentage point", "percentage points"],
           comparators: {
-            before: "has a lower return than",
-            left_of: "has a return exactly one percentage point less than",
-            next_to: "has a return within one percentage point of",
-            not_next_to:
-              "does not have a return within one percentage point of",
-            between: "has a return between",
-            not_between: "does not have a return between",
+            before: ["was begun earlier than", "was begun later than"] as [
+              string,
+              string,
+            ],
+            left_of: ["was begun right before", "was begun right after"] as [
+              string,
+              string,
+            ],
+            next_to: "was begun right before or after",
+            not_next_to: "was not begun right before or after",
+            between: "was begun between",
+            not_between: "was not begun between",
+            exact_distance: "was begun exactly",
           },
         },
       },
       {
-        name: "Strategy",
-        values: ["Long/Short", "Macro", "Quant"],
-        noun: "strategist",
+        name: "Return",
+        values: ["5%", "6%", "7%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+        orderingPhrases: {
+          unit: ["percentage point", "percentage points"] as [string, string],
+          comparators: {
+            before: ["has a lower return than", "has a higher return than"] as [
+              string,
+              string,
+            ],
+            left_of: [
+              "has a return right below",
+              "has a return right above",
+            ] as [string, string],
+            next_to: "has the return right above or below",
+            not_next_to: "does not have the return right above or below",
+            between: "has a return between",
+            not_between: "does not have a return between",
+            exact_distance: "is exactly",
+          },
+        },
       },
     ],
-    positionNoun: ["fund", "funds"],
-    positionPreposition: "at",
-    spatialWords: {
-      ...POSITIONAL_WORDS,
-      distanceUnit: ["percentage point", "percentage points"],
-    },
-    positionLabels: ["6%", "7%", "8%"],
   });
 
-  it("at_position uses position category label", () => {
+  it("before uses Year axis comparators when axis=Year", () => {
     const clue = renderClue(
-      { type: "at_position", value: "Alice", position: 0 },
-      posGrid,
+      { type: "before", a: "Alice", b: "Bob", axis: "Year" },
+      multiGrid,
     );
-    expect(clue.text).toBe("Alice is at 6%.");
+    expect(clue.text).toMatch(/was begun (earlier|later) than/);
   });
 
-  it("not_at_position uses position category label", () => {
+  it("before uses Return axis comparators when axis=Return", () => {
     const clue = renderClue(
-      { type: "not_at_position", value: "Alice", position: 2 },
-      posGrid,
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+      multiGrid,
     );
-    expect(clue.text).toBe("Alice is not at 8%.");
+    expect(clue.text).toMatch(/has a (lower|higher) return than/);
   });
 
-  it("before uses ordering templates", () => {
-    const clue = renderClue({ type: "before", a: "Alice", b: "Bob" }, posGrid);
-    expect(clue.text).toMatch(/somewhere (before|after)/);
+  it("next_to uses Year axis comparators when axis=Year", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Alice", b: "Bob", axis: "Year" },
+      multiGrid,
+    );
+    expect(clue.text).toContain("was begun right before or after");
   });
 
-  it("left_of uses ordering templates", () => {
-    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, posGrid);
-    expect(
-      clue.text === "Alice is directly before Bob." ||
-        clue.text === "Bob is directly after Alice.",
-    ).toBe(true);
+  it("next_to uses Return axis comparators when axis=Return", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Alice", b: "Bob", axis: "Return" },
+      multiGrid,
+    );
+    expect(clue.text).toContain("has the return right above or below");
   });
 
-  it("left_of uses grid comparator when set", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          left_of: "has a return exactly one point less than",
-        },
+  it("exact_distance uses per-axis unit when axis has one", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
       },
-    };
-    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, g);
-    expect(clue.text).toBe(
-      "Alice has a return exactly one point less than Bob.",
+      multiGrid,
     );
+    expect(clue.text).toContain("2 percentage points");
   });
 
-  it("before uses grid comparator when set", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          before: "has a lower return than",
-        },
+  it("exact_distance without unit uses bare number", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Year",
       },
-    };
-    const clue = renderClue({ type: "before", a: "Alice", b: "Bob" }, g);
-    expect(clue.text).toBe("Alice has a lower return than Bob.");
+      multiGrid,
+    );
+    // Year has no unit → bare number.
+    expect(clue.text).toContain("2 from");
+  });
+});
+
+describe("at_position / not_at_position invariants", () => {
+  const bareGrid: Grid = {
+    size: 3,
+    categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" }],
+  };
+
+  it("at_position throws when grid has no ordered category", () => {
+    expect(() =>
+      renderClue(
+        { type: "at_position", value: "Alice", position: 0 },
+        bareGrid,
+      ),
+    ).toThrow("no ordered category");
   });
 
-  it("before with tuple comparator picks forward or reverse phrasing", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          before: ["has a lower return than", "has a higher return than"],
-        },
-      },
-    };
-    // Hash tiebreaker: Alice+Bob → reverse, Bob+Carol → forward.
-    const aliceBob = renderClue({ type: "before", a: "Alice", b: "Bob" }, g);
-    expect(aliceBob.text).toBe("Bob has a higher return than Alice.");
-    const bobCarol = renderClue({ type: "before", a: "Bob", b: "Carol" }, g);
-    expect(bobCarol.text).toBe("Bob has a lower return than Carol.");
+  it("not_at_position throws when grid has no ordered category", () => {
+    expect(() =>
+      renderClue(
+        { type: "not_at_position", value: "Alice", position: 0 },
+        bareGrid,
+      ),
+    ).toThrow("no ordered category");
   });
 
-  it("left_of with tuple comparator picks forward or reverse phrasing", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          left_of: [
-            "has the next lower return than",
-            "has the next higher return than",
-          ],
-        },
-      },
-    };
-    const clue = renderClue({ type: "left_of", a: "Alice", b: "Bob" }, g);
-    expect(clue.text).toMatch(
-      /^(Alice has the next lower return than Bob|Bob has the next higher return than Alice)\.$/,
-    );
-  });
-
-  it("exact_distance uses unit from ordering templates", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 2 },
-      posGrid,
-    );
-    expect(clue.text).toMatch(
-      /^(Alice|Bob) is exactly 2 percentage points from (Alice|Bob)\.$/,
-    );
-  });
-
-  it("exact_distance singular unit", () => {
-    const clue = renderClue(
-      { type: "exact_distance", a: "Alice", b: "Bob", distance: 1 },
-      posGrid,
-    );
-    expect(clue.text).toMatch(
-      /^(Alice|Bob) is exactly 1 percentage point from (Alice|Bob)\.$/,
-    );
-  });
-
-  it("next_to uses ordering templates", () => {
-    const clue = renderClue({ type: "next_to", a: "Alice", b: "Bob" }, posGrid);
-    // Same priority (both Manager) → deterministic hash tiebreaker
-    expect(clue.text).toMatch(
-      /^(Alice is adjacent to Bob|Bob is adjacent to Alice)\.$/,
-    );
-  });
-
-  it("not_next_to uses ordering templates", () => {
-    const clue = renderClue(
-      { type: "not_next_to", a: "Alice", b: "Bob" },
-      posGrid,
-    );
-    expect(clue.text).toMatch(
-      /^(Alice is not adjacent to Bob|Bob is not adjacent to Alice)\.$/,
-    );
-  });
-
-  it("between uses ordering templates", () => {
-    const clue = renderClue(
-      { type: "between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
-      posGrid,
-    );
-    expect(clue.text).toBe("Bob is somewhere between Alice and Carol.");
-  });
-
-  it("not_between uses ordering templates", () => {
-    const clue = renderClue(
-      { type: "not_between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
-      posGrid,
-    );
-    expect(clue.text).toBe("Bob is not somewhere between Alice and Carol.");
-  });
-
-  it("between uses grid comparator when set", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          between: "has a return between",
-        },
-      },
-    };
-    const clue = renderClue(
-      { type: "between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
-      g,
-    );
-    expect(clue.text).toBe("Bob has a return between Alice and Carol.");
-  });
-
-  it("not_between uses grid comparator when set", () => {
-    const g: Grid = {
-      ...posGrid,
-      spatialWords: {
-        ...posGrid.spatialWords,
-        comparators: {
-          ...posGrid.spatialWords.comparators,
-          not_between: "does not have a return between",
-        },
-      },
-    };
-    const clue = renderClue(
-      { type: "not_between", outer1: "Alice", middle: "Bob", outer2: "Carol" },
-      g,
-    );
-    expect(clue.text).toBe(
-      "Bob does not have a return between Alice and Carol.",
-    );
-  });
+  // "ordered category has no verb" is now a compile-time error:
+  // the OrderednessFields union requires verb on ordered: true.
 });

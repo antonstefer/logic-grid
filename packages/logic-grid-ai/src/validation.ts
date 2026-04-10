@@ -1,4 +1,19 @@
-import type { ThemeResult } from "./types";
+/** Loose shape for untrusted AI category output. All fields optional. */
+interface RawCategory {
+  name?: string;
+  values?: string[];
+  noun?: string;
+  verb?: [string, string];
+  subjectPriority?: number;
+  valueSuffix?: string;
+  positionAdjective?: [string, string];
+  ordered?: boolean;
+  numericValues?: number[];
+  orderingPhrases?: {
+    unit?: [string, string];
+    comparators?: Record<string, unknown>;
+  };
+}
 
 const POSITIONAL_WORDS = new Set([
   "first",
@@ -17,8 +32,13 @@ const POSITIONAL_WORDS = new Set([
  * Returns an array of error messages. Empty array means the result is valid.
  * Used internally by generateTheme to decide whether to retry.
  */
+/**
+ * The input shape is intentionally loose (`categories: Record<string, unknown>[]`)
+ * because this function validates untrusted AI JSON output. The caller
+ * (generateTheme) casts to ThemeResult only after validation passes.
+ */
 export function validateThemeResult(
-  result: ThemeResult,
+  result: { categories: readonly unknown[] },
   expectedSize: number,
   expectedCategories: number,
 ): string[] {
@@ -34,9 +54,10 @@ export function validateThemeResult(
   const seenValues = new Map<string, string>();
   const seenNouns = new Set<string>();
   let personCount = 0;
-  let positionCount = 0;
+  let orderedCount = 0;
 
-  for (const cat of result.categories) {
+  for (const raw of result.categories) {
+    const cat = raw as RawCategory;
     const name = cat.name ?? "";
 
     // Category name checks
@@ -54,14 +75,15 @@ export function validateThemeResult(
     seenNames.add(nameLower);
 
     // Value count
-    if (cat.values.length !== expectedSize) {
+    const values = cat.values ?? [];
+    if (values.length !== expectedSize) {
       errors.push(
-        `Category "${name}" has ${cat.values.length} values, expected ${expectedSize}.`,
+        `Category "${name}" has ${values.length} values, expected ${expectedSize}.`,
       );
     }
 
     // Value checks
-    for (const val of cat.values) {
+    for (const val of values) {
       if (val.trim() === "") {
         errors.push(`Category "${name}" has an empty value.`);
       } else if (val.length > 30) {
@@ -121,9 +143,9 @@ export function validateThemeResult(
       );
     }
 
-    // Position category check
-    if (cat.isPosition) {
-      positionCount++;
+    // Ordered category check
+    if (cat.ordered === true) {
+      orderedCount++;
     }
 
     // numericValues / orderingPhrases (valid on any category)
@@ -193,11 +215,6 @@ export function validateThemeResult(
           `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
         );
       }
-      if (cat.isPosition) {
-        errors.push(
-          `Category "${name}" cannot be both isPosition and positionAdjective. Position categories define the axis; positionAdjective categories describe it.`,
-        );
-      }
     }
 
     // subjectPriority
@@ -219,58 +236,10 @@ export function validateThemeResult(
     );
   }
 
-  if (positionCount > 1) {
+  if (orderedCount === 0) {
     errors.push(
-      "Multiple position categories found. At most one category can have isPosition: true.",
+      "No ordered category found. At least one category must have ordered: true.",
     );
-  }
-
-  // Position noun validation
-  if (
-    !Array.isArray(result.positionNoun) ||
-    result.positionNoun.length !== 2 ||
-    typeof result.positionNoun[0] !== "string" ||
-    typeof result.positionNoun[1] !== "string"
-  ) {
-    errors.push("positionNoun must be [singular, plural] string pair.");
-  } else {
-    if (
-      result.positionNoun[0].trim() === "" ||
-      result.positionNoun[1].trim() === ""
-    ) {
-      errors.push("positionNoun strings must not be empty.");
-    }
-  }
-
-  // Position preposition validation
-  if (
-    typeof result.positionPreposition !== "string" ||
-    result.positionPreposition.trim() === ""
-  ) {
-    errors.push("positionPreposition must be a non-empty string.");
-  }
-
-  // No category name/value matches position noun
-  if (Array.isArray(result.positionNoun) && result.positionNoun.length === 2) {
-    const nounLower = result.positionNoun[0].toLowerCase();
-    const nounPluralLower = result.positionNoun[1].toLowerCase();
-    for (const cat of result.categories) {
-      const catName = cat.name ?? "";
-      const catNameLower = catName.toLowerCase();
-      if (catNameLower === nounLower || catNameLower === nounPluralLower) {
-        errors.push(
-          `Category name "${catName}" matches the position noun "${result.positionNoun[0]}".`,
-        );
-      }
-      for (const val of cat.values) {
-        const valLower = val.toLowerCase();
-        if (valLower === nounLower || valLower === nounPluralLower) {
-          errors.push(
-            `Value "${val}" in category "${catName}" matches the position noun "${result.positionNoun[0]}".`,
-          );
-        }
-      }
-    }
   }
 
   return errors;

@@ -9,80 +9,111 @@ export type OrderingComparatorType =
   | "exact_distance";
 
 /**
- * Comparator phrase value. A plain string is forward-only ("a {phrase} b").
- * A tuple `[forward, reverse]` lets the renderer alternate phrasing for
- * directional constraints (`before`, `left_of`). Forward: "a {forward} b".
- * Reverse: "b {reverse} a". E.g. `["has a lower return than", "has a higher return than"]`.
+ * Comparator phrases for all 7 constraint types.
+ *
+ * Directional constraints (`before`, `left_of`) require a `[forward, reverse]`
+ * tuple for phrasing variety. The renderer picks which to use based on subject
+ * priority and a deterministic hash tiebreaker.
+ *   Forward: "Alice has a lower return than Bob."
+ *   Reverse: "Bob has a higher return than Alice."
+ *
+ * Symmetric constraints (`next_to`, `between`, etc.) are a plain string since
+ * both directions read the same.
  */
-export type ComparatorPhrase = string | [string, string];
-
-/** Map of constraint type → comparator phrase override. */
-export type ComparatorMap = Partial<
-  Record<OrderingComparatorType, ComparatorPhrase>
->;
+export interface ComparatorMap {
+  before: [string, string];
+  left_of: [string, string];
+  next_to: string;
+  not_next_to: string;
+  between: string;
+  not_between: string;
+  exact_distance: string;
+}
 
 /** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {
-  /** Singular/plural unit, e.g. `["hour", "hours"]` → "exactly two hours apart". */
+  /** Singular/plural unit for exact_distance, e.g. `["hour", "hours"]` → "exactly two hours apart". */
   unit?: [string, string];
-  /** Custom comparator phrases keyed by constraint type. */
-  comparators?: ComparatorMap;
+  /** Comparator phrases for all 7 comparative constraint types. Required. */
+  comparators: ComparatorMap;
 }
 
-/** Configurable words for composing ordering clue sentences. */
-export interface SpatialWords {
-  /** [positive, negative] verb. E.g. `["lives", "does not live"]` or `["is", "is not"]`. */
-  verb: [string, string];
-  /** Adjacency word for next_to / not_next_to. E.g. `"next to"` or `"adjacent to"`. */
-  adjacency: string;
-  /** [forward, reverse] directional words for left_of / before. E.g. `["left of", "right of"]` or `["before", "after"]`. */
-  direction: [string, string];
-  /** Suffix for between / not_between, composed with verb. E.g. `"somewhere between"` → "lives somewhere between". */
-  between: string;
-  /** [positive, negative] for at_position / not_at_position. E.g. `["lives in", "does not live in"]` or `["has an appointment at", "does not have an appointment at"]`. */
-  atPosition: [string, string];
-  /** Spelled-out cardinal numbers for exact_distance. */
-  cardinals: string[];
-  /** Full-phrase overrides per constraint type. Checked before composing from verb/direction/adjacency. */
-  comparators?: ComparatorMap;
-  /** Singular/plural distance unit override. When set, exact_distance uses this instead of positionNoun. */
-  distanceUnit?: [string, string];
-}
-
-/** A named group of values that occupy positions in the grid. */
-export interface Category {
+/** Shared fields on every category. */
+interface CategoryCore {
   name: string;
   values: string[];
   /** Noun for clue phrases. `"owner"` → "the cat owner". Empty string = bare value ("Alice"). */
   noun?: string;
-  /** Verb phrases for same-position clues: `[positive, negative]`. Include "the" if appropriate. E.g. `["drives the", "does not drive the"]`. */
-  verb?: [string, string];
   /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
   subjectPriority?: number;
-  /** Suffix appended to the value in object position. E.g. `"strategy"` → "the event-driven strategy", `"house"` → "red house". */
-  valueSuffix?: string;
-  /** When this category's values describe the position noun directly (e.g. Color → "The first house is red"), provide the [positive, negative] verb pair for at_position inversion. */
-  positionAdjective?: [string, string];
-  /** When true, this category defines position labels. Assignment is identity (value[i] → position i). Values appear verbatim in clues as position labels (e.g. "Alice has a return of 6%") — keep them short and self-explanatory. */
-  isPosition?: boolean;
-  /** Actual numeric values per position, enabling value-based distance for `exact_distance`. Must match `values` length and be in ascending order. */
-  numericValues?: number[];
-  /** Domain-specific phrasing for ordering constraints. */
-  orderingPhrases?: OrderingPhrases;
 }
+
+/**
+ * Ordered / unordered discriminator.
+ *
+ * `ordered: true` implies:
+ * - `values` array defines the canonical total order (rank = array index).
+ * - The category may be referenced as `axis` on any comparative constraint.
+ * - `verb` is required (used for at_position rendering).
+ * - `numericValues` and `orderingPhrases` become legal.
+ * - The category participates in multi-axis generation, deduction, rendering.
+ */
+type OrderednessFields =
+  | {
+      ordered: true;
+      /** Verb phrases for same-position / at_position clues: `[positive, negative]`. Required on ordered categories. */
+      verb: [string, string];
+      /** Per-rank numeric values for non-equidistant `exact_distance`. Must match `values` length and be ascending. */
+      numericValues?: number[];
+      /** Domain-specific phrasing for ordering constraints on this axis. Required on all ordered categories. */
+      orderingPhrases: OrderingPhrases;
+      /** Optional display labels for UI (grid headers). When absent, `values` are used. Clue rendering always uses `values`. */
+      displayLabels?: string[];
+    }
+  | {
+      ordered?: false;
+      /** Verb phrases for same-position clues: `[positive, negative]`. Required when noun !== "" (runtime check). */
+      verb?: [string, string];
+      numericValues?: never;
+      orderingPhrases?: never;
+    };
+
+/**
+ * `positionAdjective` requires `valueSuffix`. Color-like categories
+ * ("The 1st house is red") need both: the suffix gives the object form,
+ * and the adjective verb pair gives the "is"/"is not" for same_position
+ * rendering when the other side is an ordered-category value.
+ */
+type ValueSuffixFields =
+  | {
+      /** Suffix appended to the value in object position. E.g. `"house"` → "red house". */
+      valueSuffix: string;
+      /** Verb pair used when this category's value appears with an ordered-category value on the other side. E.g. `["is", "is not"]`. */
+      positionAdjective?: [string, string];
+    }
+  | {
+      valueSuffix?: undefined;
+      positionAdjective?: undefined;
+    };
+
+/** A named group of values that occupy positions in the grid. */
+export type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
+
+/** A Category known to be ordered (returned by resolveAxis). */
+export type OrderedCategory = CategoryCore & {
+  ordered: true;
+  verb: [string, string];
+  numericValues?: number[];
+  orderingPhrases: OrderingPhrases;
+  displayLabels?: string[];
+} & ValueSuffixFields;
 
 /** The puzzle board: `size` positions and one or more categories. */
 export interface Grid {
   size: number;
   categories: Category[];
-  /** Singular and plural position noun, e.g. `["house", "houses"]`. */
-  positionNoun: [string, string];
-  /** Preposition for positional phrases, e.g. `"in"` → "lives in the first house". */
-  positionPreposition: string;
-  /** Configurable words for composing ordering clue sentences. */
-  spatialWords: SpatialWords;
-  /** Human-readable position labels. E.g. `["the first house", ...]` or `["6%", "7%", ...]`. */
-  positionLabels: string[];
+  /** Optional hint for presentation layers: name of an ordered category to use as display anchor. If absent, presentation picks the first ordered category. */
+  displayAxis?: string;
 }
 
 /** Maps each value name to its 0-indexed position. One per category. */
@@ -96,18 +127,37 @@ export type ConstraintType = Constraint["type"];
 
 /**
  * A logical relationship between values. Discriminated union on `type`.
- * Positions are 0-indexed.
+ * Row indices are internal SAT bookkeeping; every comparative constraint
+ * references an ordered category via `axis`.
  */
 export type Constraint =
   | { type: "same_position"; a: string; b: string }
   | { type: "not_same_position"; a: string; b: string }
-  | { type: "next_to"; a: string; b: string }
-  | { type: "not_next_to"; a: string; b: string }
-  | { type: "left_of"; a: string; b: string }
-  | { type: "between"; outer1: string; middle: string; outer2: string }
-  | { type: "not_between"; outer1: string; middle: string; outer2: string }
-  | { type: "before"; a: string; b: string }
-  | { type: "exact_distance"; a: string; b: string; distance: number }
+  | { type: "next_to"; a: string; b: string; axis: string }
+  | { type: "not_next_to"; a: string; b: string; axis: string }
+  | { type: "left_of"; a: string; b: string; axis: string }
+  | {
+      type: "between";
+      outer1: string;
+      middle: string;
+      outer2: string;
+      axis: string;
+    }
+  | {
+      type: "not_between";
+      outer1: string;
+      middle: string;
+      outer2: string;
+      axis: string;
+    }
+  | { type: "before"; a: string; b: string; axis: string }
+  | {
+      type: "exact_distance";
+      a: string;
+      b: string;
+      distance: number;
+      axis: string;
+    }
   | { type: "at_position"; value: string; position: number }
   | { type: "not_at_position"; value: string; position: number };
 
@@ -184,8 +234,6 @@ export interface GenerateOptions {
   categoryNames?: Category[];
   /** Random seed for reproducible generation. */
   seed?: number;
-  /** Singular and plural position noun. Default: `["house", "houses"]`. */
-  positionNoun?: [string, string];
-  /** Preposition for positional phrases. Default: `"in"`. */
-  positionPreposition?: string;
+  /** Optional presentation hint naming an ordered category as display anchor. */
+  displayAxis?: string;
 }

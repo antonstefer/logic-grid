@@ -24,22 +24,18 @@ const theme = await generateTheme({
 // {
 //   categories: [
 //     { name: "Pirate", values: ["Blackbeard", "Redbeard", ...], noun: "" },
-//     { name: "Ship", values: ["Revenge", "Kraken", ...], noun: "captain", verb: ["commands the", ...] },
+//     { name: "Ship", values: ["Revenge", "Kraken", ...], noun: "captain",
+//       verb: ["commands the", ...], ordered: true, orderingPhrases: { comparators: {...} } },
 //     ...
-//   ],
-//   positionNoun: ["cove", "coves"],
-//   positionPreposition: "at"
+//   ]
 // }
 
 const puzzle = generate({
   size: 4,
   categories: 4,
   categoryNames: theme.categories,
-  positionNoun: theme.positionNoun,
-  positionPreposition: theme.positionPreposition,
 });
 // Clues like: "Blackbeard commands the Revenge."
-// "The gold seeker is at the first cove."
 ```
 
 ## API
@@ -63,12 +59,10 @@ Returns a `ThemeResult`:
 ```typescript
 interface ThemeResult {
   categories: Category[]; // from logic-grid
-  positionNoun: [string, string]; // [singular, plural], e.g. ["planet", "planets"]
-  positionPreposition: string; // e.g. "on" -> "lives on the first planet"
 }
 ```
 
-The result is validated against structural and semantic rules (value uniqueness, noun consistency, category count, etc.). If validation fails, the AI is retried with error feedback up to 3 times.
+At least one category must have `ordered: true` with `orderingPhrases.comparators` defining all 7 comparator phrases. The result is validated against structural and semantic rules (value uniqueness, noun consistency, category count, ordered category presence, etc.). If validation fails, the AI is retried with error feedback up to 3 times.
 
 ### `createAnthropicClient(apiKey?)`
 
@@ -116,9 +110,9 @@ if (errors.length > 0) {
 
 ## How It Works
 
-1. A detailed prompt describes the puzzle structure, category contract, and position noun semantics
+1. A detailed prompt describes the puzzle structure, category contract, and ordering semantics
 2. The AI responds via tool_use with structured JSON matching a strict schema
-3. The response is validated (category count, value uniqueness, noun consistency, etc.)
+3. The response is validated (category count, value uniqueness, noun consistency, ordered category presence, comparator completeness, etc.)
 4. If validation fails, errors are fed back to the AI for up to 3 retries
 
 ## License

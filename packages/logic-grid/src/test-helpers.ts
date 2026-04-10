@@ -1,34 +1,36 @@
-import type { Category, Grid, SpatialWords } from "./types";
-import { ORDINALS } from "./grid-utils";
-import { DEFAULT_CONFIG } from "./default-config";
+import type { Category, ComparatorMap, Grid } from "./types";
+import { defaultHouseCategory } from "./default-config";
+
+/** Generic comparators for test ordered categories. */
+export const TEST_COMPARATORS: ComparatorMap = {
+  before: ["is before", "is after"],
+  left_of: ["is right before", "is right after"],
+  next_to: "is right next to",
+  not_next_to: "is not right next to",
+  between: "is between",
+  not_between: "is not between",
+  exact_distance: "is exactly",
+};
 
 /**
- * Build a Grid from a minimal description, filling in default rendering fields.
- * For tests only — production code should use generate().
+ * Build a Grid from a minimal description. For tests only — production code
+ * should use generate().
+ *
+ * Prepends a default House ordered category if none of the supplied categories
+ * is ordered, matching the buildGrid behavior in generate().
  */
 export function makeGrid(partial: {
   size: number;
   categories: Category[];
-  positionNoun?: [string, string];
-  positionPreposition?: string;
-  spatialWords?: SpatialWords;
-  positionLabels?: string[];
+  displayAxis?: string;
 }): Grid {
-  const positionNoun = partial.positionNoun ?? DEFAULT_CONFIG.positionNoun;
-  const positionPreposition =
-    partial.positionPreposition ?? DEFAULT_CONFIG.positionPreposition;
-  const positionLabels =
-    partial.positionLabels ??
-    Array.from(
-      { length: partial.size },
-      (_, i) => `the ${ORDINALS[i]} ${positionNoun[0]}`,
-    );
+  let categories = partial.categories;
+  if (!categories.some((c) => c.ordered === true)) {
+    categories = [defaultHouseCategory(partial.size), ...categories];
+  }
   return {
     size: partial.size,
-    categories: partial.categories,
-    positionNoun,
-    positionPreposition,
-    spatialWords: partial.spatialWords ?? DEFAULT_CONFIG.spatialWords,
-    positionLabels,
+    categories,
+    displayAxis: partial.displayAxis,
   };
 }

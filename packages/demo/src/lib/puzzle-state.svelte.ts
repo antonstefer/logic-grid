@@ -1,7 +1,7 @@
 import {
   generate,
   deduce,
-  findPositionCategory,
+  displayAxisCategory,
   type Category,
   type Puzzle,
   type Difficulty,
@@ -31,21 +31,11 @@ export function createPuzzleState() {
     theme?: string;
     clueStyle?: string;
     customCategories?: Category[];
-    positionNoun?: [string, string];
-    positionPreposition?: string;
   }
 
   function newPuzzle(opts: NewPuzzleOptions) {
-    const {
-      size,
-      categories,
-      difficulty,
-      theme,
-      clueStyle,
-      customCategories,
-      positionNoun,
-      positionPreposition,
-    } = opts;
+    const { size, categories, difficulty, theme, clueStyle, customCategories } =
+      opts;
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
@@ -78,8 +68,6 @@ export function createPuzzleState() {
               difficulty,
               seed: Date.now(),
               categoryNames: themeResult.categories,
-              positionNoun: themeResult.positionNoun,
-              positionPreposition: themeResult.positionPreposition,
             });
           } else {
             puzzle = generate({
@@ -88,8 +76,6 @@ export function createPuzzleState() {
               difficulty,
               seed: Date.now(),
               categoryNames: customCategories,
-              positionNoun,
-              positionPreposition,
             });
           }
           if (clueStyle && puzzle) {
@@ -135,15 +121,13 @@ export function createPuzzleState() {
         grid = Array.from({ length: totalValues }, () =>
           Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
         );
-        // Pre-confirm position category (identity assignment, not a mystery)
-        const posCat = findPositionCategory(puzzle.grid);
-        if (posCat) {
-          const posCatIdx = puzzle.grid.categories.indexOf(posCat);
-          for (let vi = 0; vi < posCat.values.length; vi++) {
-            const valueIdx = getValueIndex(posCatIdx, vi);
-            for (let p = 0; p < puzzle.grid.size; p++) {
-              grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
-            }
+        // Pre-confirm the display-axis category (identity-assigned, not a mystery)
+        const displayCat = displayAxisCategory(puzzle.grid);
+        const displayCatIdx = puzzle.grid.categories.indexOf(displayCat);
+        for (let vi = 0; vi < displayCat.values.length; vi++) {
+          const valueIdx = getValueIndex(displayCatIdx, vi);
+          for (let p = 0; p < puzzle.grid.size; p++) {
+            grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
           }
         }
         hintSteps = [];
@@ -431,7 +415,7 @@ export function createPuzzleState() {
     for (const candidate of hintSteps) {
       const newElims = candidate.eliminations.filter((e) => {
         const cell = grid[findValueIdx(e.value)][e.position];
-        return cell === "empty" || cell === "confirmed";
+        return cell === "empty";
       });
       const newAssigns = candidate.assignments.filter((a) => {
         return grid[findValueIdx(a.value)][a.position] !== "confirmed";

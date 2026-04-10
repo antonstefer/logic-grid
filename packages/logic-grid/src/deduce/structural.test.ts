@@ -224,8 +224,8 @@ describe("deduce structural techniques", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_next_to", a: "Bob", b: "Green" },
-      { type: "left_of", a: "Carol", b: "Blue" },
+      { type: "not_next_to", a: "Bob", b: "Green", axis: "House" },
+      { type: "left_of", a: "Carol", b: "Blue", axis: "House" },
       { type: "same_position", a: "Carol", b: "Fish" },
       { type: "same_position", a: "Red", b: "Dog" },
     ];

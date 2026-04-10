@@ -48,12 +48,13 @@ describe("public API integration", () => {
     const constraints = [
       atPosition("Red", 0),
       samePosition("Red", "Cat"),
-      leftOf("Blue", "Green"),
+      leftOf("Blue", "Green", "House"),
     ];
     const solution = solve(constraints, grid);
     expect(solution).not.toBeNull();
-    expect(solution![0]["Red"]).toBe(0);
-    expect(solution![1]["Cat"]).toBe(0);
+    // House is categories[0], then Color, Pet
+    expect(solution![1]["Red"]).toBe(0);
+    expect(solution![2]["Cat"]).toBe(0);
   });
 
   it("renderClue produces text for generated puzzles", () => {

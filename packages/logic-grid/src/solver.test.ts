@@ -4,20 +4,12 @@ import { makeGrid } from "./test-helpers";
 import type { Constraint } from "./types";
 
 /**
- * 3x3 puzzle: 3 houses, 3 categories
+ * 3x3 puzzle: auto-added House + 3 custom categories.
  *
- * Solution (verify by hand):
- *   Position 0: Red,   Cat,  Tea
- *   Position 1: Blue,  Dog,  Coffee
- *   Position 2: Green, Fish, Water
- *
- * Reasoning:
- *   - Red is at position 0 (at_position)
- *   - Red and Cat share a house → Cat=0
- *   - Blue is directly left of Green → Blue=1, Green=2 (can't be 0, that's Red)
- *   - Blue and Dog share a house → Dog=1, so Fish=2
- *   - Dog and Coffee share a house → Coffee=1
- *   - Tea is at position 0 (at_position) → Water=2
+ * Solution:
+ *   Row 0: first house, Red,   Cat,  Tea
+ *   Row 1: second house, Blue,  Dog,  Coffee
+ *   Row 2: third house, Green, Fish, Water
  */
 const grid3x3 = makeGrid({
   size: 3,
@@ -31,7 +23,7 @@ const grid3x3 = makeGrid({
 const puzzle3x3: Constraint[] = [
   { type: "at_position", value: "Red", position: 0 },
   { type: "same_position", a: "Red", b: "Cat" },
-  { type: "left_of", a: "Blue", b: "Green" },
+  { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Blue", b: "Dog" },
   { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "at_position", value: "Tea", position: 0 },
@@ -42,7 +34,8 @@ describe("solve", () => {
     const solution = solve(puzzle3x3, grid3x3);
     expect(solution).not.toBeNull();
 
-    const [colors, pets, drinks] = solution!;
+    // Auto-added House is categories[0], then Color, Pet, Drink.
+    const [, colors, pets, drinks] = solution!;
     expect(colors).toEqual({ Red: 0, Blue: 1, Green: 2 });
     expect(pets).toEqual({ Cat: 0, Dog: 1, Fish: 2 });
     expect(drinks).toEqual({ Tea: 0, Coffee: 1, Water: 2 });
@@ -66,31 +59,7 @@ describe("solve", () => {
   });
 });
 
-/**
- * 4x4 puzzle
- *
- * Solution (verify by hand):
- *   Position 0: Alice, Red,    Cat,  Tea
- *   Position 1: Bob,   Blue,   Dog,  Coffee
- *   Position 2: Carol, Green,  Fish, Milk
- *   Position 3: Dave,  Yellow, Bird, Water
- *
- * Reasoning:
- *   1. Alice=0 (at_position)
- *   2. Alice=Red → Red=0 (same_position)
- *   3. Alice=Tea → Tea=0 (same_position)
- *   4. Bob next to Alice(0) → Bob=1 (only adjacent position)
- *   5. Dave=Yellow (same_position). Remaining positions for Carol,Dave: {2,3}
- *   6. left_of(Blue,Green): Blue can't be 0 (Red). Options: (1,2) or (2,3).
- *      If (2,3): Yellow would need pos 1, but Bob=1. Contradiction.
- *      So Blue=1, Green=2 → Yellow=3 → Dave=3, Carol=2
- *   7. Carol=Fish → Fish=2 (same_position)
- *   8. Milk=2 (at_position) → Carol drinks Milk
- *   9. left_of(Dog,Fish): Fish=2, so Dog=1
- *  10. Dog=Coffee → Coffee=1 (same_position)
- *  11. Alice≠Bird (not_same_position) → Bird≠0 → Bird=3, Cat=0
- *      Remaining: Water=3
- */
+/** 4x4 puzzle with auto-added House. */
 const grid4x4 = makeGrid({
   size: 4,
   categories: [
@@ -105,13 +74,13 @@ const puzzle4x4: Constraint[] = [
   { type: "at_position", value: "Alice", position: 0 },
   { type: "same_position", a: "Alice", b: "Red" },
   { type: "same_position", a: "Alice", b: "Tea" },
-  { type: "next_to", a: "Bob", b: "Alice" },
+  { type: "next_to", a: "Bob", b: "Alice", axis: "House" },
   { type: "same_position", a: "Dave", b: "Yellow" },
-  { type: "left_of", a: "Blue", b: "Green" },
+  { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Carol", b: "Fish" },
   { type: "at_position", value: "Milk", position: 2 },
   { type: "same_position", a: "Dog", b: "Coffee" },
-  { type: "left_of", a: "Dog", b: "Fish" },
+  { type: "left_of", a: "Dog", b: "Fish", axis: "House" },
   { type: "not_same_position", a: "Alice", b: "Bird" },
 ];
 
@@ -120,7 +89,8 @@ describe("solve 4x4", () => {
     const solution = solve(puzzle4x4, grid4x4);
     expect(solution).not.toBeNull();
 
-    const [names, colors, pets, drinks] = solution!;
+    // House, Name, Color, Pet, Drink
+    const [, names, colors, pets, drinks] = solution!;
     expect(names).toEqual({ Alice: 0, Bob: 1, Carol: 2, Dave: 3 });
     expect(colors).toEqual({ Red: 0, Blue: 1, Green: 2, Yellow: 3 });
     expect(pets).toEqual({ Cat: 0, Dog: 1, Fish: 2, Bird: 3 });
@@ -138,7 +108,6 @@ describe("hasUniqueSolution", () => {
   });
 
   it("returns false when a constraint is removed", () => {
-    // Remove last constraint — Blue/Dog link breaks, multiple solutions
     const weakened = puzzle3x3.slice(0, -1);
     expect(hasUniqueSolution(weakened, grid3x3)).toBe(false);
   });
