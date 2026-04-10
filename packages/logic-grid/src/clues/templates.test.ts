@@ -426,6 +426,115 @@ describe("distance unit from spatialWords.distanceUnit", () => {
   });
 });
 
+describe("per-axis orderingPhrases in rendering", () => {
+  // Grid with two ordered axes, each with its own comparator phrases.
+  const multiGrid = makeGrid({
+    size: 3,
+    categories: [
+      {
+        name: "Name",
+        values: ["Alice", "Bob", "Carol"],
+        noun: "",
+        subjectPriority: 2,
+      },
+      {
+        name: "Year",
+        values: ["2020", "2021", "2022"],
+        noun: "fund",
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
+        orderingPhrases: {
+          comparators: {
+            before: ["was begun earlier than", "was begun later than"] as [
+              string,
+              string,
+            ],
+            next_to: "was begun in the closest year to",
+          },
+        },
+      },
+      {
+        name: "Return",
+        values: ["5%", "6%", "7%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+        orderingPhrases: {
+          unit: ["percentage point", "percentage points"] as [string, string],
+          comparators: {
+            before: ["has a lower return than", "has a higher return than"] as [
+              string,
+              string,
+            ],
+          },
+        },
+      },
+    ],
+  });
+
+  it("before uses Year axis comparators when axis=Year", () => {
+    const clue = renderClue(
+      { type: "before", a: "Alice", b: "Bob", axis: "Year" },
+      multiGrid,
+    );
+    expect(clue.text).toMatch(/was begun (earlier|later) than/);
+  });
+
+  it("before uses Return axis comparators when axis=Return", () => {
+    const clue = renderClue(
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+      multiGrid,
+    );
+    expect(clue.text).toMatch(/has a (lower|higher) return than/);
+  });
+
+  it("next_to uses Year axis comparators when axis=Year", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Alice", b: "Bob", axis: "Year" },
+      multiGrid,
+    );
+    expect(clue.text).toContain("was begun in the closest year to");
+  });
+
+  it("next_to falls through to grid defaults when axis=Return (no next_to override)", () => {
+    const clue = renderClue(
+      { type: "next_to", a: "Alice", b: "Bob", axis: "Return" },
+      multiGrid,
+    );
+    // Return has no next_to comparator → falls through to spatial words default.
+    expect(clue.text).toMatch(/lives next to/);
+  });
+
+  it("exact_distance uses per-axis unit when axis has one", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Return",
+      },
+      multiGrid,
+    );
+    expect(clue.text).toContain("2 percentage points");
+  });
+
+  it("exact_distance uses grid default when axis has no unit", () => {
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Year",
+      },
+      multiGrid,
+    );
+    // Year has no unit → falls through to cardinals ("two houses").
+    expect(clue.text).toContain("two houses");
+  });
+});
+
 describe("default spatial words sanity", () => {
   it("DEFAULT_SPATIAL_WORDS has expected shape", () => {
     const w: SpatialWords = DEFAULT_SPATIAL_WORDS;

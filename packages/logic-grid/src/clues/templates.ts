@@ -29,10 +29,22 @@ function objectValue(value: string, grid: Grid): string {
   return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
+/**
+ * Look up a comparator phrase. Checks the axis category's orderingPhrases
+ * first, then falls back to grid-level spatialWords.comparators.
+ */
 function comparator(
   grid: Grid,
   type: OrderingComparatorType,
+  axisName?: string,
 ): string | [string, string] | undefined {
+  if (axisName) {
+    const axis = grid.categories.find((c) => c.name === axisName);
+    if (axis?.ordered === true) {
+      const phrase = axis.orderingPhrases?.comparators?.[type];
+      if (phrase !== undefined) return phrase;
+    }
+  }
   return grid.spatialWords.comparators?.[type];
 }
 
@@ -43,8 +55,9 @@ function comparator(
 function symmetricComp(
   grid: Grid,
   type: OrderingComparatorType,
+  axisName?: string,
 ): string | undefined {
-  return comparator(grid, type) as string | undefined;
+  return comparator(grid, type, axisName) as string | undefined;
 }
 
 /**
@@ -58,8 +71,9 @@ function directionalComp(
   type: OrderingComparatorType,
   a: string,
   b: string,
+  axisName?: string,
 ): { subject: string; object: string; phrase: string } | undefined {
-  const c = comparator(grid, type);
+  const c = comparator(grid, type, axisName);
   if (c === undefined) return undefined;
   if (typeof c === "string") {
     return { subject: a, object: b, phrase: c };
@@ -139,16 +153,22 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return renderSamePosition(constraint, grid, true);
     case "next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = symmetricComp(grid, "next_to");
+      const comp = symmetricComp(grid, "next_to", constraint.axis);
       return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[0]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "not_next_to": {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
-      const comp = symmetricComp(grid, "not_next_to");
+      const comp = symmetricComp(grid, "not_next_to", constraint.axis);
       return `${capitalize(label(s, grid))} ${comp ?? `${w.verb[1]} ${w.adjacency}`} ${label(o, grid)}.`;
     }
     case "left_of": {
-      const comp = directionalComp(grid, "left_of", constraint.a, constraint.b);
+      const comp = directionalComp(
+        grid,
+        "left_of",
+        constraint.a,
+        constraint.b,
+        constraint.axis,
+      );
       if (comp) {
         return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
       }
@@ -160,7 +180,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = symmetricComp(grid, "between");
+      const comp = symmetricComp(grid, "between", constraint.axis);
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
         findCategory(constraint.middle, grid).positionAdjective?.[0] ??
@@ -171,7 +191,7 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const lm = label(constraint.middle, grid);
       const lo1 = label(constraint.outer1, grid);
       const lo2 = label(constraint.outer2, grid);
-      const comp = symmetricComp(grid, "not_between");
+      const comp = symmetricComp(grid, "not_between", constraint.axis);
       if (comp) return `${capitalize(lm)} ${comp} ${lo1} and ${lo2}.`;
       const middleVerb =
         findCategory(constraint.middle, grid).positionAdjective?.[1] ??
@@ -179,7 +199,13 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(lm)} ${middleVerb} ${w.between} ${lo1} and ${lo2}.`;
     }
     case "before": {
-      const comp = directionalComp(grid, "before", constraint.a, constraint.b);
+      const comp = directionalComp(
+        grid,
+        "before",
+        constraint.a,
+        constraint.b,
+        constraint.axis,
+      );
       if (comp) {
         return `${capitalize(label(comp.subject, grid))} ${comp.phrase} ${label(comp.object, grid)}.`;
       }
@@ -191,9 +217,18 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const [s, o] = ordered(constraint.a, constraint.b, grid);
       const la = label(s, grid);
       const lb = label(o, grid);
-      const unit = w.distanceUnit;
+      // Per-axis unit takes precedence over grid-level distanceUnit.
+      const axisCategory = grid.categories.find(
+        (c) => c.name === constraint.axis,
+      );
+      const axisUnit =
+        axisCategory?.ordered === true
+          ? axisCategory.orderingPhrases?.unit
+          : undefined;
+      const unit = axisUnit ?? w.distanceUnit;
       const prefix =
-        symmetricComp(grid, "exact_distance") ?? `${w.verb[0]} exactly`;
+        symmetricComp(grid, "exact_distance", constraint.axis) ??
+        `${w.verb[0]} exactly`;
       if (unit) {
         const unitNoun = constraint.distance === 1 ? unit[0] : unit[1];
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
