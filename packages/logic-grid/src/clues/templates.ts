@@ -5,7 +5,6 @@ import type {
   Grid,
   OrderingComparatorType,
 } from "../types";
-// posNoun/posNounPlural no longer used — all rendering comes from axis comparators.
 import { orderedCategories, resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
@@ -202,9 +201,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
     }
     case "at_position": {
       // Render using the first ordered category's value at this position.
-      // The ordered value is always the object (position-like) side: we use
-      // its verb to produce "Alice lives in the first house" (House's verb),
-      // not "The first house plays piano" (Instrument's verb).
       const axis = orderedCategories(grid)[0];
       if (!axis) throw new Error("Grid has no ordered category");
       const axisVal = axis.values[constraint.position];

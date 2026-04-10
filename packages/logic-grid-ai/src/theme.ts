@@ -129,6 +129,9 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 **\`valueSuffix\`** — appends a clarifying noun after the value when it appears as an object. Use this when the value alone is an adjective or short label that needs a noun.
 - Strategy (valueSuffix: "strategy", verb: ["uses the", "does not use the"]) → "Alice uses the event-driven strategy."
 - Color (valueSuffix: "house") → "Alice lives in the red house."
+- Bounty with bare numbers (valueSuffix: "gold pieces") → "has a bounty of 500 gold pieces."
+
+**IMPORTANT for ordered categories with numeric values:** The \`unit\` field in orderingPhrases is ONLY used for \`exact_distance\` clues ("exactly 25 years from"). It is NOT appended to values in other clue types. If your ordered category has bare numeric values like "500", "1000" that need a unit label in all clues, use \`valueSuffix\` (e.g. valueSuffix: "gold pieces"). If values are already self-explanatory like "2005" (a year) or "7am" (a time), no suffix is needed.
 
 **\`positionAdjective\`** — set ONLY when the position noun is naturally modified by an adjective category, like a HOUSE has a color ("the red house"). DO NOT use this for position nouns like "dock", "ship", "fund", "station", "slot", "year" — these aren't naturally characterized by an adjective from another category. Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1. Use sparingly — when in doubt, don't.
 

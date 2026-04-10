@@ -4,8 +4,8 @@ import type { Category, Constraint, Grid, OrderedCategory } from "./types";
  * Return the list of `ordered: true` categories in declaration order.
  * These are the axes available to comparative constraints.
  */
-export function orderedCategories(grid: Grid): Category[] {
-  return grid.categories.filter((c) => c.ordered === true);
+export function orderedCategories(grid: Grid): OrderedCategory[] {
+  return grid.categories.filter((c) => c.ordered === true) as OrderedCategory[];
 }
 
 /**
