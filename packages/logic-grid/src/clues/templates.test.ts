@@ -18,6 +18,7 @@ const grid = makeGrid({
       noun: "house",
       verb: ["lives in the", "does not live in the"],
       subjectPriority: -1,
+      lowercase: true,
       valueSuffix: "house",
       positionAdjective: ["is", "is not"],
     },
@@ -27,6 +28,7 @@ const grid = makeGrid({
       noun: "owner",
       verb: ["owns the", "does not own the"],
       subjectPriority: 1,
+      lowercase: true,
     },
     {
       name: "Drink",
@@ -34,6 +36,7 @@ const grid = makeGrid({
       noun: "drinker",
       verb: ["drinks", "does not drink"],
       subjectPriority: 1,
+      lowercase: true,
     },
   ],
 });
@@ -293,7 +296,7 @@ describe("custom category noun/verb", () => {
       { type: "same_position", a: "Alice", b: "Toyota" },
       customGrid,
     );
-    expect(clue.text).toBe("Alice drives the toyota.");
+    expect(clue.text).toBe("Alice drives the Toyota.");
   });
 
   it("throws when object category has no verb", () => {

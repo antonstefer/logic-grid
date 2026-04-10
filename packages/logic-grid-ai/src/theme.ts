@@ -42,13 +42,18 @@ function buildSchema(size: number, categories: number): JSONSchema {
         description:
           'Optional noun appended to the value when it appears as an object. E.g. valueSuffix "strategy" makes "event-driven" render as "event-driven strategy" → "Alice uses the event-driven strategy". Use this when the value alone is an adjective or short label that needs a clarifying noun. Required for categories whose values describe the position noun (e.g. Color: valueSuffix "house" → "red house").',
       },
+      lowercase: {
+        type: "boolean",
+        description:
+          'When true, values are lowercased in clue phrases. Use for adjective/common-noun categories where values like "Red" should render as "the red house" or "Cat" as "the cat owner". Do NOT set for categories with proper nouns (ship names, place names, brand names). Default: false.',
+      },
       positionAdjective: {
         type: "array",
         items: { type: "string" },
         minItems: 2,
         maxItems: 2,
         description:
-          'Optional [positive, negative] verb pair for at_position inversion. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Inverts at_position to "{posLabel} {verb} {value}" → "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix and subjectPriority -1.',
+          'Optional [positive, negative] verb pair for at_position inversion. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Inverts at_position to "{posLabel} {verb} {value}" → "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix, lowercase: true, and subjectPriority -1.',
       },
       ordered: {
         type: "boolean",
@@ -112,13 +117,15 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 
 **\`noun\`** — labels the value: "the cat owner", "the red house". Empty string "" means bare value ("Alice"). There must be exactly one person category with noun: "".
 
-**\`verb\`** — \`[positive, negative]\` verb pair used when this category appears as the OBJECT in a same-position clue: \`{subject} {verb} {value}\`. MUST read grammatically when concatenated with the lowercased value.
-- Pet (noun: "owner", verb: ["owns the", "does not own the"]) → "Alice owns the cat." ✓
-- Drink (noun: "drinker", verb: ["drinks", "does not drink"]) → "Alice drinks tea." ✓ (mass noun, no article)
-- Treasure with values like "Cursed Idol", "Gold Bar" → verb MUST include "the": ["plunders the", "does not plunder the"] → "Alice plunders the cursed idol." ✓
-- Wrong: ["plunders", "does not plunder"] + value "Cursed Idol" → "Alice plunders cursed idol." ✗ (missing article)
+**\`verb\`** — \`[positive, negative]\` verb pair used when this category appears as the OBJECT in a same-position clue: \`{subject} {verb} {value}\`. MUST read grammatically when concatenated with the value (lowercased only if \`lowercase: true\`).
+- Pet (lowercase: true, noun: "owner", verb: ["owns the", "does not own the"]) → "Alice owns the cat." ✓
+- Drink (lowercase: true, noun: "drinker", verb: ["drinks", "does not drink"]) → "Alice drinks tea." ✓ (mass noun, no article)
+- Treasure with values like "Cursed Idol", "Gold Bar" → verb MUST include "the": ["plunders the", "does not plunder the"] → "Alice plunders the Cursed Idol." ✓
+- Wrong: ["plunders", "does not plunder"] + value "Cursed Idol" → "Alice plunders Cursed Idol." ✗ (missing article)
 - Rule: if the value is a count noun (you'd say "a/the X"), the verb must include "the". Bare verbs only work with mass nouns ("tea", "water"), plural count nouns ("gold coins", "pearls"), or proper nouns ("Madagascar").
 - CRITICAL: all values in a category must be grammatically the same shape so one verb works for all. Don't mix singular count nouns ("Cursed Idol") with plural/mass nouns ("Gold Coins") in the same category — pick verb + values that all read consistently.
+
+**\`lowercase\`** — when true, values are lowercased in clue phrases. Set this for adjective/common-noun categories where "Red" should render as "red" or "Cat" as "cat". Do NOT set for proper nouns (ship names like "HMS Victory", place names like "Tortuga", brand names like "Toyota"). Default: false (casing preserved).
 
 **\`subjectPriority\`** — controls which value becomes the sentence subject when two categories meet. Higher = more likely subject.
 - 2: person category (always subject when present)
@@ -167,8 +174,8 @@ For a "pirate adventure" theme with size 4 and 4 categories:
 {
   "categories": [
     { "name": "Pirate", "values": ["Anne", "Blackbeard", "Calico", "Drake"], "noun": "", "subjectPriority": 2 },
-    { "name": "Ship Color", "values": ["Crimson", "Indigo", "Emerald", "Onyx"], "noun": "ship", "subjectPriority": -1, "verb": ["sails the", "does not sail the"], "valueSuffix": "ship", "positionAdjective": ["is", "is not"] },
-    { "name": "Treasure", "values": ["Gold", "Pearls", "Rubies", "Maps"], "noun": "hoarder", "subjectPriority": 1, "verb": ["hoards", "does not hoard"] },
+    { "name": "Ship Color", "values": ["Crimson", "Indigo", "Emerald", "Onyx"], "noun": "ship", "subjectPriority": -1, "lowercase": true, "verb": ["sails the", "does not sail the"], "valueSuffix": "ship", "positionAdjective": ["is", "is not"] },
+    { "name": "Treasure", "values": ["Gold", "Pearls", "Rubies", "Maps"], "noun": "hoarder", "subjectPriority": 1, "lowercase": true, "verb": ["hoards", "does not hoard"] },
     { "name": "Hideout", "values": ["Tortuga", "Nassau", "Madagascar", "Cuba"], "noun": "captain", "subjectPriority": 1, "verb": ["hides in", "does not hide in"] }
   ],
 }
@@ -181,7 +188,7 @@ For a "hedge fund" theme:
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
     { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has a return right below", "has a return right above"], "next_to": "has the return right above or below", "not_next_to": "does not have the return right above or below", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
-    { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
+    { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "lowercase": true, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
 }
@@ -190,9 +197,9 @@ For a "hedge fund" theme:
 
 For each category, ask:
 1. Is it the person? → noun: "", subjectPriority: 2
-2. Are its values multi-word labels that describe the position noun (like "Crimson" describes "ship")? → set valueSuffix to the position noun, positionAdjective to ["is", "is not"], subjectPriority -1
-3. Are its values short labels needing a clarifying noun (like "Event-Driven" → "event-driven strategy")? → set valueSuffix, subjectPriority 1
-4. Does the value read naturally without a suffix in "{subject} {verb} {value}" form (like "Alice owns the cat", "Bob drinks tea", "Carol hides in tortuga")? → no valueSuffix needed, subjectPriority 1
+2. Are its values multi-word labels that describe the position noun (like "Crimson" describes "ship")? → set valueSuffix to the position noun, positionAdjective to ["is", "is not"], lowercase: true, subjectPriority -1
+3. Are its values short labels needing a clarifying noun (like "Event-Driven" → "event-driven strategy")? → set valueSuffix, lowercase: true, subjectPriority 1
+4. Does the value read naturally without a suffix in "{subject} {verb} {value}" form? → no valueSuffix needed, subjectPriority 1. Set lowercase: true for common nouns ("cat", "tea") but NOT for proper nouns ("Tortuga", "HMS Victory")
 5. Does the theme have a natural ordering (returns, times, years, house numbers)? → mark that category ordered: true. For numeric orderings add numericValues and orderingPhrases
 
 ## Your task

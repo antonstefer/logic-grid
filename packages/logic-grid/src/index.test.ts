@@ -83,12 +83,14 @@ describe("public API integration", () => {
           values: ["Piano", "Guitar", "Drums", "Violin"],
           noun: "player",
           verb: ["plays the", "does not play the"],
+          lowercase: true,
         },
         {
           name: "Flower",
           values: ["Rose", "Lily", "Daisy", "Tulip"],
           noun: "grower",
           verb: ["grows the", "does not grow the"],
+          lowercase: true,
         },
         {
           name: "Language",

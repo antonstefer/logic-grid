@@ -46,6 +46,8 @@ interface CategoryCore {
   noun?: string;
   /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
   subjectPriority?: number;
+  /** When true, values are lowercased in clue phrases. Use for adjective/common-noun categories (Color, Pet) where "Red" should render as "the red house". Default: false (proper nouns preserved). */
+  lowercase?: boolean;
 }
 
 /**

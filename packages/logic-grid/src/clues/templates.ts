@@ -10,16 +10,18 @@ function findCategory(value: string, grid: Grid): Category {
 
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
-  const noun = findCategory(value, grid).noun;
-  if (!noun) return value;
-  return `the ${value.toLowerCase()} ${noun}`;
+  const cat = findCategory(value, grid);
+  if (!cat.noun) return value;
+  const v = cat.lowercase ? value.toLowerCase() : value;
+  return `the ${v} ${cat.noun}`;
 }
 
 /** Value as it appears in the object position of a same_position clue. */
 function objectValue(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
+  const v = cat.lowercase ? value.toLowerCase() : value;
   const suffix = cat.valueSuffix;
-  return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
+  return suffix ? `${v} ${suffix}` : v;
 }
 
 /** Look up a symmetric comparator (plain string). */
@@ -96,10 +98,12 @@ function renderSamePosition(
   // adjective verb. Recovers the classical Color+House idiom:
   // `same_position(Red, "1st")` → "The 1st house is red."
   if (catA.positionAdjective && catB.ordered === true) {
-    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${constraint.a.toLowerCase()}.`;
+    const v = catA.lowercase ? constraint.a.toLowerCase() : constraint.a;
+    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${v}.`;
   }
   if (catB.positionAdjective && catA.ordered === true) {
-    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${constraint.b.toLowerCase()}.`;
+    const v = catB.lowercase ? constraint.b.toLowerCase() : constraint.b;
+    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${v}.`;
   }
 
   const [subj, obj] = ordered(constraint.a, constraint.b, grid);
@@ -187,7 +191,10 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const axisVal = axis.values[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
+        const v = cat.lowercase
+          ? constraint.value.toLowerCase()
+          : constraint.value;
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${v}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
     }
@@ -197,7 +204,10 @@ function renderText(constraint: Constraint, grid: Grid): string {
       const axisVal = axis.values[constraint.position];
       const cat = findCategory(constraint.value, grid);
       if (cat.positionAdjective) {
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
+        const v = cat.lowercase
+          ? constraint.value.toLowerCase()
+          : constraint.value;
+        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${v}.`;
       }
       return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
