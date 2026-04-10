@@ -260,10 +260,7 @@ type Difficulty = "easy" | "medium" | "hard" | "expert";
 interface Grid {
   size: number;
   categories: Category[];
-  positionNoun: [string, string];
-  positionPreposition: string;
-  spatialWords: SpatialWords;
-  displayAxis?: string;
+  displayAxis?: string; // presentation hint: which ordered category for column headers
 }
 
 type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
@@ -276,7 +273,7 @@ interface CategoryCore {
   verb?: [string, string];
   subjectPriority?: number;
 }
-// ordered: true enables numericValues and orderingPhrases.
+// ordered: true requires orderingPhrases with all 7 comparators.
 // valueSuffix enables positionAdjective.
 
 type Solution = Assignment[]; // one per category
