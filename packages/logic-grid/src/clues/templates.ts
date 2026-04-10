@@ -28,10 +28,7 @@ function objectValue(value: string, grid: Grid): string {
   return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
-/**
- * Look up a comparator phrase. Checks the axis category's orderingPhrases
- * first, then falls back to grid-level spatialWords.comparators.
- */
+/** Look up a comparator phrase from the axis category's orderingPhrases. */
 function comparator(
   grid: Grid,
   type: OrderingComparatorType,
