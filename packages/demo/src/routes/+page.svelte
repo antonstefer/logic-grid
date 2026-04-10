@@ -128,7 +128,7 @@
             },
           },
         },
-        { name: "Fund", values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"], noun: "fund", subjectPriority: 1, verb: ["runs", "does not run"], valueSuffix: "fund" },
+        { name: "Fund", values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"], noun: "fund", subjectPriority: 1, verb: ["runs the", "does not run the"], valueSuffix: "fund" },
       ],
     },
   };
