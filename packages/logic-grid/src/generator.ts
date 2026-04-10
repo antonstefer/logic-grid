@@ -290,15 +290,10 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
   const constraints: Constraint[] = [];
   const n = grid.size;
 
-  // Default axis used for all comparative constraints in Phase 1. Phase 3
-  // will loop over all ordered axes; for now every comparative is tagged
-  // with the first ordered category's name so the existing encoder can
-  // still consume it.
-  const defaultAxis = orderedCategories(grid)[0];
+  const orderedCats = orderedCategories(grid);
   /* v8 ignore next 2 */
-  if (!defaultAxis)
+  if (orderedCats.length === 0)
     throw new Error("Grid has no ordered category after buildGrid");
-  const axisName = defaultAxis.name;
 
   // Build indexed arrays for fast access (avoid Map lookups in hot loops)
   const allValues: string[] = [];
@@ -311,150 +306,177 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       catArr.push(ci);
     }
   }
-  // Also keep a Map for position constraints below
+  // Map from value name → its row position. Used for the at_position block.
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
-  // Cap negative pairwise types independently — a shared counter would starve not_next_to.
+  // --- Axis-free constraints (same_position, not_same_position) ---
+  // Cap negative pairwise types independently — a shared counter would
+  // starve not_next_to (which is enumerated per-axis below).
   const maxPerType = n * n;
   let notSameCount = 0;
-  let notNextCount = 0;
-
-  const numVals = defaultAxis.numericValues;
 
   for (let i = 0; i < allValues.length; i++) {
     const a = allValues[i];
     const posA = posArr[i];
     const catA = catArr[i];
-
     for (let j = i + 1; j < allValues.length; j++) {
       if (catArr[j] === catA) continue;
       const b = allValues[j];
       const posB = posArr[j];
-
       if (posA === posB) {
         constraints.push({ type: "same_position", a, b });
       } else if (notSameCount < maxPerType) {
         constraints.push({ type: "not_same_position", a, b });
         notSameCount++;
       }
-
-      if (Math.abs(posA - posB) === 1) {
-        constraints.push({ type: "next_to", a, b, axis: axisName });
-      } else if (posA !== posB && notNextCount < maxPerType) {
-        constraints.push({ type: "not_next_to", a, b, axis: axisName });
-        notNextCount++;
-      }
-
-      if (posA === posB - 1) {
-        constraints.push({ type: "left_of", a, b, axis: axisName });
-      }
-      if (posB === posA - 1) {
-        constraints.push({ type: "left_of", a: b, b: a, axis: axisName });
-      }
-
-      // before: a is somewhere left of b (not necessarily adjacent)
-      if (posA < posB) {
-        constraints.push({ type: "before", a, b, axis: axisName });
-      } else if (posB < posA) {
-        constraints.push({ type: "before", a: b, b: a, axis: axisName });
-      }
-
-      // exact_distance: emit when meaningful (not redundant with other clue types).
-      if (numVals) {
-        // Value-based distance: emit any non-zero value gap. Even when positions
-        // are adjacent, the constraint is more specific than next_to (it pins
-        // the exact value pair, not just adjacency).
-        const valDist = Math.abs(numVals[posA] - numVals[posB]);
-        if (valDist > 0) {
-          constraints.push({
-            type: "exact_distance",
-            a,
-            b,
-            distance: valDist,
-            axis: axisName,
-          });
-        }
-      } else {
-        // Position-based: distance 1 is exactly equivalent to next_to, skip it.
-        const dist = Math.abs(posA - posB);
-        if (dist >= 2) {
-          constraints.push({
-            type: "exact_distance",
-            a,
-            b,
-            distance: dist,
-            axis: axisName,
-          });
-        }
-      }
     }
   }
 
-  // Between constraints (triples from different categories)
-  // Cap loop iterations — O(n³) without bound
-  const maxBetween = n * n;
-  let betweenCount = 0;
-  outer: for (
-    let i = 0;
-    i < allValues.length && betweenCount < maxBetween;
-    i++
-  ) {
-    const ai = allValues[i],
-      catAi = catArr[i],
-      posAi = posArr[i];
-    for (
-      let j = i + 1;
-      j < allValues.length && betweenCount < maxBetween;
-      j++
-    ) {
-      const catAj = catArr[j];
-      if (catAj === catAi) continue;
-      const aj = allValues[j],
-        posAj = posArr[j];
-      for (let k = j + 1; k < allValues.length; k++) {
-        const catAk = catArr[k];
-        if (catAk === catAi || catAk === catAj) continue;
-        const ak = allValues[k],
-          posAk = posArr[k];
-        // Check each of the 3 values as potential middle
-        const vals = [ai, aj, ak];
-        const positions = [posAi, posAj, posAk];
-        for (let m = 0; m < 3; m++) {
-          const o0 = m === 0 ? 1 : 0;
-          const o1 = m === 2 ? 1 : 2;
-          const lo = Math.min(positions[o0], positions[o1]);
-          const hi = Math.max(positions[o0], positions[o1]);
-          const [v1, v2] =
-            vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
-          if (positions[m] > lo && positions[m] < hi) {
+  // --- Per-axis comparative constraints ---
+  // For each ordered category, compute each value's rank on that axis and
+  // emit constraints whose semantics match. Values belonging to the axis
+  // category itself are skipped — their rank is trivially their own index.
+  for (const axis of orderedCats) {
+    const axisName = axis.name;
+    const axisCatIdx = grid.categories.indexOf(axis);
+    // Rank lookup: for each row r in [0..n), which axis value index sits there?
+    // (i.e. rankAtRow[r] = k means axis.values[k] is assigned to row r.)
+    const rankAtRow = new Array<number>(n);
+    for (let k = 0; k < axis.values.length; k++) {
+      rankAtRow[solution[axisCatIdx][axis.values[k]]] = k;
+    }
+    const numVals = axis.numericValues;
+
+    let notNextCount = 0;
+    for (let i = 0; i < allValues.length; i++) {
+      if (catArr[i] === axisCatIdx) continue;
+      const a = allValues[i];
+      const rankA = rankAtRow[posArr[i]];
+      const catA = catArr[i];
+      for (let j = i + 1; j < allValues.length; j++) {
+        if (catArr[j] === catA) continue;
+        if (catArr[j] === axisCatIdx) continue;
+        const b = allValues[j];
+        const rankB = rankAtRow[posArr[j]];
+
+        if (Math.abs(rankA - rankB) === 1) {
+          constraints.push({ type: "next_to", a, b, axis: axisName });
+        } else if (rankA !== rankB && notNextCount < maxPerType) {
+          constraints.push({ type: "not_next_to", a, b, axis: axisName });
+          notNextCount++;
+        }
+
+        if (rankA === rankB - 1) {
+          constraints.push({ type: "left_of", a, b, axis: axisName });
+        }
+        if (rankB === rankA - 1) {
+          constraints.push({ type: "left_of", a: b, b: a, axis: axisName });
+        }
+
+        // before: a's rank is strictly less than b's rank
+        if (rankA < rankB) {
+          constraints.push({ type: "before", a, b, axis: axisName });
+        } else if (rankB < rankA) {
+          constraints.push({ type: "before", a: b, b: a, axis: axisName });
+        }
+
+        // exact_distance
+        if (numVals) {
+          const valDist = Math.abs(numVals[rankA] - numVals[rankB]);
+          if (valDist > 0) {
             constraints.push({
-              type: "between",
-              outer1: v1,
-              middle: vals[m],
-              outer2: v2,
-              axis: axisName,
-            });
-          } else {
-            constraints.push({
-              type: "not_between",
-              outer1: v1,
-              middle: vals[m],
-              outer2: v2,
+              type: "exact_distance",
+              a,
+              b,
+              distance: valDist,
               axis: axisName,
             });
           }
-          if (++betweenCount >= maxBetween) continue outer;
+        } else {
+          const dist = Math.abs(rankA - rankB);
+          if (dist >= 2) {
+            constraints.push({
+              type: "exact_distance",
+              a,
+              b,
+              distance: dist,
+              axis: axisName,
+            });
+          }
+        }
+      }
+    }
+
+    // --- Per-axis between / not_between (triples) ---
+    // Cap to O(n²) emissions per axis to match the single-axis budget.
+    const maxBetween = n * n;
+    let betweenCount = 0;
+    betweenOuter: for (
+      let i = 0;
+      i < allValues.length && betweenCount < maxBetween;
+      i++
+    ) {
+      if (catArr[i] === axisCatIdx) continue;
+      const ai = allValues[i];
+      const catAi = catArr[i];
+      const rankAi = rankAtRow[posArr[i]];
+      for (
+        let j = i + 1;
+        j < allValues.length && betweenCount < maxBetween;
+        j++
+      ) {
+        if (catArr[j] === axisCatIdx) continue;
+        if (catArr[j] === catAi) continue;
+        const aj = allValues[j];
+        const catAj = catArr[j];
+        const rankAj = rankAtRow[posArr[j]];
+        for (let k = j + 1; k < allValues.length; k++) {
+          if (catArr[k] === axisCatIdx) continue;
+          if (catArr[k] === catAi || catArr[k] === catAj) continue;
+          const ak = allValues[k];
+          const rankAk = rankAtRow[posArr[k]];
+          const vals = [ai, aj, ak];
+          const ranks = [rankAi, rankAj, rankAk];
+          for (let m = 0; m < 3; m++) {
+            const o0 = m === 0 ? 1 : 0;
+            const o1 = m === 2 ? 1 : 2;
+            const lo = Math.min(ranks[o0], ranks[o1]);
+            const hi = Math.max(ranks[o0], ranks[o1]);
+            const [v1, v2] =
+              vals[o0] < vals[o1] ? [vals[o0], vals[o1]] : [vals[o1], vals[o0]];
+            if (ranks[m] > lo && ranks[m] < hi) {
+              constraints.push({
+                type: "between",
+                outer1: v1,
+                middle: vals[m],
+                outer2: v2,
+                axis: axisName,
+              });
+            } else {
+              constraints.push({
+                type: "not_between",
+                outer1: v1,
+                middle: vals[m],
+                outer2: v2,
+                axis: axisName,
+              });
+            }
+            if (++betweenCount >= maxBetween) continue betweenOuter;
+          }
         }
       }
     }
   }
 
-  // Position constraints. Skip values in the default axis category since their
-  // positions are trivially known via identity assignment.
-  const axisValues = new Set(defaultAxis.values);
+  // --- Position constraints ---
+  // Skip values in the first ordered category — identity pinning makes their
+  // rows trivially determined by encodeBase. Phase 4 removes identity pinning
+  // and broadens this skip rule.
+  const firstOrdered = orderedCats[0];
+  const firstOrderedValues = new Set(firstOrdered.values);
   for (const [val, pos] of posOf) {
-    if (axisValues.has(val)) continue;
+    if (firstOrderedValues.has(val)) continue;
     constraints.push({ type: "at_position", value: val, position: pos });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {

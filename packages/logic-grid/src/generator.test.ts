@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { generate } from "./generator";
 import { deduce } from "./deduce";
 import { hasUniqueSolution, solve } from "./solver";
+import { resolveAxis } from "./axis";
+import type { Grid } from "./types";
 
 describe("generate", () => {
   it("returns a valid puzzle with defaults", () => {
@@ -38,6 +40,16 @@ describe("generate", () => {
       }
     }
 
+    // rank(value, axis) = index of the axis value colocated with `value`.
+    const rankOf = (val: string, grid: Grid, axisName: string): number => {
+      const axis = resolveAxis(grid, axisName);
+      const pos = posOf.get(val)!;
+      for (let k = 0; k < axis.values.length; k++) {
+        if (posOf.get(axis.values[k]) === pos) return k;
+      }
+      throw new Error(`No ${axisName} value colocated with ${val}`);
+    };
+
     for (const c of puzzle.constraints) {
       switch (c.type) {
         case "same_position":
@@ -46,20 +58,32 @@ describe("generate", () => {
         case "not_same_position":
           expect(posOf.get(c.a)).not.toBe(posOf.get(c.b));
           break;
-        case "next_to":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).toBe(1);
+        case "next_to": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(Math.abs(ra - rb)).toBe(1);
           break;
-        case "not_next_to":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).not.toBe(1);
+        }
+        case "not_next_to": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(Math.abs(ra - rb)).not.toBe(1);
           break;
-        case "left_of":
-          expect(posOf.get(c.b)! - posOf.get(c.a)!).toBe(1);
+        }
+        case "left_of": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(rb - ra).toBe(1);
           break;
+        }
         case "between": {
-          const lo = Math.min(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const hi = Math.max(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          expect(posOf.get(c.middle)!).toBeGreaterThan(lo);
-          expect(posOf.get(c.middle)!).toBeLessThan(hi);
+          const r1 = rankOf(c.outer1, puzzle.grid, c.axis);
+          const r2 = rankOf(c.outer2, puzzle.grid, c.axis);
+          const rm = rankOf(c.middle, puzzle.grid, c.axis);
+          const lo = Math.min(r1, r2);
+          const hi = Math.max(r1, r2);
+          expect(rm).toBeGreaterThan(lo);
+          expect(rm).toBeLessThan(hi);
           break;
         }
         case "at_position":
@@ -68,19 +92,34 @@ describe("generate", () => {
         case "not_at_position":
           expect(posOf.get(c.value)).not.toBe(c.position);
           break;
-        case "before":
-          expect(posOf.get(c.a)!).toBeLessThan(posOf.get(c.b)!);
-          break;
-        case "not_between": {
-          const lo = Math.min(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const hi = Math.max(posOf.get(c.outer1)!, posOf.get(c.outer2)!);
-          const mid = posOf.get(c.middle)!;
-          expect(mid > lo && mid < hi).toBe(false);
+        case "before": {
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          expect(ra).toBeLessThan(rb);
           break;
         }
-        case "exact_distance":
-          expect(Math.abs(posOf.get(c.a)! - posOf.get(c.b)!)).toBe(c.distance);
+        case "not_between": {
+          const r1 = rankOf(c.outer1, puzzle.grid, c.axis);
+          const r2 = rankOf(c.outer2, puzzle.grid, c.axis);
+          const rm = rankOf(c.middle, puzzle.grid, c.axis);
+          const lo = Math.min(r1, r2);
+          const hi = Math.max(r1, r2);
+          expect(rm > lo && rm < hi).toBe(false);
           break;
+        }
+        case "exact_distance": {
+          const axis = resolveAxis(puzzle.grid, c.axis);
+          const ra = rankOf(c.a, puzzle.grid, c.axis);
+          const rb = rankOf(c.b, puzzle.grid, c.axis);
+          if (axis.numericValues) {
+            expect(
+              Math.abs(axis.numericValues[ra] - axis.numericValues[rb]),
+            ).toBe(c.distance);
+          } else {
+            expect(Math.abs(ra - rb)).toBe(c.distance);
+          }
+          break;
+        }
       }
     }
   });
@@ -525,5 +564,99 @@ describe("generate", () => {
     const orderedCat = puzzle.grid.categories.find((c) => c.ordered === true);
     expect(orderedCat).toBeDefined();
     expect(orderedCat!.name).toBe("Time");
+  });
+});
+
+describe("generate with multiple ordered categories", () => {
+  const hedgeFundCategories = [
+    {
+      name: "Manager",
+      values: ["Alice", "Bob", "Carol", "Dan"],
+      noun: "",
+      subjectPriority: 2,
+    },
+    {
+      name: "Year",
+      values: ["1972", "1983", "1997", "2005"],
+      noun: "fund",
+      verb: ["was begun in", "was not begun in"] as [string, string],
+      subjectPriority: -1,
+      ordered: true,
+    },
+    {
+      name: "Return",
+      values: ["6%", "7%", "8%", "9%"],
+      noun: "fund",
+      verb: ["has a return of", "does not have a return of"] as [
+        string,
+        string,
+      ],
+      subjectPriority: -1,
+      ordered: true,
+    },
+    {
+      name: "Strategy",
+      values: ["Long/Short", "Macro", "Quant", "Event"],
+      noun: "strategist",
+      subjectPriority: 1,
+      verb: ["uses the", "does not use the"] as [string, string],
+      valueSuffix: "strategy",
+    },
+  ];
+
+  it("generates a puzzle with two ordered axes and solves uniquely", () => {
+    const puzzle = generate({
+      size: 4,
+      seed: 42,
+      categoryNames: hedgeFundCategories,
+    });
+
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+    const solved = solve(puzzle.constraints, puzzle.grid);
+    expect(solved).not.toBeNull();
+  });
+
+  it("emits at least some constraints tagged with each ordered axis", () => {
+    // Seeded sweep so that eventually both axes appear in some puzzle's
+    // minimal set. The axis choice in the final puzzle is probabilistic —
+    // minimization may drop constraints on one axis if the other is
+    // sufficient. We only assert that the generator is CAPABLE of emitting
+    // constraints on both axes.
+    let sawYear = false;
+    let sawReturn = false;
+    for (let seed = 0; seed < 20 && !(sawYear && sawReturn); seed++) {
+      const puzzle = generate({
+        size: 4,
+        seed,
+        categoryNames: hedgeFundCategories,
+      });
+      for (const c of puzzle.constraints) {
+        if ("axis" in c) {
+          if (c.axis === "Year") sawYear = true;
+          if (c.axis === "Return") sawReturn = true;
+        }
+      }
+    }
+    expect(sawYear).toBe(true);
+    expect(sawReturn).toBe(true);
+  });
+
+  it("multi-axis puzzles still round-trip through the SAT solver", () => {
+    // Phase 3 only guarantees SAT-level uniqueness. Phase 4 adds rank-space
+    // deduction for non-first ordered axes; until then `deduce()` may stall
+    // on constraints targeting a non-pinned axis. The solver, however, must
+    // reproduce the exact solution.
+    const puzzle = generate({
+      size: 4,
+      seed: 7,
+      categoryNames: hedgeFundCategories,
+    });
+    const solved = solve(puzzle.constraints, puzzle.grid);
+    expect(solved).not.toBeNull();
+    for (let ci = 0; ci < puzzle.solution.length; ci++) {
+      for (const [val, pos] of Object.entries(puzzle.solution[ci])) {
+        expect(solved![ci][val]).toBe(pos);
+      }
+    }
   });
 });
