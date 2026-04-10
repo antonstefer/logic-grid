@@ -4,7 +4,6 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { ordinal } from "../grid-utils";
 import { resolveAxis } from "../axis";
 import {
   type DeduceState,
@@ -18,6 +17,7 @@ import {
   describeResult,
   clueRef,
   describeKnown,
+  axisTerms,
   axisRankDomain,
   projectRanksToPositions,
 } from "./state";
@@ -149,12 +149,13 @@ function tryAtPosition(
   ps.clear();
   ps.add(c.position);
   if (state.silent) return SILENT_STEP;
+  const { noun, posLabel } = axisTerms(state.grid);
   return step(
     "direct",
     [ci],
     elims,
     [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} position.`,
+    `Clue ${ci + 1}: ${c.value} must be in the ${posLabel(c.position)} ${noun}.`,
   );
 }
 
@@ -167,18 +168,19 @@ function tryNotAtPosition(
   if (!ps.has(c.position)) return null;
   ps.delete(c.position);
   if (state.silent) return SILENT_STEP;
+  const { noun, posLabel } = axisTerms(state.grid);
   const assigns =
     ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
   const suffix =
     assigns.length > 0
-      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} position.`
+      ? `, so ${c.value} must be in the ${posLabel(assigns[0].position)} ${noun}.`
       : ".";
   return step(
     "elimination",
     [ci],
     [{ value: c.value, position: c.position }],
     assigns,
-    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} position${suffix}`,
+    `Clue ${ci + 1}: ${c.value} is not in the ${posLabel(c.position)} ${noun}${suffix}`,
   );
 }
 
@@ -217,13 +219,12 @@ function trySamePosition(
   const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel } = axisTerms(state.grid);
   let explanation: string;
   if (assigns.length > 0) {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}both are ${prep} the ${ordinal(assigns[0].position)} ${noun}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}both are in the ${posLabel(assigns[0].position)} ${noun}.`;
   } else {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
   }
   return step("same_position", [ci], elims, assigns, explanation);
 }
@@ -254,18 +255,17 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel } = axisTerms(state.grid);
   const assignSuffix =
     assigns.length > 0
-      ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
+      ? ` ${assigns.map((a) => `${a.value} must be in the ${posLabel(a.position)} ${noun}`).join("; ")}.`
       : "";
   return step(
     "not_same_position",
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are ${prep} different positions. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are in different ${noun}s. ${pinned} is in the ${posLabel(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -580,11 +580,10 @@ function tryBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = "position";
-    const prep = "in";
+    const { noun, posLabel } = axisTerms(state.grid);
     const parts = [
-      `${c.outer1} is ${prep} the ${ordinal(a1)} ${noun}`,
-      `${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}`,
+      `${c.outer1} is in the ${posLabel(a1)} ${noun}`,
+      `${c.outer2} is in the ${posLabel(a2)} ${noun}`,
     ];
     because = ` ${parts.join(" and ")}, so `;
   } else {
@@ -664,9 +663,8 @@ function tryNotBetween(
 
   let because: string;
   if (a1 !== null && a2 !== null) {
-    const noun = "position";
-    const prep = "in";
-    because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
+    const { noun, posLabel } = axisTerms(state.grid);
+    because = ` ${c.outer1} is in the ${posLabel(a1)} ${noun} and ${c.outer2} is in the ${posLabel(a2)} ${noun}, so `;
   } else {
     // At least one outer always has a description for supported grid sizes (3–8):
     // the neither-pinned case needs 4+4+1=9 positions, exceeding max size 8.
@@ -851,7 +849,7 @@ function tryExactDistance(
   const unit = axis.orderingPhrases.unit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? "position" : "positions"}`;
+    : `${c.distance} ${c.distance === 1 ? axisTerms(state.grid).noun : axisTerms(state.grid).noun + "s"}`;
   // At least one value always has a description for supported grid sizes (3–8).
   const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
   const because = ` ${ctx}, so `;

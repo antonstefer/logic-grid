@@ -364,10 +364,10 @@ describe("deduce constraint types", () => {
     const result = deduce(constraints, noUnitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
-    expect(step!.explanation).toContain("2 positions");
+    expect(step!.explanation).toContain("2 ranks");
   });
 
-  it("exact_distance explanation uses singular 'position' when distance=1 and no unit", () => {
+  it("exact_distance explanation uses singular noun when distance=1 and no unit", () => {
     const noUnitGrid = makeGrid({
       size: 4,
       categories: [
@@ -395,7 +395,7 @@ describe("deduce constraint types", () => {
     const result = deduce(constraints, noUnitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
-    expect(step!.explanation).toContain("1 position");
+    expect(step!.explanation).toContain("1 rank");
   });
 
   it("exact_distance constrains positions", () => {

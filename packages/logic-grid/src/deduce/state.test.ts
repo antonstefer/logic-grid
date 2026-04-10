@@ -13,12 +13,12 @@ const grid = makeGrid({
 describe("describeResult", () => {
   it("describes assignments", () => {
     const result = describeResult(grid, [{ value: "Alice", position: 0 }], []);
-    expect(result).toBe("Alice must be in the first position");
+    expect(result).toBe("Alice must be in the first house");
   });
 
   it("describes eliminations", () => {
     const result = describeResult(grid, [], [{ value: "Bob", position: 1 }]);
-    expect(result).toBe("Bob can't be in the second position");
+    expect(result).toBe("Bob can't be in the second house");
   });
 
   it("combines assignments and eliminations", () => {
@@ -28,7 +28,7 @@ describe("describeResult", () => {
       [{ value: "Bob", position: 2 }],
     );
     expect(result).toBe(
-      "Alice must be in the first position; Bob can't be in the third position",
+      "Alice must be in the first house; Bob can't be in the third house",
     );
   });
 });
@@ -53,7 +53,7 @@ describe("describeKnown", () => {
     state.possible[1][0].clear();
     state.possible[1][0].add(0);
     expect(describeKnown(state, "Alice")).toBe(
-      "Alice is in the first position",
+      "Alice is in the first house",
     );
   });
 
@@ -63,7 +63,7 @@ describe("describeKnown", () => {
     state.possible[1][1].add(0);
     state.possible[1][1].add(2);
     expect(describeKnown(state, "Bob")).toBe(
-      "Bob can only be in the first or third position",
+      "Bob can only be in the first or third house",
     );
   });
 });

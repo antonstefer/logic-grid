@@ -4,20 +4,39 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
+import { orderedCategories } from "../axis";
 import { ordinal } from "../grid-utils";
 
 // --- Display utilities ---
 
+/** Axis-derived phrasing for deduction explanations. */
+export interface AxisTerms {
+  noun: string;
+  posLabel: (p: number) => string;
+}
+
+/**
+ * Get axis-aware terminology for explanations from the first ordered category
+ * (identity-pinned axis). Returns noun (e.g. "house") and position label
+ * function (e.g. p=0 → "first").
+ */
+export function axisTerms(grid: Grid): AxisTerms {
+  const axis = orderedCategories(grid)[0];
+  return {
+    noun: axis?.noun || "position",
+    posLabel: (p) => axis?.values[p] ?? ordinal(p),
+  };
+}
+
 export function describeResult(
-  _grid: Grid,
+  grid: Grid,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel } = axisTerms(grid);
   const parts: string[] = [];
   for (const a of assigns) {
-    parts.push(`${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`);
+    parts.push(`${a.value} must be in the ${posLabel(a.position)} ${noun}`);
   }
   // Group eliminations by value
   const byValue = new Map<string, number[]>();
@@ -28,8 +47,8 @@ export function describeResult(
     byValue.get(e.value)!.push(e.position);
   }
   for (const [value, positions] of byValue) {
-    const posStr = positions.map((p) => ordinal(p)).join(" or ");
-    parts.push(`${value} can't be ${prep} the ${posStr} ${noun}`);
+    const posStr = positions.map((p) => posLabel(p)).join(" or ");
+    parts.push(`${value} can't be in the ${posStr} ${noun}`);
   }
   return parts.join("; ");
 }
@@ -40,14 +59,13 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel } = axisTerms(state.grid);
   const pos = getAssigned(state, value);
-  if (pos !== null) return `${value} is ${prep} the ${ordinal(pos)} ${noun}`;
+  if (pos !== null) return `${value} is in the ${posLabel(pos)} ${noun}`;
   const possible = getPossible(state, value);
   if (possible.size <= 3) {
-    const posStr = [...possible].map((p) => ordinal(p)).join(" or ");
-    return `${value} can only be ${prep} the ${posStr} ${noun}`;
+    const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
+    return `${value} can only be in the ${posStr} ${noun}`;
   }
   return "";
 }
