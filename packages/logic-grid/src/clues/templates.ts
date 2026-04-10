@@ -1,10 +1,4 @@
-import type {
-  Category,
-  Constraint,
-  Clue,
-  Grid,
-  OrderingComparatorType,
-} from "../types";
+import type { Category, Constraint, Clue, Grid } from "../types";
 import { orderedCategories, resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
@@ -28,45 +22,33 @@ function objectValue(value: string, grid: Grid): string {
   return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
 }
 
-/** Look up a comparator phrase from the axis category's orderingPhrases. */
-function comparator(
-  grid: Grid,
-  type: OrderingComparatorType,
-  axisName: string,
-): string | [string, string] {
-  const axis = resolveAxis(grid, axisName);
-  return axis.orderingPhrases.comparators[type];
-}
-
-/**
- * Resolve a symmetric comparator. Tuples on symmetric types are rejected
- * by validateGrid in the generator, so we trust the type at render time.
- */
+/** Look up a symmetric comparator (plain string). */
 function symmetricComp(
   grid: Grid,
-  type: OrderingComparatorType,
+  type:
+    | "next_to"
+    | "not_next_to"
+    | "between"
+    | "not_between"
+    | "exact_distance",
   axisName: string,
 ): string {
-  return comparator(grid, type, axisName) as string;
+  return resolveAxis(grid, axisName).orderingPhrases.comparators[type];
 }
 
 /**
- * Pick the directional comparator phrase. For tuples, uses `ordered()` to
- * decide which side becomes the subject (priority first, then hash tiebreaker)
- * and selects the matching forward/reverse phrase. For string comparators,
- * always uses constraint.a as subject (forward only).
+ * Pick the directional comparator phrase. Uses `ordered()` to decide which
+ * side becomes the subject (priority first, then hash tiebreaker) and selects
+ * the matching forward/reverse phrase from the tuple.
  */
 function directionalComp(
   grid: Grid,
-  type: OrderingComparatorType,
+  type: "before" | "left_of",
   a: string,
   b: string,
   axisName: string,
 ): { subject: string; object: string; phrase: string } {
-  const c = comparator(grid, type, axisName);
-  if (typeof c === "string") {
-    return { subject: a, object: b, phrase: c };
-  }
+  const c = resolveAxis(grid, axisName).orderingPhrases.comparators[type];
   const [s] = ordered(a, b, grid);
   return s === a
     ? { subject: a, object: b, phrase: c[0] }

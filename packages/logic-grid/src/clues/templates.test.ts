@@ -317,8 +317,8 @@ describe("per-axis comparator overrides on House", () => {
         values: ["first", "second", "third"],
         orderingPhrases: {
           comparators: {
-            before: "comes earlier than",
-            left_of: "is directly before",
+            before: ["comes earlier than", "comes later than"],
+            left_of: ["is directly before", "is directly after"],
             next_to: "is adjacent to",
             not_next_to: "is not adjacent to",
             between: "is between",
@@ -348,7 +348,7 @@ describe("per-axis comparator overrides on House", () => {
       { type: "left_of", a: "Alice", b: "Bob", axis: "House" },
       withComparators,
     );
-    expect(clue.text).toBe("Alice is directly before Bob.");
+    expect(clue.text).toBe("Bob is directly after Alice.");
   });
 
   it("before uses grid comparator when set", () => {
@@ -356,7 +356,7 @@ describe("per-axis comparator overrides on House", () => {
       { type: "before", a: "Alice", b: "Bob", axis: "House" },
       withComparators,
     );
-    expect(clue.text).toBe("Alice comes earlier than Bob.");
+    expect(clue.text).toBe("Bob comes later than Alice.");
   });
 
   it("next_to uses grid comparator when set", () => {

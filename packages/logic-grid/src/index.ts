@@ -32,7 +32,6 @@ export type {
   Category,
   OrderingPhrases,
   OrderingComparatorType,
-  ComparatorPhrase,
   ComparatorMap,
   Grid,
   Assignment,

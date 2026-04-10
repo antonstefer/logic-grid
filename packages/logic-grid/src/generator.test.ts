@@ -448,35 +448,9 @@ describe("generate", () => {
     ).toThrow("requires a verb");
   });
 
-  it("throws when symmetric comparator is a tuple", () => {
-    expect(() =>
-      generate({
-        size: 3,
-        categoryNames: [
-          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
-          {
-            name: "Time",
-            values: ["7am", "8am", "9am"],
-            noun: "slot",
-            verb: ["is at", "is not at"],
-            ordered: true,
-            orderingPhrases: {
-              comparators: {
-                ...TEST_COMPARATORS,
-                next_to: ["fwd", "rev"] as [string, string],
-              },
-            },
-          },
-          {
-            name: "Activity",
-            values: ["Yoga", "Cardio", "Run"],
-            noun: "doer",
-            verb: ["does", "does not do"],
-          },
-        ],
-      }),
-    ).toThrow('comparator "next_to" is symmetric');
-  });
+  // "symmetric comparator as tuple" is now a compile-time error:
+  // ComparatorMap requires next_to/not_next_to/between/not_between/exact_distance
+  // to be plain strings, not [forward, reverse] tuples.
 
   it("throws when numericValues are not in ascending order", () => {
     expect(() =>

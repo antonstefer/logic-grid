@@ -9,15 +9,26 @@ export type OrderingComparatorType =
   | "exact_distance";
 
 /**
- * Comparator phrase value. A plain string is forward-only ("a {phrase} b").
- * A tuple `[forward, reverse]` lets the renderer alternate phrasing for
- * directional constraints (`before`, `left_of`). Forward: "a {forward} b".
- * Reverse: "b {reverse} a". E.g. `["has a lower return than", "has a higher return than"]`.
+ * Comparator phrases for all 7 constraint types.
+ *
+ * Directional constraints (`before`, `left_of`) require a `[forward, reverse]`
+ * tuple for phrasing variety. The renderer picks which to use based on subject
+ * priority and a deterministic hash tiebreaker.
+ *   Forward: "Alice has a lower return than Bob."
+ *   Reverse: "Bob has a higher return than Alice."
+ *
+ * Symmetric constraints (`next_to`, `between`, etc.) are a plain string since
+ * both directions read the same.
  */
-export type ComparatorPhrase = string | [string, string];
-
-/** Map of constraint type → comparator phrase. All 7 keys required. */
-export type ComparatorMap = Record<OrderingComparatorType, ComparatorPhrase>;
+export interface ComparatorMap {
+  before: [string, string];
+  left_of: [string, string];
+  next_to: string;
+  not_next_to: string;
+  between: string;
+  not_between: string;
+  exact_distance: string;
+}
 
 /** Domain-specific phrasing for ordering constraints on a category. */
 export interface OrderingPhrases {

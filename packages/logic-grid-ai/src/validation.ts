@@ -38,7 +38,7 @@ const POSITIONAL_WORDS = new Set([
  * (generateTheme) casts to ThemeResult only after validation passes.
  */
 export function validateThemeResult(
-  result: { categories: RawCategory[] },
+  result: { categories: readonly unknown[] },
   expectedSize: number,
   expectedCategories: number,
 ): string[] {
@@ -56,7 +56,8 @@ export function validateThemeResult(
   let personCount = 0;
   let orderedCount = 0;
 
-  for (const cat of result.categories) {
+  for (const raw of result.categories) {
+    const cat = raw as RawCategory;
     const name = cat.name ?? "";
 
     // Category name checks

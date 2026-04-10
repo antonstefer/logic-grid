@@ -2,7 +2,6 @@ import type {
   Puzzle,
   GenerateOptions,
   Grid,
-  ComparatorMap,
   Solution,
   Constraint,
   Category,
@@ -20,27 +19,6 @@ import { isOrdered, orderedCategories, resolveAxis } from "./axis";
 import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
-
-// Symmetric constraint types — comparators must be a single string, not a tuple.
-// NOTE: duplicated in logic-grid-ai/src/validation.ts so the AI retry loop can
-// catch this without depending on the core package. Keep both lists in sync.
-const SYMMETRIC_COMPARATORS = new Set([
-  "next_to",
-  "not_next_to",
-  "between",
-  "not_between",
-  "exact_distance",
-]);
-
-function checkComparators(scope: string, comparators: ComparatorMap): void {
-  for (const [type, value] of Object.entries(comparators)) {
-    if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
-      throw new RangeError(
-        `${scope} comparator "${type}" is symmetric and must be a single string, not [forward, reverse]`,
-      );
-    }
-  }
-}
 
 /**
  * Validate per-category invariants. Called by buildGrid before the grid is
@@ -75,7 +53,6 @@ function validateCategories(categories: Category[]): void {
           }
         }
       }
-      checkComparators(`Category "${c.name}"`, c.orderingPhrases.comparators);
     }
   }
 }
