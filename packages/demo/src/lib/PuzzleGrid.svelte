@@ -102,7 +102,7 @@
         <th class="category-header"></th>
         <th class="value-header"></th>
         {#each Array(grid.size) as _, p}
-          <th class="position-number">{posCat ? posCat.values[p] : p + 1}</th>
+          <th class="position-number">{posCat.displayLabels?.[p] ?? posCat.values[p]}</th>
         {/each}
       </tr>
     </thead>

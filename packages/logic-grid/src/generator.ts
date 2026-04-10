@@ -215,6 +215,7 @@ function sliceCategory(c: Category, size: number): Category {
       ordered: true,
       numericValues: c.numericValues?.slice(0, size),
       orderingPhrases: c.orderingPhrases,
+      displayLabels: c.displayLabels?.slice(0, size),
       ...withSuffix,
     } as Category;
   }

@@ -49,7 +49,7 @@ export function axisRank(category: Category, value: string): number {
  * `grid.displayAxis` when set; otherwise returns the first ordered category.
  * Throws if no ordered category exists.
  */
-export function displayAxisCategory(grid: Grid): Category {
+export function displayAxisCategory(grid: Grid): OrderedCategory {
   if (grid.displayAxis !== undefined) {
     return resolveAxis(grid, grid.displayAxis);
   }

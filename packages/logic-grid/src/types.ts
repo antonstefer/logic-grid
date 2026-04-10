@@ -55,6 +55,8 @@ type OrderednessFields =
       numericValues?: number[];
       /** Domain-specific phrasing for ordering constraints on this axis. Required on all ordered categories. */
       orderingPhrases: OrderingPhrases;
+      /** Optional display labels for UI (grid headers). When absent, `values` are used. Clue rendering always uses `values`. */
+      displayLabels?: string[];
     }
   | {
       ordered?: false;
@@ -88,6 +90,7 @@ export type OrderedCategory = CategoryCore & {
   ordered: true;
   numericValues?: number[];
   orderingPhrases: OrderingPhrases;
+  displayLabels?: string[];
 } & ValueSuffixFields;
 
 /** The puzzle board: `size` positions and one or more categories. */

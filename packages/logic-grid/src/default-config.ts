@@ -138,6 +138,7 @@ export function defaultHouseCategory(size: number): Category {
     valueSuffix: "house",
     ordered: true,
     values: ordinals.slice(0, size),
+    displayLabels: Array.from({ length: size }, (_, i) => String(i + 1)),
     orderingPhrases: {
       unit: ["house", "houses"],
       comparators: {
