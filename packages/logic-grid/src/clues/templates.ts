@@ -179,7 +179,9 @@ function renderText(constraint: Constraint, grid: Grid): string {
       return `${capitalize(la)} ${prefix} ${constraint.distance} from ${lb}.`;
     }
     case "at_position": {
-      // Render using the first ordered category's value at this position.
+      // Uses the first ordered category (identity-pinned), NOT displayAxis.
+      // at_position encodes row identity, which is tied to the identity-pinned
+      // axis. displayAxis is a presentation concern for column headers only.
       const axis = orderedCategories(grid)[0];
       if (!axis) throw new Error("Grid has no ordered category");
       const axisVal = axis.values[constraint.position];
