@@ -157,6 +157,8 @@ At least one category must have \`ordered: true\` so comparative constraints can
 - orderingPhrases.comparators: full-phrase overrides describing the ordering. Keys: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. Each is either a string (forward only) or a [forward, reverse] tuple. Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string.
 - For directional comparators (\`before\` and \`left_of\`), prefer the tuple form for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\`.
 
+**IMPORTANT — rank vs value phrasing:** \`next_to\` and \`left_of\` mean "adjacent in rank" (no other value between them), NOT "close in value" or "exactly 1 unit apart". With non-equidistant numericValues like [3, 5, 8, 12], rank-adjacent values have different gaps. NEVER use phrasing that implies specific value distances for these constraints: no "closest", "nearest", "adjacent to" (implies proximity), "within N units of", or "exactly one X before/after". Use rank-order phrasing instead: "right before or after", "right above or below", "the next higher/lower". Only \`exact_distance\` may claim specific value gaps (it uses numericValues to compute the actual difference).
+
 ## Examples
 
 ### Classic puzzle with a position-adjective category (Color)
@@ -179,7 +181,7 @@ For a "hedge fund" theme:
 {
   "categories": [
     { "name": "Manager", "values": ["Alice", "Bob", "Clara", "Dan"], "noun": "", "subjectPriority": 2 },
-    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return after", "has the next higher return after"], "next_to": "has an adjacent return to", "not_next_to": "does not have an adjacent return to", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
+    { "name": "YTD Return", "values": ["3%", "5%", "8%", "12%"], "noun": "fund", "subjectPriority": -1, "verb": ["has a return of", "does not have a return of"], "ordered": true, "numericValues": [3, 5, 8, 12], "orderingPhrases": { "unit": ["percentage point", "percentage points"], "comparators": { "before": ["has a lower return than", "has a higher return than"], "left_of": ["has the next lower return than", "has the next higher return than"], "next_to": "has the return right above or below", "not_next_to": "does not have the return right above or below", "between": "has a return between", "not_between": "does not have a return between", "exact_distance": "has a return exactly" } } },
     { "name": "Strategy", "values": ["Long/Short", "Macro", "Quant", "Event-Driven"], "noun": "strategist", "subjectPriority": 1, "verb": ["uses the", "does not use the"], "valueSuffix": "strategy" },
     { "name": "City", "values": ["New York", "London", "Tokyo", "Zurich"], "noun": "office", "subjectPriority": 1, "verb": ["is based in", "is not based in"] }
   ],
