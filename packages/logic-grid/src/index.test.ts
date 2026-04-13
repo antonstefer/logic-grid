@@ -5,9 +5,7 @@ import {
   hasUniqueSolution,
   classify,
   samePosition,
-  nextTo,
   leftOf,
-  atPosition,
 } from "./index";
 import { makeGrid } from "./test-helpers";
 
@@ -46,7 +44,7 @@ describe("public API integration", () => {
       ],
     });
     const constraints = [
-      atPosition("Red", 0),
+      samePosition("Red", "first"),
       samePosition("Red", "Cat"),
       leftOf("Blue", "Green", "House"),
     ];
@@ -63,13 +61,6 @@ describe("public API integration", () => {
       expect(clue.text.length).toBeGreaterThan(0);
       expect(clue.text.endsWith(".")).toBe(true);
     }
-  });
-
-  it("all constraint factories are exported", () => {
-    expect(typeof samePosition).toBe("function");
-    expect(typeof nextTo).toBe("function");
-    expect(typeof leftOf).toBe("function");
-    expect(typeof atPosition).toBe("function");
   });
 
   it("generate with custom noun/verb produces correct clues", () => {

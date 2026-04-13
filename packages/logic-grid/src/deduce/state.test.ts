@@ -52,9 +52,7 @@ describe("describeKnown", () => {
     const state = createState(grid);
     state.possible[1][0].clear();
     state.possible[1][0].add(0);
-    expect(describeKnown(state, "Alice")).toBe(
-      "Alice is in the first house",
-    );
+    expect(describeKnown(state, "Alice")).toBe("Alice is in the first house");
   });
 
   it("describes possible positions", () => {

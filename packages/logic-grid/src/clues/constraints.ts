@@ -59,13 +59,3 @@ export function exactDistance(
 ): Constraint {
   return { type: "exact_distance", a, b, distance, axis };
 }
-
-/** `value` is at the given 0-indexed row position. */
-export function atPosition(value: string, position: number): Constraint {
-  return { type: "at_position", value, position };
-}
-
-/** `value` is not at the given 0-indexed row position. */
-export function notAtPosition(value: string, position: number): Constraint {
-  return { type: "not_at_position", value, position };
-}

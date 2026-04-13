@@ -159,9 +159,7 @@ export type Constraint =
       b: string;
       distance: number;
       axis: string;
-    }
-  | { type: "at_position"; value: string; position: number }
-  | { type: "not_at_position"; value: string; position: number };
+    };
 
 /** Puzzle difficulty level, determined by constraint types and deduction depth. */
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
@@ -183,8 +181,6 @@ export interface Puzzle {
 
 /** The technique used in a deduction step. */
 export type DeductionTechnique =
-  | "direct"
-  | "elimination"
   | "same_position"
   | "not_same_position"
   | "next_to"

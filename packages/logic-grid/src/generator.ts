@@ -15,7 +15,12 @@ import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-import { isOrdered, orderedCategories, resolveAxis } from "./axis";
+import {
+  displayAxisCategory,
+  isOrdered,
+  orderedCategories,
+  resolveAxis,
+} from "./axis";
 import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
@@ -91,11 +96,7 @@ export function generate(options?: GenerateOptions): Puzzle {
     );
 
     // Build ONE incremental solver with activation literals for all constraints
-    const incSolver = buildIncrementalSolver(
-      solverCtx,
-      clauseCache,
-      alloc,
-    );
+    const incSolver = buildIncrementalSolver(solverCtx, clauseCache, alloc);
 
     const minimal = minimizeConstraints(
       filtered,
@@ -213,12 +214,11 @@ function sliceCategory(c: Category, size: number): Category {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  // Identity-assign the first ordered category so row = axis rank for it.
-  // This lets the positional fast-path encoder handle constraints on this axis
-  // cheaply. Other ordered axes use the rank-forbidding encoder.
-  const firstOrdered = grid.categories.findIndex((c) => c.ordered === true);
-  return grid.categories.map((cat, idx) => {
-    if (idx === firstOrdered) {
+  // The display axis is identity-pinned (value[i] at position i) to break
+  // the n!-fold position symmetry. All other categories are shuffled.
+  const dispAxis = displayAxisCategory(grid);
+  return grid.categories.map((cat) => {
+    if (cat === dispAxis) {
       const assignment: Assignment = {};
       for (let i = 0; i < cat.values.length; i++) {
         assignment[cat.values[i]] = i;
@@ -417,17 +417,26 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // --- Position constraints ---
-  // Skip values in the first ordered category — identity pinning makes their
-  // rows trivially determined by encodeBase's identity pinning.
-  const firstOrdered = orderedCats[0];
-  const firstOrderedValues = new Set(firstOrdered.values);
+  // --- Position constraints (via display axis) ---
+  // Express each value's position as same_position / not_same_position against
+  // the display axis values, so clues read naturally ("Alice lives in the
+  // first house" rather than "Alice is at position 0").
+  const dispAxis = displayAxisCategory(grid);
+  const dispValues = new Set(dispAxis.values);
   for (const [val, pos] of posOf) {
-    if (firstOrderedValues.has(val)) continue;
-    constraints.push({ type: "at_position", value: val, position: pos });
+    if (dispValues.has(val)) continue;
+    constraints.push({
+      type: "same_position",
+      a: val,
+      b: dispAxis.values[pos],
+    });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
-        constraints.push({ type: "not_at_position", value: val, position: p });
+        constraints.push({
+          type: "not_same_position",
+          a: val,
+          b: dispAxis.values[p],
+        });
       }
     }
   }

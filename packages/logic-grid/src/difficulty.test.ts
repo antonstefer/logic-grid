@@ -17,7 +17,7 @@ describe("classify by constraint types only", () => {
     const constraints: Constraint[] = [
       { type: "same_position", a: "Red", b: "Cat" },
       { type: "not_same_position", a: "Blue", b: "Dog" },
-      { type: "at_position", value: "Tea", position: 0 },
+      { type: "same_position", a: "Tea", b: "first" },
     ];
     expect(classify(constraints)).toBe("easy");
   });
@@ -94,10 +94,10 @@ describe("classify by constraint types only", () => {
 
 describe("classify with grid (deduction depth)", () => {
   it("returns easy when human elimination fully solves it", () => {
-    // Fully pinned: every value has an at_position or same_position chain from one
+    // Fully pinned: every value has a same_position chain from one
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 1 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "second" },
       { type: "same_position", a: "Red", b: "Cat" },
       { type: "same_position", a: "Blue", b: "Dog" },
       { type: "same_position", a: "Red", b: "Tea" },
@@ -107,11 +107,11 @@ describe("classify with grid (deduction depth)", () => {
   });
 
   it("uses not_same_position elimination in deduction depth", () => {
-    // Fully pinned via at_position + same_position + not_same_position elimination
+    // Fully pinned via same_position + not_same_position elimination
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 1 },
-      { type: "at_position", value: "Green", position: 2 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "second" },
+      { type: "same_position", a: "Green", b: "third" },
       { type: "same_position", a: "Red", b: "Cat" },
       { type: "same_position", a: "Blue", b: "Coffee" },
       { type: "same_position", a: "Red", b: "Tea" },

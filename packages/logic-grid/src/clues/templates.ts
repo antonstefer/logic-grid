@@ -1,5 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
-import { orderedCategories, resolveAxis } from "../axis";
+import { resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -181,35 +181,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
       }
       return `${capitalize(la)} ${prefix} ${constraint.distance} from ${lb}.`;
-    }
-    case "at_position": {
-      // Uses the first ordered category (identity-pinned), NOT displayAxis.
-      // at_position encodes row identity, which is tied to the identity-pinned
-      // axis. displayAxis is a presentation concern for column headers only.
-      const axis = orderedCategories(grid)[0];
-      if (!axis) throw new Error("Grid has no ordered category");
-      const axisVal = axis.values[constraint.position];
-      const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective) {
-        const v = cat.lowercase
-          ? constraint.value.toLowerCase()
-          : constraint.value;
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${v}.`;
-      }
-      return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
-    }
-    case "not_at_position": {
-      const axis = orderedCategories(grid)[0];
-      if (!axis) throw new Error("Grid has no ordered category");
-      const axisVal = axis.values[constraint.position];
-      const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective) {
-        const v = cat.lowercase
-          ? constraint.value.toLowerCase()
-          : constraint.value;
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${v}.`;
-      }
-      return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
   }
 }

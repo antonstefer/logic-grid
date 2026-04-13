@@ -14,8 +14,6 @@ export {
   notBetween,
   before,
   exactDistance,
-  atPosition,
-  notAtPosition,
 } from "./clues/constraints";
 
 export { renderClue } from "./clues/templates";

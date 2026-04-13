@@ -104,8 +104,8 @@ export function createState(grid: Grid): DeduceState {
       valueInfo.set(grid.categories[ci].values[vi], [ci, vi]);
     }
   }
-  // Identity-pin the first ordered category to match randomSolution and
-  // encodeBase behavior.
+  // Pin the display axis to match encodeBase and randomSolution: value[k]
+  // is fixed at position k to break the n!-fold position symmetry.
   const firstOrderedIdx = grid.categories.findIndex((c) => c.ordered === true);
   if (firstOrderedIdx < 0) throw new Error("Grid has no ordered category");
   const pinCat = grid.categories[firstOrderedIdx];

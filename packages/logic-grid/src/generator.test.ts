@@ -87,12 +87,6 @@ describe("generate", () => {
           expect(rm).toBeLessThan(hi);
           break;
         }
-        case "at_position":
-          expect(posOf.get(c.value)).toBe(c.position);
-          break;
-        case "not_at_position":
-          expect(posOf.get(c.value)).not.toBe(c.position);
-          break;
         case "before": {
           const ra = rankOf(c.a, puzzle.grid, c.axis);
           const rb = rankOf(c.b, puzzle.grid, c.axis);
@@ -216,23 +210,19 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it("prefers relational clues over at_position", () => {
+  it("prefers relational clues over same_position with display axis", () => {
     const puzzle = generate({ size: 4, categories: 4, seed: 42 });
     const types: Record<string, number> = {};
     for (const c of puzzle.constraints) {
       types[c.type] = (types[c.type] || 0) + 1;
     }
-    const atPos = types["at_position"] ?? 0;
     const relational =
-      (types["same_position"] ?? 0) +
       (types["next_to"] ?? 0) +
       (types["left_of"] ?? 0) +
       (types["between"] ?? 0);
 
-    // Relational clues should outnumber at_position
-    expect(relational).toBeGreaterThan(atPos);
-    // at_position should be a minority (less than half of total)
-    expect(atPos).toBeLessThan(puzzle.constraints.length / 2);
+    // Relational clues should be present
+    expect(relational).toBeGreaterThan(0);
   });
 
   it("respects difficulty easy", () => {
@@ -244,12 +234,7 @@ describe("generate", () => {
     });
     expect(puzzle.difficulty).toBe("easy");
     for (const c of puzzle.constraints) {
-      expect([
-        "same_position",
-        "not_same_position",
-        "at_position",
-        "not_at_position",
-      ]).toContain(c.type);
+      expect(["same_position", "not_same_position"]).toContain(c.type);
     }
   });
 
@@ -265,8 +250,6 @@ describe("generate", () => {
       expect([
         "same_position",
         "not_same_position",
-        "at_position",
-        "not_at_position",
         "next_to",
         "left_of",
         "before",

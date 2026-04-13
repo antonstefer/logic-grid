@@ -15,7 +15,7 @@ const SAMPLE_CLUES: Clue[] = [
     text: "The cat lives next to the red house.",
   },
   {
-    constraint: { type: "at_position", value: "Bob", position: 0 },
+    constraint: { type: "same_position", a: "Bob", b: "first" },
     text: "Bob lives in the first house.",
   },
 ];
@@ -101,7 +101,7 @@ describe("rewriteClues", () => {
 
     expect(capturedPrompt).toContain('"type":"same_position"');
     expect(capturedPrompt).toContain('"type":"next_to"');
-    expect(capturedPrompt).toContain('"type":"at_position"');
+    expect(capturedPrompt).toContain('"type":"same_position"');
   });
 
   it("retries on validation failure", async () => {

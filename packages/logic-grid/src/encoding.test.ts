@@ -127,30 +127,6 @@ describe("encodeConstraint", () => {
     }
   });
 
-  it("at_position pins a value", () => {
-    const ctx = createContext(grid3x3);
-    const clauses = encodePuzzle(ctx, [
-      { type: "at_position", value: "Red", position: 1 },
-    ]);
-    const solutions = solveAllSAT(clauses, 100);
-    for (const sol of solutions) {
-      const decoded = decodeSolution(ctx, sol);
-      expect(decoded["Red"]).toBe(1);
-    }
-  });
-
-  it("not_at_position excludes a value from a position", () => {
-    const ctx = createContext(grid3x3);
-    const clauses = encodePuzzle(ctx, [
-      { type: "not_at_position", value: "Red", position: 0 },
-    ]);
-    const solutions = solveAllSAT(clauses, 100);
-    for (const sol of solutions) {
-      const decoded = decodeSolution(ctx, sol);
-      expect(decoded["Red"]).not.toBe(0);
-    }
-  });
-
   it("next_to forces adjacency", () => {
     const ctx = createContext(grid3x3);
     const clauses = encodePuzzle(ctx, [
@@ -309,9 +285,9 @@ describe("encodeConstraint", () => {
     // Pin everything for a 3x3
     const ctx = createContext(grid3x3);
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 1 },
-      { type: "at_position", value: "Green", position: 2 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "second" },
+      { type: "same_position", a: "Green", b: "third" },
       { type: "same_position", a: "Red", b: "Cat" },
       { type: "same_position", a: "Blue", b: "Dog" },
       { type: "same_position", a: "Red", b: "Tea" },
