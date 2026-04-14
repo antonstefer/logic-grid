@@ -12,7 +12,6 @@ import {
   getAssigned,
   first,
   step,
-  dedup,
   collectAssigns,
   describeResult,
   clueRef,
@@ -71,17 +70,16 @@ function tryBinaryRankSpace(
     ...projectRanksToPositions(state, a, axis, badRanksA),
     ...projectRanksToPositions(state, b, axis, badRanksB),
   ];
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (elims.length === 0) return null;
+  for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
+  const assigns = collectAssigns(state, elims);
   return step(
     technique,
     [ci],
-    uniqueElims,
+    elims,
     assigns,
-    `${clueRef(ci)}${description} ${describeResult(state.terms, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${description} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
@@ -337,18 +335,17 @@ function tryBetweenRankSpace(
     ...projectRanksToPositions(state, c.outer1, axis, badO1),
     ...projectRanksToPositions(state, c.outer2, axis, badO2),
   ];
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (elims.length === 0) return null;
+  for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
+  const assigns = collectAssigns(state, elims);
   const verb = isNotBetween ? "is not between" : "is between";
   return step(
     technique,
     [ci],
-    uniqueElims,
+    elims,
     assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.terms, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
@@ -362,7 +359,7 @@ function tryExactDistance(
   const unit = axis.orderingPhrases.unit;
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? axis.noun || "position" : (axis.noun || "position") + "s"}`;
+    : `${c.distance} ${c.distance === 1 ? state.terms.noun : state.terms.noun + "s"}`;
   return tryBinaryRankSpace(
     state,
     c.a,

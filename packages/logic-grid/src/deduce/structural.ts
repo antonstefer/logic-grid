@@ -5,7 +5,6 @@ import {
   first,
   getPossible,
   step,
-  dedup,
   collectAssigns,
 } from "./state";
 
@@ -227,18 +226,18 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
             elims.push({ value: cat.values[vi2], position: p });
         }
 
-        const uniqueElims = dedup(elims);
-        if (uniqueElims.length === 0) continue;
 
-        for (const e of uniqueElims)
+        if (elims.length === 0) continue;
+
+        for (const e of elims)
           getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
-        const assigns = collectAssigns(state, uniqueElims);
+        const assigns = collectAssigns(state, elims);
         const { noun, posLabel } = state.terms;
         return step(
           "hidden_pair",
           [],
-          uniqueElims,
+          elims,
           assigns,
           `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${noun}s, so they must be restricted to those ${noun}s.`,
         );
@@ -277,18 +276,18 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             if (p !== p1 && p !== p2 && p !== p3)
               elims.push({ value: cat.values[vi3], position: p });
 
-          const uniqueElims = dedup(elims);
-          if (uniqueElims.length === 0) continue;
+  
+          if (elims.length === 0) continue;
 
-          for (const e of uniqueElims)
+          for (const e of elims)
             getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
-          const assigns = collectAssigns(state, uniqueElims);
+          const assigns = collectAssigns(state, elims);
           const { noun, posLabel } = state.terms;
           return step(
             "hidden_triple",
             [],
-            uniqueElims,
+            elims,
             assigns,
             `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${noun}s, so they must be restricted to those ${noun}s.`,
           );

@@ -125,6 +125,16 @@ describe("IncrementalSolver", () => {
     expect(solver.isUniqueUnder([-1])).toBe(false);
   });
 
+  it("init returns false for contradictory unit clauses", () => {
+    const solver = new IncrementalSolver([[1], [-1]]);
+    expect(solver.init()).toBe(false);
+  });
+
+  it("init succeeds with duplicate unit clauses", () => {
+    const solver = new IncrementalSolver([[1], [1], [2, -2]]);
+    expect(solver.init()).toBe(true);
+  });
+
   it("skips assumption when variable already has same value", () => {
     // x1 must be true (unit clause forces it). Exactly one of x2,x3 is true.
     const solver = new IncrementalSolver([[1], [2, 3], [-2, -3]]);

@@ -4,7 +4,6 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { ordinal } from "../grid-utils";
 
 // --- Display utilities ---
 
@@ -16,10 +15,11 @@ export interface AxisTerms {
 
 /** Compute axis terms for the grid's display axis. */
 function computeAxisTerms(grid: Grid): AxisTerms {
-  const axis = grid.categories.find((c) => c.ordered === true);
+  // createState throws if no ordered category exists, so axis is always defined here.
+  const axis = grid.categories.find((c) => c.ordered === true)!;
   return {
-    noun: axis?.noun || "position",
-    posLabel: (p) => axis?.values[p] ?? ordinal(p),
+    noun: axis.noun || "position",
+    posLabel: (p) => axis.values[p],
   };
 }
 
@@ -169,18 +169,6 @@ export function first(set: Set<number>): number {
 }
 
 // --- Helpers ---
-
-export function dedup(
-  elims: { value: string; position: number }[],
-): { value: string; position: number }[] {
-  const seen = new Set<string>();
-  return elims.filter((e) => {
-    const key = `${e.value}:${e.position}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
 
 export function collectAssigns(
   state: DeduceState,

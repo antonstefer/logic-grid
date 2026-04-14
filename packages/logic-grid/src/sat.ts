@@ -184,10 +184,10 @@ class SATBase {
         const lit = this.litBuf[this.clauseOff[ci]];
         const v = lit > 0 ? lit : -lit;
         const val = lit > 0 ? TRUE : FALSE;
-        if (this.values[v] === UNDEF) {
+        if (this.values[v] !== UNDEF) {
+          if (this.values[v] !== val) return false;
+        } else {
           this.assign(v, val);
-        } else if (this.values[v] !== val) {
-          return false;
         }
       }
     }

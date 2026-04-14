@@ -48,6 +48,37 @@ describe("createState invariant", () => {
   });
 });
 
+describe("axisTerms fallback", () => {
+  it("uses 'position' when ordered category has no noun", () => {
+    const noNounGrid = {
+      size: 2,
+      categories: [
+        {
+          name: "Idx",
+          values: ["A", "B"],
+          ordered: true as const,
+          verb: ["is", "is not"] as [string, string],
+          orderingPhrases: {
+            comparators: {
+              before: ["is before", "is after"] as [string, string],
+              left_of: ["is left of", "is right of"] as [string, string],
+              next_to: "is next to",
+              not_next_to: "is not next to",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        { name: "X", values: ["x1", "x2"] },
+      ],
+    };
+    const state = createState(noNounGrid);
+    expect(state.terms.noun).toBe("position");
+    expect(state.terms.posLabel(0)).toBe("A");
+  });
+});
+
 describe("describeKnown", () => {
   // makeGrid auto-prepends a House category; Name is now categories[1].
   it("describes assigned value", () => {
