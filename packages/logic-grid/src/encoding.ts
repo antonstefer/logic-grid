@@ -1,6 +1,11 @@
 import type { Category, Constraint, Grid } from "./types";
 import { resolveAxis } from "./axis";
 
+/** True when `axis` is pinned (rank = position) by encodeBase for symmetry breaking. */
+function isPinnedAxis(grid: Grid, axis: Category): boolean {
+  return grid.categories.find((c) => c.ordered === true) === axis;
+}
+
 /**
  * Comparative constraint types for binary rank relations (a, b).
  * `between` and `not_between` are ternary and handled separately.
@@ -70,11 +75,17 @@ function encodeBinaryAxis(
   badPairs: [number, number][],
 ): number[][] {
   const clauses: number[][] = [];
-  for (const [i, j] of badPairs) {
-    clauses.push([
-      -alloc.rankVar(ctx, axis, a, i),
-      -alloc.rankVar(ctx, axis, b, j),
-    ]);
+  if (isPinnedAxis(ctx.grid, axis)) {
+    // Pinned axis: rank = position, use position vars directly.
+    for (const [i, j] of badPairs)
+      clauses.push([-variable(ctx, a, i), -variable(ctx, b, j)]);
+  } else {
+    for (const [i, j] of badPairs) {
+      clauses.push([
+        -alloc.rankVar(ctx, axis, a, i),
+        -alloc.rankVar(ctx, axis, b, j),
+      ]);
+    }
   }
   return clauses;
 }
@@ -96,6 +107,10 @@ function encodeBetweenAxis(
   forbidStrictlyBetween: boolean,
 ): number[][] {
   const M = axis.values.length;
+  const pinned = isPinnedAxis(ctx.grid, axis);
+  const v = pinned
+    ? (val: string, rank: number) => variable(ctx, val, rank)
+    : (val: string, rank: number) => alloc.rankVar(ctx, axis, val, rank);
   const clauses: number[][] = [];
   for (let i = 0; i < M; i++) {
     for (let j = 0; j < M; j++) {
@@ -107,11 +122,7 @@ function encodeBetweenAxis(
           ? strictlyBetween
           : !strictlyBetween;
         if (!violates) continue;
-        clauses.push([
-          -alloc.rankVar(ctx, axis, outer1, i),
-          -alloc.rankVar(ctx, axis, outer2, j),
-          -alloc.rankVar(ctx, axis, middle, k),
-        ]);
+        clauses.push([-v(outer1, i), -v(outer2, j), -v(middle, k)]);
       }
     }
   }
