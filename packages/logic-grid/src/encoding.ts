@@ -291,7 +291,7 @@ export function encodeBase(ctx: EncodingContext): number[][] {
   // Pin the display axis to break the n!-fold position symmetry. Without
   // this, every puzzle would have n! equivalent solutions (one per
   // permutation of abstract position slots). This is the only axis that
-  // gets identity-pinned; all others use the general rank-var encoder.
+  // gets pinned; all others use the general rank-var encoder.
   const dispAxis = grid.categories.find((c) => c.ordered === true);
   if (!dispAxis) throw new Error("Grid has no ordered category");
   for (let i = 0; i < dispAxis.values.length; i++) {

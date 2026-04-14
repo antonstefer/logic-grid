@@ -214,8 +214,8 @@ function sliceCategory(c: Category, size: number): Category {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  // The display axis is identity-pinned (value[i] at position i) to break
-  // the n!-fold position symmetry. All other categories are shuffled.
+  // The display axis is pinned (value[i] at position i) to break the
+  // n!-fold position symmetry. All other categories are shuffled.
   const dispAxis = displayAxisCategory(grid);
   return grid.categories.map((cat) => {
     if (cat === dispAxis) {
@@ -252,7 +252,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       catArr.push(ci);
     }
   }
-  // Map from value name → its row position. Used for the at_position block.
+  // Map from value name → its row position. Used for position constraints.
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 

@@ -23,7 +23,7 @@ import {
 
 /**
  * Generic rank-space deduction for binary comparative constraints on a
- * non-identity-pinned axis. Computes the rank domain of both values,
+ * non-pinned axis. Computes the rank domain of both values,
  * applies the predicate `isValid(rankA, rankB)` to decide which ranks
  * to eliminate, then projects back to position eliminations.
  */
@@ -290,7 +290,7 @@ function tryNotBetween(
 }
 
 /**
- * Rank-space deduction for between / not_between on non-identity-pinned axes.
+ * Rank-space deduction for between / not_between.
  */
 function tryBetweenRankSpace(
   state: DeduceState,

@@ -56,7 +56,7 @@ interface CategoryCore {
  * `ordered: true` implies:
  * - `values` array defines the canonical total order (rank = array index).
  * - The category may be referenced as `axis` on any comparative constraint.
- * - `verb` is required (used for at_position rendering).
+ * - `verb` is required (used for same-position clue rendering).
  * - `numericValues` and `orderingPhrases` become legal.
  * - The category participates in multi-axis generation, deduction, rendering.
  */
