@@ -26,12 +26,12 @@ function isPinnedAxis(state: DeduceState, axis: Category): boolean {
 }
 
 /**
- * Generic rank-space deduction for binary comparative constraints.
+ * Generic deduction for binary comparative constraints.
  * When the axis is pinned, rank = position so we work directly with
  * possible sets (O(|ps|) per value). For non-pinned axes, computes
  * rank domains and projects back through the axis assignment.
  */
-function tryBinaryRankSpace(
+function tryBinaryAxis(
   state: DeduceState,
   a: string,
   b: string,
@@ -216,7 +216,7 @@ function tryNextTo(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBinaryRankSpace(
+  return tryBinaryAxis(
     state,
     c.a,
     c.b,
@@ -234,7 +234,7 @@ function tryNotNextTo(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBinaryRankSpace(
+  return tryBinaryAxis(
     state,
     c.a,
     c.b,
@@ -252,7 +252,7 @@ function tryLeftOf(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBinaryRankSpace(
+  return tryBinaryAxis(
     state,
     c.a,
     c.b,
@@ -270,7 +270,7 @@ function tryBefore(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBinaryRankSpace(
+  return tryBinaryAxis(
     state,
     c.a,
     c.b,
@@ -288,7 +288,7 @@ function tryBetween(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBetweenRankSpace(state, c, axis, ci, false);
+  return tryBetweenAxis(state, c, axis, ci, false);
 }
 
 function tryNotBetween(
@@ -297,13 +297,13 @@ function tryNotBetween(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  return tryBetweenRankSpace(state, c, axis, ci, true);
+  return tryBetweenAxis(state, c, axis, ci, true);
 }
 
 /**
- * Rank-space deduction for between / not_between.
+ * Generic deduction for between / not_between (pinned or non-pinned axis).
  */
-function tryBetweenRankSpace(
+function tryBetweenAxis(
   state: DeduceState,
   c: { outer1: string; middle: string; outer2: string; axis: string },
   axis: Category,
@@ -389,7 +389,7 @@ function tryExactDistance(
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
     : `${c.distance} ${c.distance === 1 ? state.terms.noun : state.terms.noun + "s"}`;
-  return tryBinaryRankSpace(
+  return tryBinaryAxis(
     state,
     c.a,
     c.b,

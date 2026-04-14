@@ -53,7 +53,7 @@ function buildSchema(size: number, categories: number): JSONSchema {
         minItems: 2,
         maxItems: 2,
         description:
-          'Optional [positive, negative] verb pair for at_position inversion. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Inverts at_position to "{posLabel} {verb} {value}" → "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix, lowercase: true, and subjectPriority -1.',
+          'Optional [positive, negative] verb pair that inverts same-position rendering when paired with a display-axis value. Set this ONLY when the category\'s values are adjectives that describe the position noun directly (e.g. Color "Red" describes "house"). Flips same_position(Red, "first") from "... lives in the red house" to "The first house is red." Use ["is", "is not"] in most cases. Always pair with valueSuffix, lowercase: true, and subjectPriority -1.',
       },
       ordered: {
         type: "boolean",
@@ -140,7 +140,7 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 
 **IMPORTANT for ordered categories with numeric values:** The \`unit\` field in orderingPhrases is ONLY used for \`exact_distance\` clues ("exactly 25 years from"). It is NOT appended to values in other clue types. If your ordered category has bare numeric values like "500", "1000" that need a unit label in all clues, use \`valueSuffix\` (e.g. valueSuffix: "gold pieces"). If values are already self-explanatory like "2005" (a year) or "7am" (a time), no suffix is needed.
 
-**\`positionAdjective\`** — set ONLY when the position noun is naturally modified by an adjective category, like a HOUSE has a color ("the red house"). DO NOT use this for position nouns like "dock", "ship", "fund", "station", "slot", "year" — these aren't naturally characterized by an adjective from another category. Provides a [positive, negative] verb pair (usually ["is", "is not"]) for at_position inversion: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1. Use sparingly — when in doubt, don't.
+**\`positionAdjective\`** — set ONLY when the position noun is naturally modified by an adjective category, like a HOUSE has a color ("the red house"). DO NOT use this for position nouns like "dock", "ship", "fund", "station", "slot", "year" — these aren't naturally characterized by an adjective from another category. Provides a [positive, negative] verb pair (usually ["is", "is not"]) for inverting same-position rendering against a display-axis value: "The first house is red." MUST be paired with valueSuffix and subjectPriority -1. Use sparingly — when in doubt, don't.
 
 ## Ordered categories
 

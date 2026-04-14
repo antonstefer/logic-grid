@@ -101,7 +101,6 @@ describe("rewriteClues", () => {
 
     expect(capturedPrompt).toContain('"type":"same_position"');
     expect(capturedPrompt).toContain('"type":"next_to"');
-    expect(capturedPrompt).toContain('"type":"same_position"');
   });
 
   it("retries on validation failure", async () => {
