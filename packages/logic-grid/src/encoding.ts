@@ -166,8 +166,8 @@ export function createContext(grid: Grid): EncodingContext {
 export class RankVarAllocator {
   /** Next available variable ID, starting above position variables. */
   private nextVar: number;
-  /** Cache: "axisName:value" → base var index for that value's rank vars. */
-  private readonly cache = new Map<string, number>();
+  /** Cache: axis → value → base var index for that value's rank vars on that axis. */
+  private readonly cache = new Map<Category, Map<string, number>>();
   /** Accumulated channeling clauses (forward + AMO + ALO). */
   readonly channeling: number[][] = [];
 
@@ -175,7 +175,13 @@ export class RankVarAllocator {
     this.nextVar = ctx.numValues * ctx.numPositions + 1;
   }
 
-  /** High-water mark: the first variable ID NOT used by this allocator. */
+  /**
+   * High-water mark: the first variable ID NOT used by this allocator.
+   * Callers that add their own variables (e.g. activation literals) MUST
+   * capture this AFTER all rank var allocations are complete. Allocating
+   * more rank vars after a caller has captured varCeiling will silently
+   * collide with the caller's variables.
+   */
   get varCeiling(): number {
     return this.nextVar;
   }
@@ -191,13 +197,17 @@ export class RankVarAllocator {
     value: string,
     rank: number,
   ): number {
-    const key = `${axis.name}:${value}`;
-    let base = this.cache.get(key);
+    let axisCache = this.cache.get(axis);
+    if (!axisCache) {
+      axisCache = new Map();
+      this.cache.set(axis, axisCache);
+    }
+    let base = axisCache.get(value);
     if (base === undefined) {
       base = this.nextVar;
       const M = axis.values.length;
       this.nextVar += M;
-      this.cache.set(key, base);
+      axisCache.set(value, base);
       this.emitChanneling(ctx, axis, value, base, M);
     }
     return base + rank;

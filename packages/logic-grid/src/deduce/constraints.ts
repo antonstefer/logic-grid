@@ -25,6 +25,14 @@ function isPinnedAxis(state: DeduceState, axis: Category): boolean {
   return state.grid.categories.find((c) => c.ordered === true) === axis;
 }
 
+/** " on <AxisName>" suffix for multi-axis grids; empty string otherwise. */
+function axisSuffix(state: DeduceState, axis: Category): string {
+  const orderedCount = state.grid.categories.filter(
+    (c) => c.ordered === true,
+  ).length;
+  return orderedCount > 1 ? ` on ${axis.name}` : "";
+}
+
 /**
  * Generic deduction for binary comparative constraints.
  * When the axis is pinned, rank = position so we work directly with
@@ -165,7 +173,21 @@ function trySamePosition(
   }
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const { noun, posLabel } = state.terms;
+  const { noun, posLabel, isAxisValue } = state.terms;
+  // When one operand is a display-axis value, use the concise direct form:
+  // "Clue N: X must be in the <axisVal> <noun>." rather than the symmetric
+  // "X and axisVal are in the same <noun>" which reads as a tautology.
+  const axisSide = isAxisValue(c.a) ? c.a : isAxisValue(c.b) ? c.b : null;
+  if (axisSide !== null && assigns.length > 0) {
+    const other = axisSide === c.a ? c.b : c.a;
+    return step(
+      "same_position",
+      [ci],
+      elims,
+      assigns,
+      `${clueRef(ci)}${other} must be in the ${axisSide} ${noun}.`,
+    );
+  }
   let explanation: string;
   if (assigns.length > 0) {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}both are in the ${posLabel(assigns[0].position)} ${noun}.`;
@@ -201,11 +223,25 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const { noun, posLabel } = state.terms;
+  const { noun, posLabel, isAxisValue } = state.terms;
   const assignSuffix =
     assigns.length > 0
       ? ` ${assigns.map((a) => `${a.value} must be in the ${posLabel(a.position)} ${noun}`).join("; ")}.`
       : "";
+  // When one operand is a display-axis value, use the concise direct form:
+  // "Clue N: X is not in the <axisVal> <noun>." The pinned-is-here reason is
+  // tautological for axis values.
+  const axisSide = isAxisValue(c.a) ? c.a : isAxisValue(c.b) ? c.b : null;
+  if (axisSide !== null) {
+    const nonAxis = axisSide === c.a ? c.b : c.a;
+    return step(
+      "not_same_position",
+      [ci],
+      elims,
+      assigns,
+      `${clueRef(ci)}${nonAxis} is not in the ${axisSide} ${noun}.${assignSuffix}`,
+    );
+  }
   return step(
     "not_same_position",
     [ci],
@@ -229,7 +265,7 @@ function tryNextTo(
     ci,
     "next_to",
     (ra, rb) => Math.abs(ra - rb) === 1,
-    `${c.a} is adjacent to ${c.b} on ${axis.name}.`,
+    `${c.a} is next to ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -247,7 +283,7 @@ function tryNotNextTo(
     ci,
     "not_next_to",
     (ra, rb) => Math.abs(ra - rb) !== 1,
-    `${c.a} is not adjacent to ${c.b} on ${axis.name}.`,
+    `${c.a} is not next to ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -265,7 +301,7 @@ function tryLeftOf(
     ci,
     "left_of",
     (ra, rb) => rb === ra + 1,
-    `${c.a} is directly before ${c.b} on ${axis.name}.`,
+    `${c.a} is directly left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -283,7 +319,7 @@ function tryBefore(
     ci,
     "before",
     (ra, rb) => ra < rb,
-    `${c.a} is before ${c.b} on ${axis.name}.`,
+    `${c.a} is somewhere left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -387,7 +423,7 @@ function tryBetweenAxis(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}.${because} ${describeResult(state.terms, assigns, elims)}.`,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2}${axisSuffix(state, axis)}.${because} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 

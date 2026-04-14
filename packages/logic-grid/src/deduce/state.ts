@@ -11,15 +11,19 @@ import type {
 export interface AxisTerms {
   noun: string;
   posLabel: (p: number) => string;
+  /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
+  isAxisValue: (value: string) => boolean;
 }
 
 /** Compute axis terms for the grid's display axis. */
 function computeAxisTerms(grid: Grid): AxisTerms {
   // createState throws if no ordered category exists, so axis is always defined here.
   const axis = grid.categories.find((c) => c.ordered === true)!;
+  const axisValues = new Set(axis.values);
   return {
     noun: axis.noun || "position",
     posLabel: (p) => axis.values[p],
+    isAxisValue: (value) => axisValues.has(value),
   };
 }
 
@@ -56,7 +60,12 @@ export function clueRef(ci: number): string {
 export function describeKnown(state: DeduceState, value: string): string {
   const { noun, posLabel } = state.terms;
   const pos = getAssigned(state, value);
-  if (pos !== null) return `${value} is in the ${posLabel(pos)} ${noun}`;
+  if (pos !== null) {
+    // Display-axis values are pinned to their own index — "first is in the
+    // first house" is tautological and shadows more informative operands.
+    if (posLabel(pos) === value) return "";
+    return `${value} is in the ${posLabel(pos)} ${noun}`;
+  }
   const possible = getPossible(state, value);
   if (possible.size <= 3 && possible.size < state.n) {
     const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
@@ -81,6 +90,7 @@ export interface DeduceState {
 /**
  * Sentinel returned by try* functions in silent mode (state was mutated, no step details).
  * Only used as a truthy non-null return value — callers check `!== null`, never inspect fields.
+ * The `technique` value here is an arbitrary placeholder; nothing reads it.
  */
 export const SILENT_STEP: DeductionStep = Object.freeze({
   technique: "same_position",
