@@ -20,11 +20,16 @@ import {
   projectRanksToPositions,
 } from "./state";
 
+/** True when `axis` is the pinned display axis (rank = position). */
+function isPinnedAxis(state: DeduceState, axis: Category): boolean {
+  return state.grid.categories.find((c) => c.ordered === true) === axis;
+}
+
 /**
- * Generic rank-space deduction for binary comparative constraints on a
- * non-pinned axis. Computes the rank domain of both values,
- * applies the predicate `isValid(rankA, rankB)` to decide which ranks
- * to eliminate, then projects back to position eliminations.
+ * Generic rank-space deduction for binary comparative constraints.
+ * When the axis is pinned, rank = position so we work directly with
+ * possible sets (O(|ps|) per value). For non-pinned axes, computes
+ * rank domains and projects back through the axis assignment.
  */
 function tryBinaryRankSpace(
   state: DeduceState,
@@ -36,40 +41,42 @@ function tryBinaryRankSpace(
   isValid: (rankA: number, rankB: number) => boolean,
   description: string,
 ): DeductionStep | null {
-  const rankA = axisRankDomain(state, a, axis);
-  const rankB = axisRankDomain(state, b, axis);
-  if (rankA.size === 0 || rankB.size === 0) return null;
+  const pinned = isPinnedAxis(state, axis);
+  const pa = pinned ? getPossible(state, a) : axisRankDomain(state, a, axis);
+  const pb = pinned ? getPossible(state, b) : axisRankDomain(state, b, axis);
+  if (pa.size === 0 || pb.size === 0) return null;
 
-  // Find ranks to eliminate: a rank is bad for value X if no rank of Y satisfies the predicate.
-  const badRanksA = new Set<number>();
-  for (const ra of rankA) {
-    let hasValidB = false;
-    for (const rb of rankB) {
-      if (isValid(ra, rb)) {
-        hasValidB = true;
-        break;
-      }
+  // Find ranks to eliminate: bad for X if no Y satisfies the predicate.
+  const badA = new Set<number>();
+  const badB = new Set<number>();
+  for (const ra of pa) {
+    let ok = false;
+    for (const rb of pb) {
+      if (isValid(ra, rb)) { ok = true; break; }
     }
-    if (!hasValidB) badRanksA.add(ra);
+    if (!ok) badA.add(ra);
   }
-  const badRanksB = new Set<number>();
-  for (const rb of rankB) {
-    let hasValidA = false;
-    for (const ra of rankA) {
-      if (isValid(ra, rb)) {
-        hasValidA = true;
-        break;
-      }
+  for (const rb of pb) {
+    let ok = false;
+    for (const ra of pa) {
+      if (isValid(ra, rb)) { ok = true; break; }
     }
-    if (!hasValidA) badRanksB.add(rb);
+    if (!ok) badB.add(rb);
+  }
+  if (badA.size === 0 && badB.size === 0) return null;
+
+  // Project to position eliminations: pinned axis = direct, otherwise via axis.
+  const elims: { value: string; position: number }[] = [];
+  if (pinned) {
+    for (const r of badA) elims.push({ value: a, position: r });
+    for (const r of badB) elims.push({ value: b, position: r });
+  } else {
+    elims.push(
+      ...projectRanksToPositions(state, a, axis, badA),
+      ...projectRanksToPositions(state, b, axis, badB),
+    );
   }
 
-  if (badRanksA.size === 0 && badRanksB.size === 0) return null;
-
-  const elims = [
-    ...projectRanksToPositions(state, a, axis, badRanksA),
-    ...projectRanksToPositions(state, b, axis, badRanksB),
-  ];
   if (elims.length === 0) return null;
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
@@ -300,13 +307,19 @@ function tryBetweenRankSpace(
   const technique: DeductionTechnique = isNotBetween
     ? "not_between"
     : "between";
-  const rO1 = axisRankDomain(state, c.outer1, axis);
-  const rO2 = axisRankDomain(state, c.outer2, axis);
-  const rM = axisRankDomain(state, c.middle, axis);
+  const pinned = isPinnedAxis(state, axis);
+  const rO1 = pinned
+    ? getPossible(state, c.outer1)
+    : axisRankDomain(state, c.outer1, axis);
+  const rO2 = pinned
+    ? getPossible(state, c.outer2)
+    : axisRankDomain(state, c.outer2, axis);
+  const rM = pinned
+    ? getPossible(state, c.middle)
+    : axisRankDomain(state, c.middle, axis);
   if (rO1.size === 0 || rO2.size === 0 || rM.size === 0) return null;
 
-  // Single-pass: find which ranks are valid for each role by scanning all
-  // triples once instead of three separate O(|rO1|·|rO2|·|rM|) passes.
+  // Single-pass: find which ranks are valid for each role.
   const okO1 = new Set<number>();
   const okO2 = new Set<number>();
   const okM = new Set<number>();
@@ -324,17 +337,24 @@ function tryBetweenRankSpace(
       }
     }
   }
-  const badO1 = new Set([...rO1].filter((r) => !okO1.has(r)));
-  const badO2 = new Set([...rO2].filter((r) => !okO2.has(r)));
-  const badM = new Set([...rM].filter((r) => !okM.has(r)));
 
-  if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
-
-  const elims = [
-    ...projectRanksToPositions(state, c.middle, axis, badM),
-    ...projectRanksToPositions(state, c.outer1, axis, badO1),
-    ...projectRanksToPositions(state, c.outer2, axis, badO2),
-  ];
+  // Collect eliminations: for pinned axis, rank = position directly.
+  const elims: { value: string; position: number }[] = [];
+  if (pinned) {
+    for (const r of rM) if (!okM.has(r)) elims.push({ value: c.middle, position: r });
+    for (const r of rO1) if (!okO1.has(r)) elims.push({ value: c.outer1, position: r });
+    for (const r of rO2) if (!okO2.has(r)) elims.push({ value: c.outer2, position: r });
+  } else {
+    const badM = new Set([...rM].filter((r) => !okM.has(r)));
+    const badO1 = new Set([...rO1].filter((r) => !okO1.has(r)));
+    const badO2 = new Set([...rO2].filter((r) => !okO2.has(r)));
+    if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
+    elims.push(
+      ...projectRanksToPositions(state, c.middle, axis, badM),
+      ...projectRanksToPositions(state, c.outer1, axis, badO1),
+      ...projectRanksToPositions(state, c.outer2, axis, badO2),
+    );
+  }
   if (elims.length === 0) return null;
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
