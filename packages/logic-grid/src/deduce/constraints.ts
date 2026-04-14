@@ -52,14 +52,20 @@ function tryBinaryRankSpace(
   for (const ra of pa) {
     let ok = false;
     for (const rb of pb) {
-      if (isValid(ra, rb)) { ok = true; break; }
+      if (isValid(ra, rb)) {
+        ok = true;
+        break;
+      }
     }
     if (!ok) badA.add(ra);
   }
   for (const rb of pb) {
     let ok = false;
     for (const ra of pa) {
-      if (isValid(ra, rb)) { ok = true; break; }
+      if (isValid(ra, rb)) {
+        ok = true;
+        break;
+      }
     }
     if (!ok) badB.add(rb);
   }
@@ -341,9 +347,12 @@ function tryBetweenRankSpace(
   // Collect eliminations: for pinned axis, rank = position directly.
   const elims: { value: string; position: number }[] = [];
   if (pinned) {
-    for (const r of rM) if (!okM.has(r)) elims.push({ value: c.middle, position: r });
-    for (const r of rO1) if (!okO1.has(r)) elims.push({ value: c.outer1, position: r });
-    for (const r of rO2) if (!okO2.has(r)) elims.push({ value: c.outer2, position: r });
+    for (const r of rM)
+      if (!okM.has(r)) elims.push({ value: c.middle, position: r });
+    for (const r of rO1)
+      if (!okO1.has(r)) elims.push({ value: c.outer1, position: r });
+    for (const r of rO2)
+      if (!okO2.has(r)) elims.push({ value: c.outer2, position: r });
   } else {
     const badM = new Set([...rM].filter((r) => !okM.has(r)));
     const badO1 = new Set([...rO1].filter((r) => !okO1.has(r)));

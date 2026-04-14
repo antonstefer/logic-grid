@@ -226,11 +226,9 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
             elims.push({ value: cat.values[vi2], position: p });
         }
 
-
         if (elims.length === 0) continue;
 
-        for (const e of elims)
-          getPossible(state, e.value).delete(e.position);
+        for (const e of elims) getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, elims);
         const { noun, posLabel } = state.terms;
@@ -276,11 +274,9 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             if (p !== p1 && p !== p2 && p !== p3)
               elims.push({ value: cat.values[vi3], position: p });
 
-  
           if (elims.length === 0) continue;
 
-          for (const e of elims)
-            getPossible(state, e.value).delete(e.position);
+          for (const e of elims) getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, elims);
           const { noun, posLabel } = state.terms;
