@@ -58,7 +58,7 @@ export function describeKnown(state: DeduceState, value: string): string {
   const pos = getAssigned(state, value);
   if (pos !== null) return `${value} is in the ${posLabel(pos)} ${noun}`;
   const possible = getPossible(state, value);
-  if (possible.size <= 3) {
+  if (possible.size <= 3 && possible.size < state.n) {
     const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
     return `${value} can only be in the ${posStr} ${noun}`;
   }

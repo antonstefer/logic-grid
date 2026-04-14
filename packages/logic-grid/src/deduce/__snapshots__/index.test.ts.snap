@@ -2,12 +2,12 @@
 
 exports[`deduce > snapshots explanation strings 1`] = `
 [
-  "Clue 1: Red and first are in the same house. Red can only be in the first or second or third house, so both are in the first house.",
+  "Clue 1: Red and first are in the same house. first is in the first house, so both are in the first house.",
   "Clue 2: Red and Cat are in the same house. Red is in the first house, so both are in the first house.",
-  "Clue 3: Blue is directly before Green on House. Blue can only be in the first or second or third house, so Blue can't be in the third house; Green can't be in the first house.",
+  "Clue 3: Blue is directly before Green on House. Blue can't be in the third house; Green can't be in the first house.",
   "Clue 4: Blue and Dog are in the same house. Blue can only be in the first or second house, so Dog can't be in the third house.",
   "Clue 5: Dog and Coffee are in the same house. Dog can only be in the first or second house, so Coffee can't be in the third house.",
-  "Clue 6: Tea and first are in the same house. Tea can only be in the first or second or third house, so both are in the first house.",
+  "Clue 6: Tea and first are in the same house. first is in the first house, so both are in the first house.",
   "Red has no other possible house — it must be in the first house. So no other Color can be there.",
   "Clue 3: Blue is directly before Green on House. Blue is in the second house, so Green must be in the third house.",
   "Clue 4: Blue and Dog are in the same house. Blue is in the second house, so both are in the second house.",
