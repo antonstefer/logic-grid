@@ -40,21 +40,6 @@ describe("buildNudgeText", () => {
     expect(text).toBe("Try looking at Clue 5 \u2014 where must Dog go?");
   });
 
-  it("direct technique uses placement phrasing", () => {
-    const text = buildNudgeText(
-      makeStep({
-        technique: "direct",
-        clueIndices: [0],
-        assignments: [{ value: "Red", position: 2 }],
-        eliminations: [
-          { value: "Red", position: 0 },
-          { value: "Red", position: 1 },
-        ],
-      }),
-    );
-    expect(text).toBe("Try looking at Clue 1 \u2014 where must Red go?");
-  });
-
   it("structural technique uses plain statement", () => {
     const text = buildNudgeText(
       makeStep({
@@ -107,7 +92,7 @@ describe("buildNudgeText", () => {
   it("joins multiple clue indices with 'and'", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "elimination",
+        technique: "same_position",
         clueIndices: [0, 3],
         eliminations: [{ value: "Tea", position: 1 }],
       }),
@@ -150,8 +135,6 @@ describe("buildNudgeText", () => {
 
   it("TECHNIQUE_HINTS covers all techniques", () => {
     const techniques = [
-      "direct",
-      "elimination",
       "same_position",
       "not_same_position",
       "next_to",

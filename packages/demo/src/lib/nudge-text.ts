@@ -3,8 +3,6 @@ import type { DeductionStep, DeductionTechnique } from "logic-grid";
 // Clue-based techniques use question templates with {target} replaced by the
 // value being deduced. Structural techniques are plain statements (no target).
 export const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
-  direct: "where must {target} go?",
-  elimination: "can you cross off a position for {target}?",
   same_position: "what positions can you rule out for {target}?",
   not_same_position: "what positions can you rule out for {target}?",
   next_to: "where can {target} go?",
