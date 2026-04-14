@@ -1,5 +1,5 @@
 import type { Constraint, DeductionStep } from "../types";
-import { type DeduceState, first, step, cloneState, axisTerms } from "./state";
+import { type DeduceState, first, step, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
 /**
@@ -31,7 +31,7 @@ export function tryContradiction(
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
           const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
-          const { noun, posLabel } = axisTerms(state.grid);
+          const { noun, posLabel } = state.terms;
           const assignSuffix =
             assigns.length > 0
               ? ` So ${value} must be in the ${posLabel(assigns[0].position)} ${noun}.`

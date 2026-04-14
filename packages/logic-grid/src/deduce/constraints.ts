@@ -17,7 +17,6 @@ import {
   describeResult,
   clueRef,
   describeKnown,
-  axisTerms,
   axisRankDomain,
   projectRanksToPositions,
 } from "./state";
@@ -82,7 +81,7 @@ function tryBinaryRankSpace(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${description} ${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${description} ${describeResult(state.terms, assigns, uniqueElims)}.`,
   );
 }
 
@@ -150,12 +149,12 @@ function trySamePosition(
   const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const { noun, posLabel } = axisTerms(state.grid);
+  const { noun, posLabel } = state.terms;
   let explanation: string;
   if (assigns.length > 0) {
     explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}both are in the ${posLabel(assigns[0].position)} ${noun}.`;
   } else {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}${describeResult(state.terms, assigns, elims)}.`;
   }
   return step("same_position", [ci], elims, assigns, explanation);
 }
@@ -186,7 +185,7 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const { noun, posLabel } = axisTerms(state.grid);
+  const { noun, posLabel } = state.terms;
   const assignSuffix =
     assigns.length > 0
       ? ` ${assigns.map((a) => `${a.value} must be in the ${posLabel(a.position)} ${noun}`).join("; ")}.`
@@ -308,62 +307,28 @@ function tryBetweenRankSpace(
   const rM = axisRankDomain(state, c.middle, axis);
   if (rO1.size === 0 || rO2.size === 0 || rM.size === 0) return null;
 
-  // For `between`: middle rank must be strictly between the two outers.
-  // Eliminate middle ranks where no valid outer pair exists on both sides.
-  // For `not_between`: middle rank must NOT be strictly between.
-  const badM = new Set<number>();
-  for (const rm of rM) {
-    let ok = false;
-    for (const r1 of rO1) {
-      for (const r2 of rO2) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
-        const isBetween = r1 !== r2 && rm > lo && rm < hi;
-        if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
-        }
-      }
-      if (ok) break;
-    }
-    if (!ok) badM.add(rm);
-  }
-
-  // Similarly eliminate outer ranks that can't participate in any valid triple.
-  const badO1 = new Set<number>();
+  // Single-pass: find which ranks are valid for each role by scanning all
+  // triples once instead of three separate O(|rO1|·|rO2|·|rM|) passes.
+  const okO1 = new Set<number>();
+  const okO2 = new Set<number>();
+  const okM = new Set<number>();
   for (const r1 of rO1) {
-    let ok = false;
     for (const r2 of rO2) {
+      const lo = Math.min(r1, r2);
+      const hi = Math.max(r1, r2);
       for (const rm of rM) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
         const isBetween = r1 !== r2 && rm > lo && rm < hi;
         if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
+          okO1.add(r1);
+          okO2.add(r2);
+          okM.add(rm);
         }
       }
-      if (ok) break;
     }
-    if (!ok) badO1.add(r1);
   }
-  const badO2 = new Set<number>();
-  for (const r2 of rO2) {
-    let ok = false;
-    for (const r1 of rO1) {
-      for (const rm of rM) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
-        const isBetween = r1 !== r2 && rm > lo && rm < hi;
-        if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
-        }
-      }
-      if (ok) break;
-    }
-    if (!ok) badO2.add(r2);
-  }
+  const badO1 = new Set([...rO1].filter((r) => !okO1.has(r)));
+  const badO2 = new Set([...rO2].filter((r) => !okO2.has(r)));
+  const badM = new Set([...rM].filter((r) => !okM.has(r)));
 
   if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
 
@@ -383,7 +348,7 @@ function tryBetweenRankSpace(
     [ci],
     uniqueElims,
     assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.terms, assigns, uniqueElims)}.`,
   );
 }
 

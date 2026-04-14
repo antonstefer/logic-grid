@@ -63,7 +63,7 @@ interface CategoryCore {
 type OrderednessFields =
   | {
       ordered: true;
-      /** Verb phrases for same-position / at_position clues: `[positive, negative]`. Required on ordered categories. */
+      /** Verb phrases for same-position clues: `[positive, negative]`. Required on ordered categories. */
       verb: [string, string];
       /** Per-rank numeric values for non-equidistant `exact_distance`. Must match `values` length and be ascending. */
       numericValues?: number[];

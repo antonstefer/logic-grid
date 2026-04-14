@@ -7,7 +7,6 @@ import {
   step,
   dedup,
   collectAssigns,
-  axisTerms,
 } from "./state";
 
 // --- Structural deductions ---
@@ -38,7 +37,7 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       if (elims.length === 0) continue;
       if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
-      const { noun, posLabel } = axisTerms(state.grid);
+      const { noun, posLabel } = state.terms;
       return step(
         "naked_single",
         [],
@@ -73,7 +72,7 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
       state.possible[ci][lastVi].clear();
       state.possible[ci][lastVi].add(p);
       if (state.silent) return SILENT_STEP;
-      const { noun, posLabel } = axisTerms(state.grid);
+      const { noun, posLabel } = state.terms;
       return step(
         "hidden_single",
         [],
@@ -132,7 +131,7 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
-        const { noun, posLabel } = axisTerms(state.grid);
+        const { noun, posLabel } = state.terms;
         const positions = [...ps1].map((p) => posLabel(p)).join(" and ");
         return step(
           "naked_pair",
@@ -184,7 +183,7 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
-          const { noun, posLabel } = axisTerms(state.grid);
+          const { noun, posLabel } = state.terms;
           const positions = [...union].map((p) => posLabel(p)).join(", ");
           return step(
             "naked_triple",
@@ -235,7 +234,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
           getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, uniqueElims);
-        const { noun, posLabel } = axisTerms(state.grid);
+        const { noun, posLabel } = state.terms;
         return step(
           "hidden_pair",
           [],
@@ -285,7 +284,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, uniqueElims);
-          const { noun, posLabel } = axisTerms(state.grid);
+          const { noun, posLabel } = state.terms;
           return step(
             "hidden_triple",
             [],

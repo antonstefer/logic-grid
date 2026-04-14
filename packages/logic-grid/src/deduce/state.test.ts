@@ -10,20 +10,22 @@ const grid = makeGrid({
   ],
 });
 
+const terms = createState(grid).terms;
+
 describe("describeResult", () => {
   it("describes assignments", () => {
-    const result = describeResult(grid, [{ value: "Alice", position: 0 }], []);
+    const result = describeResult(terms, [{ value: "Alice", position: 0 }], []);
     expect(result).toBe("Alice must be in the first house");
   });
 
   it("describes eliminations", () => {
-    const result = describeResult(grid, [], [{ value: "Bob", position: 1 }]);
+    const result = describeResult(terms, [], [{ value: "Bob", position: 1 }]);
     expect(result).toBe("Bob can't be in the second house");
   });
 
   it("combines assignments and eliminations", () => {
     const result = describeResult(
-      grid,
+      terms,
       [{ value: "Alice", position: 0 }],
       [{ value: "Bob", position: 2 }],
     );

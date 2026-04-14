@@ -305,7 +305,7 @@ export function encodeBase(ctx: EncodingContext): number[][] {
 export function encodeConstraint(
   ctx: EncodingContext,
   constraint: Constraint,
-  alloc?: RankVarAllocator,
+  alloc: RankVarAllocator,
 ): number[][] {
   const n = ctx.numPositions;
 
@@ -342,7 +342,7 @@ export function encodeConstraint(
       );
       return encodeBinaryAxis(
         ctx,
-        alloc!,
+        alloc,
         constraint.a,
         constraint.b,
         axis,
@@ -360,7 +360,7 @@ export function encodeConstraint(
       );
       return encodeBinaryAxis(
         ctx,
-        alloc!,
+        alloc,
         constraint.a,
         constraint.b,
         axis,
@@ -373,7 +373,7 @@ export function encodeConstraint(
       const axis = resolveAxis(ctx.grid, constraint.axis);
       return encodeBetweenAxis(
         ctx,
-        alloc!,
+        alloc,
         constraint.outer1,
         constraint.middle,
         constraint.outer2,

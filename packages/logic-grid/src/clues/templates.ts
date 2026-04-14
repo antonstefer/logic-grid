@@ -8,20 +8,23 @@ function findCategory(value: string, grid: Grid): Category {
   throw new Error(`Unknown value: ${value}`);
 }
 
+/** Lowercase a value if the category opts in. */
+function lc(value: string, cat: Category): string {
+  return cat.lowercase ? value.toLowerCase() : value;
+}
+
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
   if (!cat.noun) return value;
-  const v = cat.lowercase ? value.toLowerCase() : value;
-  return `the ${v} ${cat.noun}`;
+  return `the ${lc(value, cat)} ${cat.noun}`;
 }
 
 /** Value as it appears in the object position of a same_position clue. */
 function objectValue(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
-  const v = cat.lowercase ? value.toLowerCase() : value;
   const suffix = cat.valueSuffix;
-  return suffix ? `${v} ${suffix}` : v;
+  return suffix ? `${lc(value, cat)} ${suffix}` : lc(value, cat);
 }
 
 /** Look up a symmetric comparator (plain string). */
@@ -98,12 +101,10 @@ function renderSamePosition(
   // adjective verb. Recovers the classical Color+House idiom:
   // `same_position(Red, "1st")` → "The 1st house is red."
   if (catA.positionAdjective && catB.ordered === true) {
-    const v = catA.lowercase ? constraint.a.toLowerCase() : constraint.a;
-    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${v}.`;
+    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${lc(constraint.a, catA)}.`;
   }
   if (catB.positionAdjective && catA.ordered === true) {
-    const v = catB.lowercase ? constraint.b.toLowerCase() : constraint.b;
-    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${v}.`;
+    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${lc(constraint.b, catB)}.`;
   }
 
   const [subj, obj] = ordered(constraint.a, constraint.b, grid);

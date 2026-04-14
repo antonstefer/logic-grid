@@ -4,7 +4,6 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { orderedCategories } from "../axis";
 import { ordinal } from "../grid-utils";
 
 // --- Display utilities ---
@@ -15,13 +14,9 @@ export interface AxisTerms {
   posLabel: (p: number) => string;
 }
 
-/**
- * Get axis-aware terminology for explanations from the first ordered category
- * (identity-pinned axis). Returns noun (e.g. "house") and position label
- * function (e.g. p=0 → "first").
- */
-export function axisTerms(grid: Grid): AxisTerms {
-  const axis = orderedCategories(grid)[0];
+/** Compute axis terms for the grid's display axis. */
+function computeAxisTerms(grid: Grid): AxisTerms {
+  const axis = grid.categories.find((c) => c.ordered === true);
   return {
     noun: axis?.noun || "position",
     posLabel: (p) => axis?.values[p] ?? ordinal(p),
@@ -29,11 +24,11 @@ export function axisTerms(grid: Grid): AxisTerms {
 }
 
 export function describeResult(
-  grid: Grid,
+  terms: AxisTerms,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const { noun, posLabel } = axisTerms(grid);
+  const { noun, posLabel } = terms;
   const parts: string[] = [];
   for (const a of assigns) {
     parts.push(`${a.value} must be in the ${posLabel(a.position)} ${noun}`);
@@ -59,7 +54,7 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const { noun, posLabel } = axisTerms(state.grid);
+  const { noun, posLabel } = state.terms;
   const pos = getAssigned(state, value);
   if (pos !== null) return `${value} is in the ${posLabel(pos)} ${noun}`;
   const possible = getPossible(state, value);
@@ -77,6 +72,8 @@ export interface DeduceState {
   n: number;
   possible: Set<number>[][];
   valueInfo: Map<string, [number, number]>;
+  /** Cached axis-aware terminology for deduction explanations. */
+  terms: AxisTerms;
   /** When true, try* functions skip explanation building and return SILENT_STEP. */
   silent: boolean;
 }
@@ -86,7 +83,7 @@ export interface DeduceState {
  * Only used as a truthy non-null return value — callers check `!== null`, never inspect fields.
  */
 export const SILENT_STEP: DeductionStep = Object.freeze({
-  technique: "direct" as DeductionTechnique,
+  technique: "same_position" as DeductionTechnique,
   clueIndices: [],
   eliminations: [],
   assignments: [],
@@ -113,7 +110,14 @@ export function createState(grid: Grid): DeduceState {
     possible[firstOrderedIdx][vi].clear();
     possible[firstOrderedIdx][vi].add(vi);
   }
-  return { grid, n, possible, valueInfo, silent: false };
+  return {
+    grid,
+    n,
+    possible,
+    valueInfo,
+    terms: computeAxisTerms(grid),
+    silent: false,
+  };
 }
 
 export function getPossible(state: DeduceState, value: string): Set<number> {
@@ -142,6 +146,7 @@ export function cloneState(state: DeduceState): DeduceState {
     n: state.n,
     possible: state.possible.map((cat) => cat.map((ps) => new Set(ps))),
     valueInfo: state.valueInfo,
+    terms: state.terms,
     silent: state.silent,
   };
 }
