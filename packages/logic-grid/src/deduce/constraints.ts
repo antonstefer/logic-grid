@@ -84,6 +84,10 @@ function tryBinaryAxis(
   }
 
   if (elims.length === 0) return null;
+  // Capture "because" context from pre-elim state — describeKnown after the
+  // mutation would report this step's own conclusions as the reason.
+  const ctx = describeKnown(state, a) || describeKnown(state, b);
+  const because = ctx ? ` ${ctx}, so` : "";
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
@@ -92,7 +96,7 @@ function tryBinaryAxis(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${description} ${describeResult(state.terms, assigns, elims)}.`,
+    `${clueRef(ci)}${description}${because} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
@@ -140,6 +144,11 @@ function trySamePosition(
     if (!pa.has(p)) elims.push({ value: c.b, position: p });
   }
   if (elims.length === 0) return null;
+  // Capture "because" context from pre-intersection state — after we collapse
+  // pa/pb to their intersection describeKnown would report this step's result.
+  const knownA = describeKnown(state, c.a);
+  const knownB = describeKnown(state, c.b);
+  const ctx = knownA || knownB;
   const intersection = new Set([...pa].filter((p) => pb.has(p)));
   pa.clear();
   pb.clear();
@@ -154,10 +163,6 @@ function trySamePosition(
     assigns.push({ value: c.a, position: p });
     assigns.push({ value: c.b, position: p });
   }
-  // Build "because" context from whichever value is more constrained
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
   const { noun, posLabel } = state.terms;
@@ -365,6 +370,14 @@ function tryBetweenAxis(
     );
   }
   if (elims.length === 0) return null;
+  // Capture "because" context from pre-elim state. Between needs both anchors
+  // to explain the middle's placement, so join all non-empty descriptions.
+  const parts = [
+    describeKnown(state, c.outer1),
+    describeKnown(state, c.outer2),
+    describeKnown(state, c.middle),
+  ].filter((s) => s !== "");
+  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
@@ -374,7 +387,7 @@ function tryBetweenAxis(
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.terms, assigns, elims)}.`,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}.${because} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
