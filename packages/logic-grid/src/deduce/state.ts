@@ -83,7 +83,7 @@ export interface DeduceState {
  * Only used as a truthy non-null return value — callers check `!== null`, never inspect fields.
  */
 export const SILENT_STEP: DeductionStep = Object.freeze({
-  technique: "same_position" as DeductionTechnique,
+  technique: "same_position",
   clueIndices: [],
   eliminations: [],
   assignments: [],
