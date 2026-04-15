@@ -20,9 +20,17 @@ import {
   projectRanksToPositions,
 } from "./state";
 
-/** " on <AxisName>" suffix for multi-axis grids; empty string otherwise. */
+/**
+ * " on <AxisName>" suffix for multi-axis grids when the constraint targets
+ * a non-pinned axis (disambiguation needed). Single-axis grids and pinned-
+ * axis constraints in multi-axis grids omit the suffix — the pinned axis
+ * is implicit (it's the row anchor), so appending "on House" to every
+ * House-axis deduction is just noise.
+ */
 function axisSuffix(state: DeduceState, axis: Category): string {
-  return state.terms.multiAxis ? ` on ${axis.name}` : "";
+  if (!state.terms.multiAxis) return "";
+  if (isPinnedAxis(state.grid, axis)) return "";
+  return ` on ${axis.name}`;
 }
 
 /**
