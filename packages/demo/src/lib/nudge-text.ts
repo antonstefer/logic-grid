@@ -32,7 +32,7 @@ function joinValues(values: string[]): string {
 /** Generic fallback when the technique is unrecognized — shields against
  * persisted deduction traces referring to removed techniques like the
  * pre-refactor "direct" / "elimination". */
-const UNKNOWN_TECHNIQUE_HINT = "think about what this clue rules out";
+const UNKNOWN_TECHNIQUE_HINT = "what can you deduce about {target}?";
 
 export function buildNudgeText(step: DeductionStep): string {
   const hintTemplate: string =
