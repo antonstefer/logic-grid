@@ -27,10 +27,7 @@ function isPinnedAxis(state: DeduceState, axis: Category): boolean {
 
 /** " on <AxisName>" suffix for multi-axis grids; empty string otherwise. */
 function axisSuffix(state: DeduceState, axis: Category): string {
-  const orderedCount = state.grid.categories.filter(
-    (c) => c.ordered === true,
-  ).length;
-  return orderedCount > 1 ? ` on ${axis.name}` : "";
+  return state.terms.multiAxis ? ` on ${axis.name}` : "";
 }
 
 /**

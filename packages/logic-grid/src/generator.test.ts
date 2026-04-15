@@ -287,7 +287,14 @@ describe("generate", () => {
   });
 
   it("expert puzzles require contradiction", () => {
-    const puzzle = generate({ size: 4, categories: 4, difficulty: "expert" });
+    // Seed chosen so the first generation attempt produces a non-expert
+    // puzzle, forcing at least one difficulty-retry iteration.
+    const puzzle = generate({
+      size: 4,
+      categories: 4,
+      difficulty: "expert",
+      seed: 1,
+    });
     expect(puzzle.difficulty).toBe("expert");
     const result = deduce(puzzle.constraints, puzzle.grid);
     expect(result.complete).toBe(true);

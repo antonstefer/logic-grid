@@ -13,6 +13,9 @@ export interface AxisTerms {
   posLabel: (p: number) => string;
   /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
   isAxisValue: (value: string) => boolean;
+  /** True when the grid has more than one ordered category — used to decide
+   * whether comparative deductions include the " on <Axis>" disambiguator. */
+  multiAxis: boolean;
 }
 
 /** Compute axis terms for the grid's display axis. */
@@ -20,10 +23,12 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // createState throws if no ordered category exists, so axis is always defined here.
   const axis = grid.categories.find((c) => c.ordered === true)!;
   const axisValues = new Set(axis.values);
+  const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
   return {
     noun: axis.noun || "position",
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),
+    multiAxis: orderedCount > 1,
   };
 }
 
