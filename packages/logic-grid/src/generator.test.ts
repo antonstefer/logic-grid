@@ -366,6 +366,32 @@ describe("generate", () => {
     expect(puzzle.solution[1]["2022"]).toBe(2);
   });
 
+  it("throws when a value appears in two categories", () => {
+    // The SAT variable mapping is keyed by value name across all categories
+    // — a collision silently overwrites the earlier entry. validateCategories
+    // rejects duplicates up front.
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Carol"],
+            noun: "house",
+            verb: ["lives in the", "does not live in the"],
+          },
+          {
+            name: "Pet",
+            values: ["Cat", "Dog", "Fish"],
+            noun: "owner",
+            verb: ["owns the", "does not own the"],
+          },
+        ],
+      }),
+    ).toThrow('Duplicate value "Carol" in categories "Name" and "Color"');
+  });
+
   it("throws when custom categoryNames count is out of range", () => {
     expect(() =>
       generate({

@@ -194,19 +194,23 @@ export class RankVarAllocator {
   private readonly cache = new Map<Category, Map<string, number>>();
   /** Accumulated channeling clauses (forward + AMO + ALO). */
   readonly channeling: number[][] = [];
+  /** Once sealed, further rankVar calls throw to prevent silent collisions
+   * with variables (e.g. activation literals) allocated from varCeiling. */
+  private sealed = false;
 
   constructor(ctx: EncodingContext) {
-    this.nextVar = ctx.numValues * ctx.numPositions + 1;
+    this.nextVar = topPositionVar(ctx);
   }
 
   /**
    * High-water mark: the first variable ID NOT used by this allocator.
-   * Callers that add their own variables (e.g. activation literals) MUST
-   * capture this AFTER all rank var allocations are complete. Allocating
-   * more rank vars after a caller has captured varCeiling will silently
-   * collide with the caller's variables.
+   * Reading this seals the allocator — subsequent rankVar calls throw.
+   * Callers that add their own variables (e.g. activation literals) capture
+   * this AFTER all rank var allocations are complete; seal-on-read enforces
+   * the contract at runtime.
    */
   get varCeiling(): number {
+    this.sealed = true;
     return this.nextVar;
   }
 
@@ -214,6 +218,9 @@ export class RankVarAllocator {
    * Get or create the rank variable for (value, rank) on the given axis.
    * If this is the first request for this (axis, value) pair, allocates M
    * rank vars and emits channeling + AMO + ALO clauses.
+   *
+   * Throws if called after varCeiling has been read — the caller has already
+   * frozen the variable range downstream.
    */
   rankVar(
     ctx: EncodingContext,
@@ -228,6 +235,11 @@ export class RankVarAllocator {
     }
     let base = axisCache.get(value);
     if (base === undefined) {
+      if (this.sealed) {
+        throw new Error(
+          "RankVarAllocator: cannot allocate after varCeiling has been read",
+        );
+      }
       base = this.nextVar;
       const M = axis.values.length;
       this.nextVar += M;
@@ -277,6 +289,16 @@ export function variable(
   const vi = ctx.valueIndex.get(value);
   if (vi === undefined) throw new Error(`Unknown value: ${value}`);
   return vi * ctx.numPositions + position + 1;
+}
+
+/**
+ * First SAT variable ID NOT used by position variables — the boundary where
+ * auxiliary variables (rank vars, activation literals) can start. Keeps the
+ * layout assumption in one place so position-var packing changes don't
+ * desync with allocator base.
+ */
+export function topPositionVar(ctx: EncodingContext): number {
+  return ctx.numValues * ctx.numPositions + 1;
 }
 
 /** Base ALO/AMO clauses ensuring valid assignments. */

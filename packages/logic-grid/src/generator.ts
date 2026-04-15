@@ -32,6 +32,11 @@ const MAX_RETRIES = 100;
  */
 function validateCategories(categories: Category[]): void {
   const names = new Set<string>();
+  // Values must be globally unique — the SAT variable mapping in
+  // createContext is keyed by value name across all categories, so a
+  // collision silently overwrites the earlier entry. Also affects
+  // isAxisValue in deduce/state.ts which matches by name alone.
+  const valueSource = new Map<string, string>();
   for (const c of categories) {
     if (names.has(c.name)) {
       throw new RangeError(`Duplicate category name "${c.name}"`);
@@ -42,6 +47,16 @@ function validateCategories(categories: Category[]): void {
       throw new RangeError(
         `Category "${c.name}" requires a verb (only the person category may omit it)`,
       );
+    }
+
+    for (const v of c.values) {
+      const existing = valueSource.get(v);
+      if (existing !== undefined) {
+        throw new RangeError(
+          `Duplicate value "${v}" in categories "${existing}" and "${c.name}"`,
+        );
+      }
+      valueSource.set(v, c.name);
     }
 
     if (isOrdered(c)) {
