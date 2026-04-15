@@ -4,7 +4,7 @@ import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
 import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
-import type { Constraint } from "../types";
+import type { Constraint, Grid } from "../types";
 
 const grid = makeGrid({
   size: 4,
@@ -367,6 +367,57 @@ describe("deduce constraint types", () => {
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
     expect(step!.explanation).toContain("2 ranks");
+  });
+
+  it("exact_distance on non-pinned axis uses that axis's noun, not the pinned axis's", () => {
+    // Multi-axis grid: House (pinned, noun=house) + Rank (non-pinned,
+    // noun=rank, no unit). exact_distance on Rank should say "N ranks",
+    // not "N houses" (which would be the pinned axis's noun).
+    const multiGrid: Grid = {
+      size: 4,
+      categories: [
+        {
+          name: "House",
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          ordered: true,
+          values: ["first", "second", "third", "fourth"],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+      ],
+    };
+    // Pin Rank values to specific houses so rank-space deduction has enough
+    // information to eliminate. Alice at House 1 (Rank 0). Bob must be 2
+    // ranks away → Rank 2 → House 3 (by the Rank pinning below).
+    const constraints: Constraint[] = [
+      { type: "same_position", a: "Alice", b: "first" },
+      { type: "same_position", a: "A", b: "first" },
+      { type: "same_position", a: "B", b: "second" },
+      { type: "same_position", a: "C", b: "third" },
+      { type: "same_position", a: "D", b: "fourth" },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, multiGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 ranks");
+    expect(step!.explanation).not.toContain("2 houses");
   });
 
   it("exact_distance explanation uses singular noun when distance=1 and no unit", () => {

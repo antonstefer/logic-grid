@@ -176,14 +176,7 @@ class SATBase {
     return true;
   }
 
-  /**
-   * Process unit clauses and propagate. The UNDEF-first / non-UNDEF-second
-   * branching order (rather than the inverse `if (UNDEF) else if (mismatch)`)
-   * is a v8-coverage quirk — chained `else if` was reported as a single
-   * branch, hiding the mismatch-path when it wasn't exercised. Functionally
-   * identical; the two tests (`contradictory unit clauses`, `duplicate unit
-   * clauses`) lock the behavior in.
-   */
+  /** Process unit clauses and propagate. */
   protected processUnitClauses(): boolean {
     for (let ci = 0; ci < this.numClauses; ci++) {
       if (this.clauseLen[ci] === 0) return false;
@@ -191,10 +184,10 @@ class SATBase {
         const lit = this.litBuf[this.clauseOff[ci]];
         const v = lit > 0 ? lit : -lit;
         const val = lit > 0 ? TRUE : FALSE;
-        if (this.values[v] !== UNDEF) {
-          if (this.values[v] !== val) return false;
-        } else {
+        if (this.values[v] === UNDEF) {
           this.assign(v, val);
+        } else if (this.values[v] !== val) {
+          return false;
         }
       }
     }

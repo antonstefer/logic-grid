@@ -23,6 +23,10 @@ export interface AxisTerms {
 function computeAxisTerms(grid: Grid): AxisTerms {
   // createState throws if no ordered category exists, so axis is always defined here.
   const axis = pinnedAxis(grid)!;
+  // isAxisValue below matches by value name alone — correct because
+  // validateCategories enforces globally unique value names across all
+  // categories. If that invariant weakens, this lookup silently
+  // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
   const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
   return {

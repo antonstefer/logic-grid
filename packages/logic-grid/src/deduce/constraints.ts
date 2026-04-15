@@ -440,9 +440,18 @@ function tryExactDistance(
   const axis = resolveAxis(state.grid, c.axis);
   const numVals = axis.numericValues;
   const unit = axis.orderingPhrases.unit;
+  // Fall back to the target axis's own noun, not state.terms.noun —
+  // state.terms describes the pinned (row-anchor) axis, which may differ
+  // from the constraint's axis in multi-axis grids. For a Year-axis
+  // exact_distance on a House-pinned grid, we want "3 years" not "3 houses".
+  // The `|| "position"` branch is defensive — ordered categories practically
+  // always declare a noun; `validateCategories` requires `verb` but not
+  // `noun`, so this guards the empty-noun edge case.
+  /* v8 ignore next */
+  const axisNoun = axis.noun || "position";
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? state.terms.noun : state.terms.noun + "s"}`;
+    : `${c.distance} ${c.distance === 1 ? axisNoun : axisNoun + "s"}`;
   return tryBinaryAxis(
     state,
     c.a,
