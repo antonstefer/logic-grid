@@ -69,6 +69,10 @@ export function isPinnedAxis(grid: Grid, axis: Category): boolean {
  * Return the presentation display-anchor category for the grid. Reads
  * `grid.displayAxis` when set; otherwise returns the first ordered category.
  * Throws if no ordered category exists.
+ *
+ * For SAT/solver concerns (pinning, clause encoding, deduction state),
+ * use `pinnedAxis` instead — it always returns the first ordered category
+ * regardless of the user's display preference.
  */
 export function displayAxisCategory(grid: Grid): OrderedCategory {
   if (grid.displayAxis !== undefined) {
