@@ -149,8 +149,10 @@ function trySamePosition(
   if (elims.length === 0) return null;
   // Capture "because" context from pre-intersection state — after we collapse
   // pa/pb to their intersection describeKnown would report this step's result.
-  const knownParts = [describeKnown(state, c.a), describeKnown(state, c.b)]
-    .filter((s) => s !== "");
+  const knownParts = [
+    describeKnown(state, c.a),
+    describeKnown(state, c.b),
+  ].filter((s) => s !== "");
   const ctx = knownParts.join(" and ");
   const intersection = new Set([...pa].filter((p) => pb.has(p)));
   pa.clear();
