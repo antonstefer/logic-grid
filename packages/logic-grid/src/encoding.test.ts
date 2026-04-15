@@ -587,10 +587,7 @@ describe("RankVarAllocator", () => {
     const rAlice0 = alloc.rankVar(ctx, returnAxis, "Alice", 0);
     // Force Alice at position 0 and "5%" (rank 0 on Return) at position 0.
     // Forward channeling should force r(Alice, 0) = true.
-    const facts = [
-      [variable(ctx, "Alice", 0)],
-      [variable(ctx, "5%", 0)],
-    ];
+    const facts = [[variable(ctx, "Alice", 0)], [variable(ctx, "5%", 0)]];
     const base = encodeBase(ctx);
     const result = solveSAT([...base, ...alloc.channeling, ...facts]);
     expect(result.satisfiable).toBe(true);
