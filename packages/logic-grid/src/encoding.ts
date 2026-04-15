@@ -7,64 +7,58 @@ function isPinnedAxis(grid: Grid, axis: Category): boolean {
 }
 
 /**
- * Comparative constraint types for binary rank relations (a, b).
- * `between` and `not_between` are ternary and handled separately.
+ * Predicate `isValid(rank_a, rank_b)` for a binary comparative.
+ * exact_distance is not here because its predicate depends on `distance`
+ * and optional numericValues — handled inline at the dispatch site.
  */
-type BinaryComparativeType =
-  | "before"
-  | "left_of"
-  | "next_to"
-  | "not_next_to"
-  | "exact_distance";
-
-/**
- * Enumerate "bad" rank pairs for a binary comparative — the (rank_a, rank_b)
- * combinations that violate the constraint and must be forbidden.
- */
-function badBinaryRankPairs(
-  type: BinaryComparativeType,
-  M: number,
-  distance: number,
-  numericValues: number[] | undefined,
-): [number, number][] {
-  const bad: [number, number][] = [];
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < M; j++) {
-      let violates: boolean;
-      switch (type) {
-        case "before":
-          violates = i >= j;
-          break;
-        case "left_of":
-          violates = j !== i + 1;
-          break;
-        case "next_to":
-          violates = Math.abs(i - j) !== 1;
-          break;
-        case "not_next_to":
-          violates = Math.abs(i - j) === 1;
-          break;
-        case "exact_distance": {
-          const d = numericValues
-            ? Math.abs(numericValues[i] - numericValues[j])
-            : Math.abs(i - j);
-          violates = d !== distance;
-          break;
-        }
-      }
-      if (violates) bad.push([i, j]);
-    }
+function binaryPredicate(
+  type: "before" | "left_of" | "next_to" | "not_next_to",
+): (i: number, j: number) => boolean {
+  switch (type) {
+    case "before":
+      return (i, j) => i < j;
+    case "left_of":
+      return (i, j) => j === i + 1;
+    case "next_to":
+      return (i, j) => Math.abs(i - j) === 1;
+    case "not_next_to":
+      return (i, j) => Math.abs(i - j) !== 1;
   }
-  return bad;
 }
 
 /**
- * Rank-var encoder for binary comparative constraints. For each bad rank pair
- * (i, j), emits a 2-literal clause [-r(a,i), -r(b,j)]. Channeling clauses
- * link rank vars to position vars (emitted once per (axis, value) pair via
- * the RankVarAllocator).
+ * Resolve rank `k` on `axis` for `value` to a SAT variable:
+ * - Pinned axis: rank = position, return the position variable directly.
+ * - Non-pinned axis: return the rank auxiliary variable (allocator handles
+ *   channeling to position vars under the hood).
+ */
+function rankOrPos(
+  ctx: EncodingContext,
+  alloc: RankVarAllocator,
+  axis: Category,
+  value: string,
+  rank: number,
+): number {
+  return isPinnedAxis(ctx.grid, axis)
+    ? variable(ctx, value, rank)
+    : alloc.rankVar(ctx, axis, value, rank);
+}
+
+/**
+ * Encode a binary comparative constraint in implication form:
+ *   For each rank i of a: [¬a@i, b@j₁, b@j₂, ...] where jₖ are valid b ranks.
+ *   For each rank j of b: symmetric.
  *
- * Clause count per constraint: |bad pairs| × 1 + channeling.
+ * On a pinned axis `rankOrPos` returns position vars, so this collapses to
+ * the classic positional implication-chain form (e.g. for `next_to`:
+ * "if a at p then b at p-1 or p+1"). On a non-pinned axis it emits the
+ * same structure over rank vars, with channeling clauses added once per
+ * (axis, value) pair by the allocator.
+ *
+ * Implication form produces tight, propagation-friendly clauses when valid
+ * ranks per operand form a narrow set (next_to, left_of, exact_distance).
+ * For constraints where the valid set is wide (not_next_to), the clauses
+ * are longer but still O(M) per side — acceptable.
  */
 function encodeBinaryAxis(
   ctx: EncodingContext,
@@ -72,57 +66,92 @@ function encodeBinaryAxis(
   a: string,
   b: string,
   axis: Category,
-  badPairs: [number, number][],
+  isValid: (i: number, j: number) => boolean,
 ): number[][] {
+  const M = axis.values.length;
   const clauses: number[][] = [];
-  if (isPinnedAxis(ctx.grid, axis)) {
-    // Pinned axis: rank = position, use position vars directly.
-    for (const [i, j] of badPairs)
-      clauses.push([-variable(ctx, a, i), -variable(ctx, b, j)]);
-  } else {
-    for (const [i, j] of badPairs) {
-      clauses.push([
-        -alloc.rankVar(ctx, axis, a, i),
-        -alloc.rankVar(ctx, axis, b, j),
-      ]);
+  for (let i = 0; i < M; i++) {
+    const clause: number[] = [-rankOrPos(ctx, alloc, axis, a, i)];
+    for (let j = 0; j < M; j++) {
+      if (isValid(i, j)) clause.push(rankOrPos(ctx, alloc, axis, b, j));
     }
+    clauses.push(clause);
+  }
+  for (let j = 0; j < M; j++) {
+    const clause: number[] = [-rankOrPos(ctx, alloc, axis, b, j)];
+    for (let i = 0; i < M; i++) {
+      if (isValid(i, j)) clause.push(rankOrPos(ctx, alloc, axis, a, i));
+    }
+    clauses.push(clause);
   }
   return clauses;
 }
 
 /**
- * Rank-var encoder for ternary between/not_between. For each bad rank triple
- * (i, j, k), emits a 3-literal clause [-r(outer1,i), -r(outer2,j), -r(middle,k)].
+ * Encode `between` in implication form:
+ *   For each distinct rank pair (i, j) of the outers, emit
+ *   [¬outer1@i, ¬outer2@j, middle@k₁, ..., middle@kₘ] where kₘ are the
+ *   ranks strictly between lo=min(i,j) and hi=max(i,j).
  *
- * Complexity: O(M³) constraint clauses + O(V·M·n) channeling. At M=n=8
- * with 3 values: ~512 + ~192 + ~84 + 3 ≈ ~800 clauses instead of ~260k.
+ * On pinned axis this is the classic positional between form; on non-pinned
+ * the same structure over rank vars plus channeling.
  */
-function encodeBetweenAxis(
+function encodeBetween(
   ctx: EncodingContext,
   alloc: RankVarAllocator,
   outer1: string,
   middle: string,
   outer2: string,
   axis: Category,
-  forbidStrictlyBetween: boolean,
 ): number[][] {
   const M = axis.values.length;
-  const pinned = isPinnedAxis(ctx.grid, axis);
-  const v = pinned
-    ? (val: string, rank: number) => variable(ctx, val, rank)
-    : (val: string, rank: number) => alloc.rankVar(ctx, axis, val, rank);
   const clauses: number[][] = [];
   for (let i = 0; i < M; i++) {
     for (let j = 0; j < M; j++) {
-      for (let k = 0; k < M; k++) {
-        const lo = Math.min(i, j);
-        const hi = Math.max(i, j);
-        const strictlyBetween = i !== j && k > lo && k < hi;
-        const violates = forbidStrictlyBetween
-          ? strictlyBetween
-          : !strictlyBetween;
-        if (!violates) continue;
-        clauses.push([-v(outer1, i), -v(outer2, j), -v(middle, k)]);
+      if (i === j) continue;
+      const lo = Math.min(i, j);
+      const hi = Math.max(i, j);
+      const clause: number[] = [
+        -rankOrPos(ctx, alloc, axis, outer1, i),
+        -rankOrPos(ctx, alloc, axis, outer2, j),
+      ];
+      for (let k = lo + 1; k < hi; k++) {
+        clause.push(rankOrPos(ctx, alloc, axis, middle, k));
+      }
+      clauses.push(clause);
+    }
+  }
+  return clauses;
+}
+
+/**
+ * Encode `not_between` as bad-triples: for each middle rank k strictly
+ * between outer1 rank p1 and outer2 rank p2 (in either order), emit
+ * [¬middle@k, ¬outer1@p1, ¬outer2@p2].
+ */
+function encodeNotBetween(
+  ctx: EncodingContext,
+  alloc: RankVarAllocator,
+  outer1: string,
+  middle: string,
+  outer2: string,
+  axis: Category,
+): number[][] {
+  const M = axis.values.length;
+  const clauses: number[][] = [];
+  for (let k = 1; k < M - 1; k++) {
+    for (let p1 = 0; p1 < k; p1++) {
+      for (let p2 = k + 1; p2 < M; p2++) {
+        clauses.push([
+          -rankOrPos(ctx, alloc, axis, middle, k),
+          -rankOrPos(ctx, alloc, axis, outer1, p1),
+          -rankOrPos(ctx, alloc, axis, outer2, p2),
+        ]);
+        clauses.push([
+          -rankOrPos(ctx, alloc, axis, middle, k),
+          -rankOrPos(ctx, alloc, axis, outer1, p2),
+          -rankOrPos(ctx, alloc, axis, outer2, p1),
+        ]);
       }
     }
   }
@@ -344,52 +373,54 @@ export function encodeConstraint(
     case "left_of":
     case "before": {
       const axis = resolveAxis(ctx.grid, constraint.axis);
-      const bad = badBinaryRankPairs(
-        constraint.type,
-        axis.values.length,
-        0,
-        undefined,
-      );
+      const isValid = binaryPredicate(constraint.type);
       return encodeBinaryAxis(
         ctx,
         alloc,
         constraint.a,
         constraint.b,
         axis,
-        bad,
+        isValid,
       );
     }
 
     case "exact_distance": {
       const axis = resolveAxis(ctx.grid, constraint.axis);
-      const bad = badBinaryRankPairs(
-        "exact_distance",
-        axis.values.length,
-        constraint.distance,
-        axis.numericValues,
-      );
+      const numVals = axis.numericValues;
+      const d = constraint.distance;
+      const isValid = numVals
+        ? (i: number, j: number) => Math.abs(numVals[i] - numVals[j]) === d
+        : (i: number, j: number) => Math.abs(i - j) === d;
       return encodeBinaryAxis(
         ctx,
         alloc,
         constraint.a,
         constraint.b,
         axis,
-        bad,
+        isValid,
       );
     }
 
     case "between":
     case "not_between": {
       const axis = resolveAxis(ctx.grid, constraint.axis);
-      return encodeBetweenAxis(
-        ctx,
-        alloc,
-        constraint.outer1,
-        constraint.middle,
-        constraint.outer2,
-        axis,
-        constraint.type === "not_between",
-      );
+      return constraint.type === "between"
+        ? encodeBetween(
+            ctx,
+            alloc,
+            constraint.outer1,
+            constraint.middle,
+            constraint.outer2,
+            axis,
+          )
+        : encodeNotBetween(
+            ctx,
+            alloc,
+            constraint.outer1,
+            constraint.middle,
+            constraint.outer2,
+            axis,
+          );
     }
   }
 }

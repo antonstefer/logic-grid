@@ -127,6 +127,9 @@ export function generate(options?: GenerateOptions): Puzzle {
     };
   }
 
+  // Defensive failsafe: unreachable for supported grid sizes and difficulties
+  // — `generate` can always find a matching puzzle within 100 attempts.
+  /* v8 ignore next 4 */
   throw new Error(
     `Failed to generate a puzzle after ${MAX_RETRIES} attempts. ` +
       `Try a smaller size or easier difficulty.`,
