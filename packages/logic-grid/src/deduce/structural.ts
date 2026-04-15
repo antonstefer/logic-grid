@@ -1,12 +1,10 @@
 import type { DeductionStep } from "../types";
-import { ordinal } from "../grid-utils";
 import {
   type DeduceState,
   SILENT_STEP,
   first,
   getPossible,
   step,
-  dedup,
   collectAssigns,
 } from "./state";
 
@@ -38,12 +36,13 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       if (elims.length === 0) continue;
       if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
+      const { noun, posLabel } = state.terms;
       return step(
         "naked_single",
         [],
         elims,
         assigns,
-        `${cat.values[vi]} has no other possible position — it must be in the ${ordinal(pos)} position. So no other ${cat.name} can be there.`,
+        `${cat.values[vi]} has no other possible ${noun} — it must be in the ${posLabel(pos)} ${noun}. So no other ${cat.name} can be there.`,
       );
     }
   }
@@ -72,12 +71,13 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
       state.possible[ci][lastVi].clear();
       state.possible[ci][lastVi].add(p);
       if (state.silent) return SILENT_STEP;
+      const { noun, posLabel } = state.terms;
       return step(
         "hidden_single",
         [],
         elims,
         [{ value: val, position: p }],
-        `The ${ordinal(p)} position must be ${val} (only remaining ${cat.name}).`,
+        `The ${posLabel(p)} ${noun} must be ${val} (only remaining ${cat.name}).`,
       );
     }
   }
@@ -130,13 +130,14 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
-        const positions = [...ps1].map((p) => ordinal(p)).join(" and ");
+        const { noun, posLabel } = state.terms;
+        const positions = [...ps1].map((p) => posLabel(p)).join(" and ");
         return step(
           "naked_pair",
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} positions, so no other ${cat.name} can be there.`,
+          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
         );
       }
     }
@@ -181,13 +182,14 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
-          const positions = [...union].map((p) => ordinal(p)).join(", ");
+          const { noun, posLabel } = state.terms;
+          const positions = [...union].map((p) => posLabel(p)).join(", ");
           return step(
             "naked_triple",
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be in the ${positions} positions, so no other ${cat.name} can be there.`,
+            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
           );
         }
       }
@@ -224,19 +226,18 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
             elims.push({ value: cat.values[vi2], position: p });
         }
 
-        const uniqueElims = dedup(elims);
-        if (uniqueElims.length === 0) continue;
+        if (elims.length === 0) continue;
 
-        for (const e of uniqueElims)
-          getPossible(state, e.value).delete(e.position);
+        for (const e of elims) getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
-        const assigns = collectAssigns(state, uniqueElims);
+        const assigns = collectAssigns(state, elims);
+        const { noun, posLabel } = state.terms;
         return step(
           "hidden_pair",
           [],
-          uniqueElims,
+          elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${ordinal(p1)} and ${ordinal(p2)} positions, so they must be restricted to those positions.`,
+          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${noun}s, so they must be restricted to those ${noun}s.`,
         );
       }
     }
@@ -273,19 +274,18 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             if (p !== p1 && p !== p2 && p !== p3)
               elims.push({ value: cat.values[vi3], position: p });
 
-          const uniqueElims = dedup(elims);
-          if (uniqueElims.length === 0) continue;
+          if (elims.length === 0) continue;
 
-          for (const e of uniqueElims)
-            getPossible(state, e.value).delete(e.position);
+          for (const e of elims) getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
-          const assigns = collectAssigns(state, uniqueElims);
+          const assigns = collectAssigns(state, elims);
+          const { noun, posLabel } = state.terms;
           return step(
             "hidden_triple",
             [],
-            uniqueElims,
+            elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${ordinal(p1)}, ${ordinal(p2)}, and ${ordinal(p3)} positions, so they must be restricted to those positions.`,
+            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${noun}s, so they must be restricted to those ${noun}s.`,
           );
         }
       }

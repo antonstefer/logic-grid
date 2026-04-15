@@ -42,12 +42,12 @@ const grid3x3 = makeGrid({
 });
 
 const puzzle3x3: Constraint[] = [
-  { type: "at_position", value: "Red", position: 0 },
+  { type: "same_position", a: "Red", b: "first" },
   { type: "same_position", a: "Red", b: "Cat" },
   { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Blue", b: "Dog" },
   { type: "same_position", a: "Dog", b: "Coffee" },
-  { type: "at_position", value: "Tea", position: 0 },
+  { type: "same_position", a: "Tea", b: "first" },
 ];
 
 describe("deduce", () => {
@@ -74,7 +74,8 @@ describe("deduce", () => {
         assigned.set(a.value, a.position);
       }
     }
-    expect(assigned.size).toBe(9);
+    expect(assigned.size).toBe(10);
+    expect(assigned.get("first")).toBe(0);
     expect(assigned.get("Red")).toBe(0);
     expect(assigned.get("Cat")).toBe(0);
     expect(assigned.get("Blue")).toBe(1);
@@ -86,9 +87,9 @@ describe("deduce", () => {
     expect(assigned.get("Water")).toBe(2);
   });
 
-  it("first step uses at_position (direct assignment)", () => {
+  it("first step uses same_position (direct assignment)", () => {
     const result = deduce(puzzle3x3, grid3x3);
-    expect(result.steps[0].technique).toBe("direct");
+    expect(result.steps[0].technique).toBe("same_position");
     expect(result.steps[0].clueIndices).toContain(0);
   });
 

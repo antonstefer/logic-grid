@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { createContext, variable, encodeBase, encodePuzzle } from "./encoding";
+import {
+  createContext,
+  variable,
+  encodeBase,
+  encodePuzzle,
+  RankVarAllocator,
+  topPositionVar,
+} from "./encoding";
 import { solveSAT, solveAllSAT } from "./sat";
 import { makeGrid, TEST_COMPARATORS } from "./test-helpers";
 import type { Constraint, Grid } from "./types";
@@ -124,30 +131,6 @@ describe("encodeConstraint", () => {
     for (const sol of solutions) {
       const decoded = decodeSolution(ctx, sol);
       expect(decoded["Red"]).not.toBe(decoded["Cat"]);
-    }
-  });
-
-  it("at_position pins a value", () => {
-    const ctx = createContext(grid3x3);
-    const clauses = encodePuzzle(ctx, [
-      { type: "at_position", value: "Red", position: 1 },
-    ]);
-    const solutions = solveAllSAT(clauses, 100);
-    for (const sol of solutions) {
-      const decoded = decodeSolution(ctx, sol);
-      expect(decoded["Red"]).toBe(1);
-    }
-  });
-
-  it("not_at_position excludes a value from a position", () => {
-    const ctx = createContext(grid3x3);
-    const clauses = encodePuzzle(ctx, [
-      { type: "not_at_position", value: "Red", position: 0 },
-    ]);
-    const solutions = solveAllSAT(clauses, 100);
-    for (const sol of solutions) {
-      const decoded = decodeSolution(ctx, sol);
-      expect(decoded["Red"]).not.toBe(0);
     }
   });
 
@@ -309,9 +292,9 @@ describe("encodeConstraint", () => {
     // Pin everything for a 3x3
     const ctx = createContext(grid3x3);
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 1 },
-      { type: "at_position", value: "Green", position: 2 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "second" },
+      { type: "same_position", a: "Green", b: "third" },
       { type: "same_position", a: "Red", b: "Cat" },
       { type: "same_position", a: "Blue", b: "Dog" },
       { type: "same_position", a: "Red", b: "Tea" },
@@ -569,5 +552,135 @@ describe("encodeConstraint on non-pinned ordered axis", () => {
       const diff = Math.abs(numVals[rank("Alice")] - numVals[rank("Bob")]);
       expect(diff).toBe(7);
     }
+  });
+});
+
+describe("RankVarAllocator", () => {
+  // Two-ordered-axis grid so we can exercise a non-pinned axis.
+  const multiGrid = makeGrid({
+    size: 3,
+    categories: [
+      { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+      {
+        name: "Year",
+        values: ["2020", "2021", "2022"],
+        noun: "fund",
+        verb: ["was begun in", "was not begun in"],
+        ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
+      },
+      {
+        name: "Return",
+        values: ["5%", "6%", "7%"],
+        noun: "fund",
+        verb: ["has a return of", "does not have a return of"],
+        ordered: true,
+        orderingPhrases: { comparators: TEST_COMPARATORS },
+      },
+    ],
+  });
+  const returnAxis = multiGrid.categories.find((c) => c.name === "Return")!;
+
+  it("channels rank var true when position + axis value coexist", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    const rAlice0 = alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    // Force Alice at position 0 and "5%" (rank 0 on Return) at position 0.
+    // Forward channeling should force r(Alice, 0) = true.
+    const facts = [[variable(ctx, "Alice", 0)], [variable(ctx, "5%", 0)]];
+    const base = encodeBase(ctx);
+    const result = solveSAT([...base, ...alloc.channeling, ...facts]);
+    expect(result.satisfiable).toBe(true);
+    if (result.satisfiable) expect(result.assignment.get(rAlice0)).toBe(true);
+  });
+
+  it("AMO: at most one rank var per value", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    const rAlice0 = alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    const rAlice1 = alloc.rankVar(ctx, returnAxis, "Alice", 1);
+    // Assert both rank vars true together — base + channeling should reject.
+    const base = encodeBase(ctx);
+    const result = solveSAT([
+      ...base,
+      ...alloc.channeling,
+      [rAlice0],
+      [rAlice1],
+    ]);
+    expect(result.satisfiable).toBe(false);
+  });
+
+  it("ALO: at least one rank var per value", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    const rAlice0 = alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    const rAlice1 = alloc.rankVar(ctx, returnAxis, "Alice", 1);
+    const rAlice2 = alloc.rankVar(ctx, returnAxis, "Alice", 2);
+    // Force all three rank vars false — should conflict with ALO.
+    const base = encodeBase(ctx);
+    const result = solveSAT([
+      ...base,
+      ...alloc.channeling,
+      [-rAlice0],
+      [-rAlice1],
+      [-rAlice2],
+    ]);
+    expect(result.satisfiable).toBe(false);
+  });
+
+  it("caches rank vars per (axis, value) — no duplicate channeling", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    const afterFirst = alloc.channeling.length;
+    alloc.rankVar(ctx, returnAxis, "Alice", 1);
+    alloc.rankVar(ctx, returnAxis, "Alice", 2);
+    expect(alloc.channeling.length).toBe(afterFirst);
+  });
+
+  it("allocates fresh channeling for each distinct (axis, value) pair", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    const afterAlice = alloc.channeling.length;
+    alloc.rankVar(ctx, returnAxis, "Bob", 0);
+    expect(alloc.channeling.length).toBeGreaterThan(afterAlice);
+  });
+
+  it("varCeiling starts above position variables", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    expect(alloc.varCeiling).toBe(topPositionVar(ctx));
+  });
+
+  it("varCeiling advances after allocation", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    const before = alloc.varCeiling;
+    // Re-seal doesn't happen if no new vars allocated (sealed flag set but
+    // cache hits don't throw). Make a fresh allocator to check growth.
+    const alloc2 = new RankVarAllocator(ctx);
+    alloc2.rankVar(ctx, returnAxis, "Alice", 0);
+    // 3 rank vars allocated for one (axis, value) pair (M=3).
+    expect(alloc2.varCeiling).toBe(before + 3);
+  });
+
+  it("throws if rankVar is called after varCeiling is read", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    alloc.rankVar(ctx, returnAxis, "Alice", 0); // OK
+    void alloc.varCeiling; // seal
+    expect(() => alloc.rankVar(ctx, returnAxis, "Bob", 0)).toThrow(
+      "cannot allocate after varCeiling",
+    );
+  });
+
+  it("sealed allocator still returns cached vars", () => {
+    const ctx = createContext(multiGrid);
+    const alloc = new RankVarAllocator(ctx);
+    const r = alloc.rankVar(ctx, returnAxis, "Alice", 0);
+    void alloc.varCeiling; // seal
+    // Cache hit — must not throw, must return same var.
+    expect(alloc.rankVar(ctx, returnAxis, "Alice", 0)).toBe(r);
   });
 });

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderClue } from "./templates";
 import { makeGrid } from "../test-helpers";
-import type { Grid } from "../types";
 
 const grid = makeGrid({
   size: 3,
@@ -18,6 +17,7 @@ const grid = makeGrid({
       noun: "house",
       verb: ["lives in the", "does not live in the"],
       subjectPriority: -1,
+      lowercase: true,
       valueSuffix: "house",
       positionAdjective: ["is", "is not"],
     },
@@ -27,6 +27,7 @@ const grid = makeGrid({
       noun: "owner",
       verb: ["owns the", "does not own the"],
       subjectPriority: 1,
+      lowercase: true,
     },
     {
       name: "Drink",
@@ -34,6 +35,7 @@ const grid = makeGrid({
       noun: "drinker",
       verb: ["drinks", "does not drink"],
       subjectPriority: 1,
+      lowercase: true,
     },
   ],
 });
@@ -105,32 +107,6 @@ describe("renderClue — classic same_position paths", () => {
     expect(() =>
       renderClue({ type: "same_position", a: "Unknown", b: "Cat" }, grid),
     ).toThrow("Unknown value: Unknown");
-  });
-});
-
-describe("at_position / not_at_position", () => {
-  it("at_position renders via position label from first ordered category", () => {
-    const clue = renderClue(
-      { type: "at_position", value: "Alice", position: 0 },
-      grid,
-    );
-    expect(clue.text).toBe("Alice lives in the first house.");
-  });
-
-  it("not_at_position uses positionAdjective for Color+House", () => {
-    const clue = renderClue(
-      { type: "not_at_position", value: "Red", position: 2 },
-      grid,
-    );
-    expect(clue.text).toBe("The third house is not red.");
-  });
-
-  it("at_position uses positionAdjective for Color+House", () => {
-    const clue = renderClue(
-      { type: "at_position", value: "Red", position: 1 },
-      grid,
-    );
-    expect(clue.text).toBe("The second house is red.");
   });
 });
 
@@ -293,7 +269,7 @@ describe("custom category noun/verb", () => {
       { type: "same_position", a: "Alice", b: "Toyota" },
       customGrid,
     );
-    expect(clue.text).toBe("Alice drives the toyota.");
+    expect(clue.text).toBe("Alice drives the Toyota.");
   });
 
   it("throws when object category has no verb", () => {
@@ -574,32 +550,4 @@ describe("per-axis orderingPhrases in rendering", () => {
     // Year has no unit → bare number.
     expect(clue.text).toContain("2 from");
   });
-});
-
-describe("at_position / not_at_position invariants", () => {
-  const bareGrid: Grid = {
-    size: 3,
-    categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" }],
-  };
-
-  it("at_position throws when grid has no ordered category", () => {
-    expect(() =>
-      renderClue(
-        { type: "at_position", value: "Alice", position: 0 },
-        bareGrid,
-      ),
-    ).toThrow("no ordered category");
-  });
-
-  it("not_at_position throws when grid has no ordered category", () => {
-    expect(() =>
-      renderClue(
-        { type: "not_at_position", value: "Alice", position: 0 },
-        bareGrid,
-      ),
-    ).toThrow("no ordered category");
-  });
-
-  // "ordered category has no verb" is now a compile-time error:
-  // the OrderednessFields union requires verb on ordered: true.
 });

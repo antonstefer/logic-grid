@@ -4,8 +4,6 @@ import { deduce } from "./deduce";
 export const EASY_TYPES: Set<ConstraintType> = new Set([
   "same_position",
   "not_same_position",
-  "at_position",
-  "not_at_position",
 ]);
 
 export const MEDIUM_TYPES: Set<ConstraintType> = new Set([

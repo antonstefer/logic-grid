@@ -4,7 +4,7 @@ import { tryConstraint } from "./constraints";
 import { ordinal } from "../grid-utils";
 import { createState, getPossible } from "./state";
 import { makeGrid, TEST_COMPARATORS } from "../test-helpers";
-import type { Constraint } from "../types";
+import type { Constraint, Grid } from "../types";
 
 const grid = makeGrid({
   size: 4,
@@ -15,24 +15,26 @@ const grid = makeGrid({
 });
 
 describe("deduce constraint types", () => {
-  it("direct: at_position pins the value", () => {
+  it("same_position pins the value via display axis", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "direct");
+    const step = result.steps.find((s) => s.technique === "same_position");
     expect(step).toBeDefined();
     expect(step!.assignments).toContainEqual({ value: "Red", position: 0 });
   });
 
-  it("elimination: not_at_position removes position and assigns when only one left", () => {
+  it("not_same_position against display axis removes position and assigns when only one left", () => {
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Alice", position: 0 },
-      { type: "not_at_position", value: "Alice", position: 1 },
-      { type: "not_at_position", value: "Alice", position: 2 },
+      { type: "not_same_position", a: "Alice", b: "first" },
+      { type: "not_same_position", a: "Alice", b: "second" },
+      { type: "not_same_position", a: "Alice", b: "third" },
     ];
     const result = deduce(constraints, grid);
-    const elims = result.steps.filter((s) => s.technique === "elimination");
+    const elims = result.steps.filter(
+      (s) => s.technique === "not_same_position",
+    );
     expect(elims.length).toBeGreaterThan(0);
     const assigns = result.steps.flatMap((s) => s.assignments);
     expect(assigns).toContainEqual({ value: "Alice", position: 3 });
@@ -40,18 +42,18 @@ describe("deduce constraint types", () => {
 
   it("same_position intersects possible positions", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
       { type: "same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
-    const step = result.steps.find((s) => s.technique === "same_position");
-    expect(step).toBeDefined();
-    expect(step!.assignments).toContainEqual({ value: "Alice", position: 0 });
+    const allAssigns = result.steps.flatMap((s) => s.assignments);
+    expect(allAssigns).toContainEqual({ value: "Red", position: 0 });
+    expect(allAssigns).toContainEqual({ value: "Alice", position: 0 });
   });
 
   it("not_same_position eliminates when one value is pinned", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
       { type: "not_same_position", a: "Red", b: "Alice" },
     ];
     const result = deduce(constraints, grid);
@@ -62,7 +64,7 @@ describe("deduce constraint types", () => {
 
   it("next_to constrains to adjacent positions", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
       { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -76,7 +78,7 @@ describe("deduce constraint types", () => {
 
   it("not_next_to eliminates adjacent positions when a is pinned", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 1 },
+      { type: "same_position", a: "Red", b: "second" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -88,7 +90,7 @@ describe("deduce constraint types", () => {
 
   it("not_next_to eliminates adjacent positions when b is pinned", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 1 },
+      { type: "same_position", a: "Alice", b: "second" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -102,8 +104,8 @@ describe("deduce constraint types", () => {
     // Blue can only be at {0,2} — both adjacent to position 1.
     // So Red cannot be at position 1 (no valid non-adjacent position exists for Blue).
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
       { type: "not_next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -134,9 +136,9 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 5 },
-      { type: "not_at_position", value: "Blue", position: 6 },
-      { type: "not_at_position", value: "Blue", position: 7 },
+      { type: "not_same_position", a: "Blue", b: "sixth" },
+      { type: "not_same_position", a: "Blue", b: "seventh" },
+      { type: "not_same_position", a: "Blue", b: "eighth" },
       { type: "next_to", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
@@ -146,7 +148,7 @@ describe("deduce constraint types", () => {
 
   it("left_of pins b to a+1 when a is pinned", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 1 },
+      { type: "same_position", a: "Red", b: "second" },
       { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -158,8 +160,8 @@ describe("deduce constraint types", () => {
   it("left_of arc-consistency: eliminates positions with no valid neighbour even when neither is pinned", () => {
     // Alice can only be at {2,3} — so Red (directly left) can only be at {1,2}.
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Alice", position: 0 },
-      { type: "not_at_position", value: "Alice", position: 1 },
+      { type: "not_same_position", a: "Alice", b: "first" },
+      { type: "not_same_position", a: "Alice", b: "second" },
       { type: "left_of", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -191,9 +193,9 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "third" },
       { type: "left_of", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
@@ -224,9 +226,9 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "third" },
       { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid8);
@@ -238,8 +240,8 @@ describe("deduce constraint types", () => {
     // Red restricted to {1,3}. Alice at 1 would need Red at 0 or 2 — neither in {1,3}.
     // Alice at 3 would need Red at 2 or 4 — neither in {1,3}.
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "not_same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Red", b: "third" },
       { type: "next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -250,7 +252,7 @@ describe("deduce constraint types", () => {
 
   it("before eliminates positions", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 2 },
+      { type: "same_position", a: "Red", b: "third" },
       { type: "before", a: "Red", b: "Alice", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -264,7 +266,7 @@ describe("deduce constraint types", () => {
     // Blue restricted to {0,1,2}. before(Red, Blue): Red can't be at 2 or 3 (≥ maxBlue=2).
     // After Red becomes {0,1}, Blue can't be at 0 (≤ minRed=0).
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
       { type: "before", a: "Red", b: "Blue", axis: "House" },
     ];
     const result = deduce(constraints, grid);
@@ -279,8 +281,8 @@ describe("deduce constraint types", () => {
     // Red at 0 needs Blue at 2 (missing) or -2 (invalid) → eliminated.
     // Red at 1 needs Blue at 3 (missing) or -1 (invalid) → eliminated.
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_same_position", a: "Blue", b: "third" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
       {
         type: "exact_distance",
         a: "Red",
@@ -352,7 +354,7 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "A" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -364,10 +366,61 @@ describe("deduce constraint types", () => {
     const result = deduce(constraints, noUnitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
-    expect(step!.explanation).toContain("2 positions");
+    expect(step!.explanation).toContain("2 ranks");
   });
 
-  it("exact_distance explanation uses singular 'position' when distance=1 and no unit", () => {
+  it("exact_distance on non-pinned axis uses that axis's noun, not the pinned axis's", () => {
+    // Multi-axis grid: House (pinned, noun=house) + Rank (non-pinned,
+    // noun=rank, no unit). exact_distance on Rank should say "N ranks",
+    // not "N houses" (which would be the pinned axis's noun).
+    const multiGrid: Grid = {
+      size: 4,
+      categories: [
+        {
+          name: "House",
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          ordered: true,
+          values: ["first", "second", "third", "fourth"],
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Rank",
+          values: ["A", "B", "C", "D"],
+          noun: "rank",
+          verb: ["is ranked", "is not ranked"],
+          ordered: true,
+          orderingPhrases: { comparators: TEST_COMPARATORS },
+        },
+      ],
+    };
+    // Pin Rank values to specific houses so rank-space deduction has enough
+    // information to eliminate. Alice at House 1 (Rank 0). Bob must be 2
+    // ranks away → Rank 2 → House 3 (by the Rank pinning below).
+    const constraints: Constraint[] = [
+      { type: "same_position", a: "Alice", b: "first" },
+      { type: "same_position", a: "A", b: "first" },
+      { type: "same_position", a: "B", b: "second" },
+      { type: "same_position", a: "C", b: "third" },
+      { type: "same_position", a: "D", b: "fourth" },
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 2,
+        axis: "Rank",
+      },
+    ];
+    const result = deduce(constraints, multiGrid);
+    const step = result.steps.find((s) => s.technique === "exact_distance");
+    expect(step).toBeDefined();
+    expect(step!.explanation).toContain("2 ranks");
+    expect(step!.explanation).not.toContain("2 houses");
+  });
+
+  it("exact_distance explanation uses singular noun when distance=1 and no unit", () => {
     const noUnitGrid = makeGrid({
       size: 4,
       categories: [
@@ -383,7 +436,7 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "A" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -395,12 +448,12 @@ describe("deduce constraint types", () => {
     const result = deduce(constraints, noUnitGrid);
     const step = result.steps.find((s) => s.technique === "exact_distance");
     expect(step).toBeDefined();
-    expect(step!.explanation).toContain("1 position");
+    expect(step!.explanation).toContain("1 rank");
   });
 
   it("exact_distance constrains positions", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
       {
         type: "exact_distance",
         a: "Red",
@@ -436,7 +489,7 @@ describe("deduce constraint types", () => {
     // Alice pinned to position 0; exact_distance 2 means Alice and Bob must be
     // at positions (0,1) — so Bob is at position 1.
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "3%" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -470,7 +523,7 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "3%" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -490,7 +543,7 @@ describe("deduce constraint types", () => {
   it("exact_distance distance=1 explanation uses singular noun", () => {
     // Alice pinned to position 0; Red must be exactly 1 house away → Red=1
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "first" },
       {
         type: "exact_distance",
         a: "Red",
@@ -526,7 +579,7 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "6%" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -561,7 +614,7 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "6%" },
       {
         type: "exact_distance",
         a: "Alice",
@@ -585,8 +638,8 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 4 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "fifth" },
       {
         type: "between",
         outer1: "Red",
@@ -610,10 +663,10 @@ describe("deduce constraint types", () => {
   it("between arc-consistency: middle cannot be at boundary positions", () => {
     // Outers restricted to {1,2}: no position can be outside middle on both sides
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
       {
         type: "between",
         outer1: "Red",
@@ -645,10 +698,10 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Red", position: 5 },
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Red", b: "sixth" },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
       {
         type: "between",
         outer1: "Red",
@@ -666,8 +719,8 @@ describe("deduce constraint types", () => {
   it("between: pinned middle + pinned outer1 (left of middle) constrains outer2 to right", () => {
     // middle=Alice at 2, outer1=Red at 0 → outer2=Blue must be > 2
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 2 },
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Alice", b: "third" },
+      { type: "same_position", a: "Red", b: "first" },
       {
         type: "between",
         outer1: "Red",
@@ -688,8 +741,8 @@ describe("deduce constraint types", () => {
   it("between: pinned middle + pinned outer1 (right of middle) constrains outer2 to left", () => {
     // middle=Alice at 1, outer1=Red at 3 (right of middle) → outer2=Blue must be < 1, i.e. at 0
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 1 },
-      { type: "at_position", value: "Red", position: 3 },
+      { type: "same_position", a: "Alice", b: "second" },
+      { type: "same_position", a: "Red", b: "fourth" },
       {
         type: "between",
         outer1: "Red",
@@ -711,8 +764,8 @@ describe("deduce constraint types", () => {
   it("between: pinned middle + pinned outer2 (left of middle) constrains outer1 to right", () => {
     // middle=Alice at 2, outer2=Blue at 0 (left of middle) → outer1=Red must be > 2
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Alice", position: 2 },
-      { type: "at_position", value: "Blue", position: 0 },
+      { type: "same_position", a: "Alice", b: "third" },
+      { type: "same_position", a: "Blue", b: "first" },
       {
         type: "between",
         outer1: "Red",
@@ -745,12 +798,12 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "third" },
       {
         type: "not_between",
         outer1: "Red",
@@ -778,12 +831,12 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 4 },
+      { type: "not_same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Red", b: "second" },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Blue", b: "third" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "fifth" },
       {
         type: "not_between",
         outer1: "Red",
@@ -800,8 +853,8 @@ describe("deduce constraint types", () => {
 
   it("not_between eliminates middle positions when both outers are pinned", () => {
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 3 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "fourth" },
       {
         type: "not_between",
         outer1: "Red",
@@ -821,8 +874,8 @@ describe("deduce constraint types", () => {
     // outer1=Red at 0, Blue restricted to {2,3} (min=2).
     // Alice at 1: Red(0) < 1 AND min(Blue)=2 > 1 → always between → eliminated.
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
       {
         type: "not_between",
         outer1: "Red",
@@ -840,8 +893,8 @@ describe("deduce constraint types", () => {
     // outer2=Blue at 3, Red restricted to {0,1} (max=1).
     // Alice at 2: Blue(3) > 2 AND max(Red)=1 < 2 → always between → eliminated.
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Red", position: 2 },
+      { type: "same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "third" },
       {
         type: "not_between",
         outer1: "Red",
@@ -873,9 +926,9 @@ describe("deduce constraint types", () => {
       ],
     });
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Red", position: 1 },
+      { type: "same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Red", b: "second" },
       {
         type: "not_between",
         outer1: "Red",
@@ -893,10 +946,10 @@ describe("deduce constraint types", () => {
     // outer1=Red at 0, outer2=Blue restricted to {3} only.
     // Alice at 1 or 2 would always be between Red(0) and Blue(3).
     const constraints: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "third" },
       {
         type: "not_between",
         outer1: "Red",

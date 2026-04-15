@@ -16,9 +16,9 @@ describe("deduce structural techniques", () => {
     // Eliminate Red from 1,2,3 → Red forced to 0.
     // Naked_single then removes 0 from all other Colors.
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_same_position", a: "Red", b: "second" },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "naked_single");
@@ -31,9 +31,9 @@ describe("deduce structural techniques", () => {
   it("hidden_single assigns the only remaining candidate for a position", () => {
     // Red, Blue, Green excluded from position 3 → Yellow must be there.
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Green", position: 3 },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fourth" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "hidden_single");
@@ -44,10 +44,10 @@ describe("deduce structural techniques", () => {
   it("naked_pair eliminates positions from other values in category", () => {
     // Red and Blue can only be at {0,1} — no other Color can be there
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_at_position", value: "Blue", position: 3 },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "third" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
     ];
     const result = deduce(constraints, grid);
     const step = result.steps.find((s) => s.technique === "naked_pair");
@@ -72,12 +72,12 @@ describe("deduce structural techniques", () => {
     });
     // Red, Blue, Green restricted to {0,1,2}; Yellow and White still have all 5
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 4 },
-      { type: "not_at_position", value: "Green", position: 3 },
-      { type: "not_at_position", value: "Green", position: 4 },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "fifth" },
+      { type: "not_same_position", a: "Green", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fifth" },
     ];
     const result = deduce(constraints, grid5);
     const step = result.steps.find((s) => s.technique === "naked_triple");
@@ -107,20 +107,20 @@ describe("deduce structural techniques", () => {
     });
     // Red={0,1,2} and Blue={0,1,3} are the ONLY colors reachable at positions 0 or 1
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Red", position: 5 },
-      { type: "not_at_position", value: "Blue", position: 2 },
-      { type: "not_at_position", value: "Blue", position: 4 },
-      { type: "not_at_position", value: "Blue", position: 5 },
-      { type: "not_at_position", value: "Green", position: 0 },
-      { type: "not_at_position", value: "Green", position: 1 },
-      { type: "not_at_position", value: "Yellow", position: 0 },
-      { type: "not_at_position", value: "Yellow", position: 1 },
-      { type: "not_at_position", value: "White", position: 0 },
-      { type: "not_at_position", value: "White", position: 1 },
-      { type: "not_at_position", value: "Black", position: 0 },
-      { type: "not_at_position", value: "Black", position: 1 },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Red", b: "sixth" },
+      { type: "not_same_position", a: "Blue", b: "third" },
+      { type: "not_same_position", a: "Blue", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "sixth" },
+      { type: "not_same_position", a: "Green", b: "first" },
+      { type: "not_same_position", a: "Green", b: "second" },
+      { type: "not_same_position", a: "Yellow", b: "first" },
+      { type: "not_same_position", a: "Yellow", b: "second" },
+      { type: "not_same_position", a: "White", b: "first" },
+      { type: "not_same_position", a: "White", b: "second" },
+      { type: "not_same_position", a: "Black", b: "first" },
+      { type: "not_same_position", a: "Black", b: "second" },
     ];
     const result = deduce(constraints, grid6);
     const step = result.steps.find((s) => s.technique === "hidden_pair");
@@ -154,30 +154,30 @@ describe("deduce structural techniques", () => {
     });
     const constraints: Constraint[] = [
       // Red → {0,1,2,3}
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Red", position: 5 },
-      { type: "not_at_position", value: "Red", position: 6 },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Red", b: "sixth" },
+      { type: "not_same_position", a: "Red", b: "seventh" },
       // Blue → {0,1,2,4}
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 5 },
-      { type: "not_at_position", value: "Blue", position: 6 },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "sixth" },
+      { type: "not_same_position", a: "Blue", b: "seventh" },
       // Green → {0,1,2,5}
-      { type: "not_at_position", value: "Green", position: 3 },
-      { type: "not_at_position", value: "Green", position: 4 },
-      { type: "not_at_position", value: "Green", position: 6 },
+      { type: "not_same_position", a: "Green", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fifth" },
+      { type: "not_same_position", a: "Green", b: "seventh" },
       // Yellow, White, Black, Purple → {3,4,5,6}
-      { type: "not_at_position", value: "Yellow", position: 0 },
-      { type: "not_at_position", value: "Yellow", position: 1 },
-      { type: "not_at_position", value: "Yellow", position: 2 },
-      { type: "not_at_position", value: "White", position: 0 },
-      { type: "not_at_position", value: "White", position: 1 },
-      { type: "not_at_position", value: "White", position: 2 },
-      { type: "not_at_position", value: "Black", position: 0 },
-      { type: "not_at_position", value: "Black", position: 1 },
-      { type: "not_at_position", value: "Black", position: 2 },
-      { type: "not_at_position", value: "Purple", position: 0 },
-      { type: "not_at_position", value: "Purple", position: 1 },
-      { type: "not_at_position", value: "Purple", position: 2 },
+      { type: "not_same_position", a: "Yellow", b: "first" },
+      { type: "not_same_position", a: "Yellow", b: "second" },
+      { type: "not_same_position", a: "Yellow", b: "third" },
+      { type: "not_same_position", a: "White", b: "first" },
+      { type: "not_same_position", a: "White", b: "second" },
+      { type: "not_same_position", a: "White", b: "third" },
+      { type: "not_same_position", a: "Black", b: "first" },
+      { type: "not_same_position", a: "Black", b: "second" },
+      { type: "not_same_position", a: "Black", b: "third" },
+      { type: "not_same_position", a: "Purple", b: "first" },
+      { type: "not_same_position", a: "Purple", b: "second" },
+      { type: "not_same_position", a: "Purple", b: "third" },
     ];
     const result = deduce(constraints, grid7);
     const step = result.steps.find((s) => s.technique === "hidden_triple");
@@ -193,7 +193,7 @@ describe("deduce structural techniques", () => {
     const constraints: Constraint[] = [
       { type: "same_position", a: "Red", b: "Alice" },
       { type: "same_position", a: "Alice", b: "Blue" },
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
     ];
     const result = deduce(constraints, grid);
     const allAssigns = result.steps.flatMap((s) => s.assignments);
@@ -206,7 +206,7 @@ describe("deduce structural techniques", () => {
     const constraints: Constraint[] = [
       { type: "same_position", a: "Red", b: "Alice" },
       { type: "not_same_position", a: "Red", b: "Bob" },
-      { type: "at_position", value: "Alice", position: 0 },
+      { type: "same_position", a: "Alice", b: "first" },
     ];
     const result = deduce(constraints, grid);
     const allElims = result.steps.flatMap((s) => s.eliminations);

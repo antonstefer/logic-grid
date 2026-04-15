@@ -87,12 +87,6 @@ describe("generate", () => {
           expect(rm).toBeLessThan(hi);
           break;
         }
-        case "at_position":
-          expect(posOf.get(c.value)).toBe(c.position);
-          break;
-        case "not_at_position":
-          expect(posOf.get(c.value)).not.toBe(c.position);
-          break;
         case "before": {
           const ra = rankOf(c.a, puzzle.grid, c.axis);
           const rb = rankOf(c.b, puzzle.grid, c.axis);
@@ -216,23 +210,19 @@ describe("generate", () => {
     expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
   });
 
-  it("prefers relational clues over at_position", () => {
+  it("prefers relational clues over same_position with display axis", () => {
     const puzzle = generate({ size: 4, categories: 4, seed: 42 });
     const types: Record<string, number> = {};
     for (const c of puzzle.constraints) {
       types[c.type] = (types[c.type] || 0) + 1;
     }
-    const atPos = types["at_position"] ?? 0;
     const relational =
-      (types["same_position"] ?? 0) +
       (types["next_to"] ?? 0) +
       (types["left_of"] ?? 0) +
       (types["between"] ?? 0);
 
-    // Relational clues should outnumber at_position
-    expect(relational).toBeGreaterThan(atPos);
-    // at_position should be a minority (less than half of total)
-    expect(atPos).toBeLessThan(puzzle.constraints.length / 2);
+    // Relational clues should be present
+    expect(relational).toBeGreaterThan(0);
   });
 
   it("respects difficulty easy", () => {
@@ -244,12 +234,7 @@ describe("generate", () => {
     });
     expect(puzzle.difficulty).toBe("easy");
     for (const c of puzzle.constraints) {
-      expect([
-        "same_position",
-        "not_same_position",
-        "at_position",
-        "not_at_position",
-      ]).toContain(c.type);
+      expect(["same_position", "not_same_position"]).toContain(c.type);
     }
   });
 
@@ -265,8 +250,6 @@ describe("generate", () => {
       expect([
         "same_position",
         "not_same_position",
-        "at_position",
-        "not_at_position",
         "next_to",
         "left_of",
         "before",
@@ -304,13 +287,109 @@ describe("generate", () => {
   });
 
   it("expert puzzles require contradiction", () => {
-    const puzzle = generate({ size: 4, categories: 4, difficulty: "expert" });
+    // Seed chosen so the first generation attempt produces a non-expert
+    // puzzle, forcing at least one difficulty-retry iteration. The natural
+    // assertion below pins that premise — if RNG/scoring shifts and seed 1
+    // starts producing expert naturally, this test fails loudly so we can
+    // pick a new seed instead of silently losing retry-branch coverage.
+    const natural = generate({ size: 4, categories: 4, seed: 1 });
+    expect(natural.difficulty).not.toBe("expert");
+
+    const puzzle = generate({
+      size: 4,
+      categories: 4,
+      difficulty: "expert",
+      seed: 1,
+    });
     expect(puzzle.difficulty).toBe("expert");
     const result = deduce(puzzle.constraints, puzzle.grid);
     expect(result.complete).toBe(true);
     expect(result.steps.some((s) => s.technique === "contradiction")).toBe(
       true,
     );
+  });
+
+  it("generates a unique-solution puzzle when displayAxis is a non-first ordered category", () => {
+    // Two ordered categories; pick the second as displayAxis. SAT pinning
+    // anchors the first ordered axis (encoder convention) regardless of the
+    // displayAxis hint — verify that constraint generation, encoding, and
+    // uniqueness checking all stay consistent.
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        {
+          name: "Year",
+          values: ["2020", "2021", "2022"],
+          noun: "year",
+          verb: ["is from", "is not from"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: {
+              before: ["is older than", "is younger than"],
+              left_of: ["is one year before", "is one year after"],
+              next_to: "is one year apart from",
+              not_next_to: "is not one year apart from",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        {
+          name: "Score",
+          values: ["10", "20", "30"],
+          noun: "score",
+          verb: ["scored", "did not score"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: {
+              before: ["scored less than", "scored more than"],
+              left_of: ["scored just below", "scored just above"],
+              next_to: "scored adjacent to",
+              not_next_to: "did not score adjacent to",
+              between: "scored between",
+              not_between: "did not score between",
+              exact_distance: "scored exactly",
+            },
+          },
+        },
+      ],
+      displayAxis: "Score",
+    });
+    expect(puzzle.solution.length).toBe(3);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+    // The SAT-canonical solution pins Year (first ordered) at identity.
+    expect(puzzle.solution[1]["2020"]).toBe(0);
+    expect(puzzle.solution[1]["2021"]).toBe(1);
+    expect(puzzle.solution[1]["2022"]).toBe(2);
+  });
+
+  it("throws when a value appears in two categories", () => {
+    // The SAT variable mapping is keyed by value name across all categories
+    // — a collision silently overwrites the earlier entry. validateCategories
+    // rejects duplicates up front.
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Carol"],
+            noun: "house",
+            verb: ["lives in the", "does not live in the"],
+          },
+          {
+            name: "Pet",
+            values: ["Cat", "Dog", "Fish"],
+            noun: "owner",
+            verb: ["owns the", "does not own the"],
+          },
+        ],
+      }),
+    ).toThrow('Duplicate value "Carol" in categories "Name" and "Color"');
   });
 
   it("throws when custom categoryNames count is out of range", () => {

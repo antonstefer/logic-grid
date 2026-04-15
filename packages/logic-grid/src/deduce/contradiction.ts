@@ -1,5 +1,4 @@
 import type { Constraint, DeductionStep } from "../types";
-import { ordinal } from "../grid-utils";
 import { type DeduceState, first, step, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
@@ -32,18 +31,17 @@ export function tryContradiction(
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
           const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
-          const noun = "position";
-          const prep = "in";
+          const { noun, posLabel } = state.terms;
           const assignSuffix =
             assigns.length > 0
-              ? ` So ${value} must be ${prep} the ${ordinal(assigns[0].position)} ${noun}.`
+              ? ` So ${value} must be in the ${posLabel(assigns[0].position)} ${noun}.`
               : "";
           return step(
             "contradiction",
             [],
             [{ value, position: p }],
             assigns,
-            `If ${value} were ${prep} the ${ordinal(p)} ${noun}, it would lead to a contradiction.${assignSuffix}`,
+            `If ${value} were in the ${posLabel(p)} ${noun}, it would lead to a contradiction.${assignSuffix}`,
           );
         }
       }

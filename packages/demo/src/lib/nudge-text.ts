@@ -3,8 +3,6 @@ import type { DeductionStep, DeductionTechnique } from "logic-grid";
 // Clue-based techniques use question templates with {target} replaced by the
 // value being deduced. Structural techniques are plain statements (no target).
 export const TECHNIQUE_HINTS: Record<DeductionTechnique, string> = {
-  direct: "where must {target} go?",
-  elimination: "can you cross off a position for {target}?",
   same_position: "what positions can you rule out for {target}?",
   not_same_position: "what positions can you rule out for {target}?",
   next_to: "where can {target} go?",
@@ -31,8 +29,14 @@ function joinValues(values: string[]): string {
   return values.slice(0, -1).join(", ") + ", and " + values[values.length - 1];
 }
 
+/** Generic fallback when the technique is unrecognized — shields against
+ * persisted deduction traces referring to removed techniques like the
+ * pre-refactor "direct" / "elimination". */
+const UNKNOWN_TECHNIQUE_HINT = "what can you deduce about {target}?";
+
 export function buildNudgeText(step: DeductionStep): string {
-  const hintTemplate = TECHNIQUE_HINTS[step.technique];
+  const hintTemplate: string =
+    TECHNIQUE_HINTS[step.technique] ?? UNKNOWN_TECHNIQUE_HINT;
 
   // Clue-based steps reference specific clues and substitute {target}.
   // Structural steps (clueIndices empty) use plain statements with no placeholder.

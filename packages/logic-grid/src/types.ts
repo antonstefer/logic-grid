@@ -46,6 +46,8 @@ interface CategoryCore {
   noun?: string;
   /** Subject priority for same-position clues. Higher = more likely to be the sentence subject. */
   subjectPriority?: number;
+  /** When true, values are lowercased in clue phrases. Use for adjective/common-noun categories (Color, Pet) where "Red" should render as "the red house". Default: false (proper nouns preserved). */
+  lowercase?: boolean;
 }
 
 /**
@@ -54,14 +56,14 @@ interface CategoryCore {
  * `ordered: true` implies:
  * - `values` array defines the canonical total order (rank = array index).
  * - The category may be referenced as `axis` on any comparative constraint.
- * - `verb` is required (used for at_position rendering).
+ * - `verb` is required (used for same-position clue rendering).
  * - `numericValues` and `orderingPhrases` become legal.
  * - The category participates in multi-axis generation, deduction, rendering.
  */
 type OrderednessFields =
   | {
       ordered: true;
-      /** Verb phrases for same-position / at_position clues: `[positive, negative]`. Required on ordered categories. */
+      /** Verb phrases for same-position clues: `[positive, negative]`. Required on ordered categories. */
       verb: [string, string];
       /** Per-rank numeric values for non-equidistant `exact_distance`. Must match `values` length and be ascending. */
       numericValues?: number[];
@@ -157,9 +159,7 @@ export type Constraint =
       b: string;
       distance: number;
       axis: string;
-    }
-  | { type: "at_position"; value: string; position: number }
-  | { type: "not_at_position"; value: string; position: number };
+    };
 
 /** Puzzle difficulty level, determined by constraint types and deduction depth. */
 export type Difficulty = "easy" | "medium" | "hard" | "expert";
@@ -181,8 +181,6 @@ export interface Puzzle {
 
 /** The technique used in a deduction step. */
 export type DeductionTechnique =
-  | "direct"
-  | "elimination"
   | "same_position"
   | "not_same_position"
   | "next_to"

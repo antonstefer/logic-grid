@@ -5,9 +5,7 @@ import {
   hasUniqueSolution,
   classify,
   samePosition,
-  nextTo,
   leftOf,
-  atPosition,
 } from "./index";
 import { makeGrid } from "./test-helpers";
 
@@ -46,7 +44,7 @@ describe("public API integration", () => {
       ],
     });
     const constraints = [
-      atPosition("Red", 0),
+      samePosition("Red", "first"),
       samePosition("Red", "Cat"),
       leftOf("Blue", "Green", "House"),
     ];
@@ -65,13 +63,6 @@ describe("public API integration", () => {
     }
   });
 
-  it("all constraint factories are exported", () => {
-    expect(typeof samePosition).toBe("function");
-    expect(typeof nextTo).toBe("function");
-    expect(typeof leftOf).toBe("function");
-    expect(typeof atPosition).toBe("function");
-  });
-
   it("generate with custom noun/verb produces correct clues", () => {
     const puzzle = generate({
       size: 4,
@@ -83,12 +74,14 @@ describe("public API integration", () => {
           values: ["Piano", "Guitar", "Drums", "Violin"],
           noun: "player",
           verb: ["plays the", "does not play the"],
+          lowercase: true,
         },
         {
           name: "Flower",
           values: ["Rose", "Lily", "Daisy", "Tulip"],
           noun: "grower",
           verb: ["grows the", "does not grow the"],
+          lowercase: true,
         },
         {
           name: "Language",

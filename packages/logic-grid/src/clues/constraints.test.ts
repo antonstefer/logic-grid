@@ -9,8 +9,6 @@ import {
   notBetween,
   before,
   exactDistance,
-  atPosition,
-  notAtPosition,
 } from "./constraints";
 
 describe("constraint factories", () => {
@@ -93,22 +91,6 @@ describe("constraint factories", () => {
       b: "Cat",
       distance: 2,
       axis: "House",
-    });
-  });
-
-  it("atPosition", () => {
-    expect(atPosition("Red", 0)).toEqual({
-      type: "at_position",
-      value: "Red",
-      position: 0,
-    });
-  });
-
-  it("notAtPosition", () => {
-    expect(notAtPosition("Red", 2)).toEqual({
-      type: "not_at_position",
-      value: "Red",
-      position: 2,
     });
   });
 });

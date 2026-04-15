@@ -32,10 +32,10 @@ const grid7 = makeGrid({
 });
 
 describe("propagateToFixpoint", () => {
-  it("at_position pins value from fresh state", () => {
+  it("same_position pins value from fresh state", () => {
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
     ]);
     expect([...getPossible(state, "Red")]).toEqual([0]);
   });
@@ -53,7 +53,7 @@ describe("propagateToFixpoint", () => {
     });
     const state = createState(grid3cat);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Red", position: 0 },
+      { type: "same_position", a: "Red", b: "first" },
       { type: "same_position", a: "Red", b: "Alice" },
       { type: "same_position", a: "Red", b: "Cat" },
     ]);
@@ -61,10 +61,10 @@ describe("propagateToFixpoint", () => {
     expect([...getPossible(state, "Cat")]).toEqual([0]);
   });
 
-  it("not_at_position removes position from fresh state", () => {
+  it("not_same_position removes position from fresh state", () => {
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "not_at_position", value: "Red", position: 0 },
+      { type: "not_same_position", a: "Red", b: "first" },
     ]);
     expect(getPossible(state, "Red").has(0)).toBe(false);
     expect(getPossible(state, "Red").size).toBe(3);
@@ -74,7 +74,7 @@ describe("propagateToFixpoint", () => {
     // Red pinned at 1 (posA=1 < 3). Alice loses posA+1=2.
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Red", position: 1 },
+      { type: "same_position", a: "Red", b: "second" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Alice").has(2)).toBe(false);
@@ -84,7 +84,7 @@ describe("propagateToFixpoint", () => {
     // Alice pinned at 2 (posB=2 > 0). Red loses posB-1=1.
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Alice", position: 2 },
+      { type: "same_position", a: "Alice", b: "third" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Red").has(1)).toBe(false);
@@ -95,9 +95,9 @@ describe("propagateToFixpoint", () => {
     // So Alice loses 1 via arc-consistency (pb loop).
     const state = createState(grid4);
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_same_position", a: "Red", b: "second" },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ];
     propagateToFixpoint(state, constraints);
@@ -109,8 +109,8 @@ describe("propagateToFixpoint", () => {
     // So Alice loses 1 via the pb arc-consistency loop.
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_same_position", a: "Red", b: "second" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
       { type: "not_next_to", a: "Red", b: "Alice", axis: "House" },
     ]);
     expect(getPossible(state, "Alice").has(1)).toBe(false);
@@ -120,8 +120,8 @@ describe("propagateToFixpoint", () => {
     // Red=0, Blue=3 → Alice at 1 and 2 are strictly between → eliminated.
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Blue", position: 3 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Blue", b: "fourth" },
       {
         type: "not_between",
         outer1: "Red",
@@ -138,8 +138,8 @@ describe("propagateToFixpoint", () => {
     // Red=0, Blue restricted to {2,3} (min=2). Alice at 1: Red(0)<1 AND min(Blue)=2>1.
     const state = createState(grid4);
     propagateToFixpoint(state, [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
       {
         type: "not_between",
         outer1: "Red",
@@ -155,12 +155,12 @@ describe("propagateToFixpoint", () => {
     // Red={0,1}, Blue={3,4}. Alice at 2: all Red < 2 and all Blue > 2 → eliminated.
     const state = createState(grid5);
     propagateToFixpoint(state, [
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Blue", position: 0 },
-      { type: "not_at_position", value: "Blue", position: 1 },
-      { type: "not_at_position", value: "Blue", position: 2 },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "first" },
+      { type: "not_same_position", a: "Blue", b: "second" },
+      { type: "not_same_position", a: "Blue", b: "third" },
       {
         type: "not_between",
         outer1: "Red",
@@ -177,12 +177,12 @@ describe("propagateToFixpoint", () => {
     // Yellow and White must be at {3,4} and cannot occupy {0,1,2}.
     const state = createState(grid5);
     propagateToFixpoint(state, [
-      { type: "not_at_position", value: "Red", position: 3 },
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 4 },
-      { type: "not_at_position", value: "Green", position: 3 },
-      { type: "not_at_position", value: "Green", position: 4 },
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "fifth" },
+      { type: "not_same_position", a: "Green", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fifth" },
     ]);
     expect(getPossible(state, "Yellow").has(0)).toBe(false);
     expect(getPossible(state, "Yellow").has(1)).toBe(false);
@@ -196,27 +196,27 @@ describe("propagateToFixpoint", () => {
     // → Red loses 3, Blue loses 4, Green loses 5.
     const state = createState(grid7);
     const constraints: Constraint[] = [
-      { type: "not_at_position", value: "Red", position: 4 },
-      { type: "not_at_position", value: "Red", position: 5 },
-      { type: "not_at_position", value: "Red", position: 6 },
-      { type: "not_at_position", value: "Blue", position: 3 },
-      { type: "not_at_position", value: "Blue", position: 5 },
-      { type: "not_at_position", value: "Blue", position: 6 },
-      { type: "not_at_position", value: "Green", position: 3 },
-      { type: "not_at_position", value: "Green", position: 4 },
-      { type: "not_at_position", value: "Green", position: 6 },
-      { type: "not_at_position", value: "Yellow", position: 0 },
-      { type: "not_at_position", value: "Yellow", position: 1 },
-      { type: "not_at_position", value: "Yellow", position: 2 },
-      { type: "not_at_position", value: "White", position: 0 },
-      { type: "not_at_position", value: "White", position: 1 },
-      { type: "not_at_position", value: "White", position: 2 },
-      { type: "not_at_position", value: "Black", position: 0 },
-      { type: "not_at_position", value: "Black", position: 1 },
-      { type: "not_at_position", value: "Black", position: 2 },
-      { type: "not_at_position", value: "Purple", position: 0 },
-      { type: "not_at_position", value: "Purple", position: 1 },
-      { type: "not_at_position", value: "Purple", position: 2 },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Red", b: "sixth" },
+      { type: "not_same_position", a: "Red", b: "seventh" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "sixth" },
+      { type: "not_same_position", a: "Blue", b: "seventh" },
+      { type: "not_same_position", a: "Green", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fifth" },
+      { type: "not_same_position", a: "Green", b: "seventh" },
+      { type: "not_same_position", a: "Yellow", b: "first" },
+      { type: "not_same_position", a: "Yellow", b: "second" },
+      { type: "not_same_position", a: "Yellow", b: "third" },
+      { type: "not_same_position", a: "White", b: "first" },
+      { type: "not_same_position", a: "White", b: "second" },
+      { type: "not_same_position", a: "White", b: "third" },
+      { type: "not_same_position", a: "Black", b: "first" },
+      { type: "not_same_position", a: "Black", b: "second" },
+      { type: "not_same_position", a: "Black", b: "third" },
+      { type: "not_same_position", a: "Purple", b: "first" },
+      { type: "not_same_position", a: "Purple", b: "second" },
+      { type: "not_same_position", a: "Purple", b: "third" },
     ];
     propagateToFixpoint(state, constraints);
     expect(getPossible(state, "Red").has(3)).toBe(false);
@@ -227,10 +227,10 @@ describe("propagateToFixpoint", () => {
   it("returns false on contradiction", () => {
     const state = createState(grid4);
     const result = propagateToFixpoint(state, [
-      { type: "not_at_position", value: "Red", position: 0 },
-      { type: "not_at_position", value: "Red", position: 1 },
-      { type: "not_at_position", value: "Red", position: 2 },
-      { type: "not_at_position", value: "Red", position: 3 },
+      { type: "not_same_position", a: "Red", b: "first" },
+      { type: "not_same_position", a: "Red", b: "second" },
+      { type: "not_same_position", a: "Red", b: "third" },
+      { type: "not_same_position", a: "Red", b: "fourth" },
     ]);
     expect(result).toBe(false);
   });

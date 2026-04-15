@@ -21,12 +21,12 @@ const grid3x3 = makeGrid({
 });
 
 const puzzle3x3: Constraint[] = [
-  { type: "at_position", value: "Red", position: 0 },
+  { type: "same_position", a: "Red", b: "first" },
   { type: "same_position", a: "Red", b: "Cat" },
   { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Blue", b: "Dog" },
   { type: "same_position", a: "Dog", b: "Coffee" },
-  { type: "at_position", value: "Tea", position: 0 },
+  { type: "same_position", a: "Tea", b: "first" },
 ];
 
 describe("solve", () => {
@@ -43,8 +43,8 @@ describe("solve", () => {
 
   it("returns null for contradictory constraints", () => {
     const impossible: Constraint[] = [
-      { type: "at_position", value: "Red", position: 0 },
-      { type: "at_position", value: "Red", position: 1 },
+      { type: "same_position", a: "Red", b: "first" },
+      { type: "same_position", a: "Red", b: "second" },
     ];
     expect(solve(impossible, grid3x3)).toBeNull();
   });
@@ -71,14 +71,14 @@ const grid4x4 = makeGrid({
 });
 
 const puzzle4x4: Constraint[] = [
-  { type: "at_position", value: "Alice", position: 0 },
+  { type: "same_position", a: "Alice", b: "first" },
   { type: "same_position", a: "Alice", b: "Red" },
   { type: "same_position", a: "Alice", b: "Tea" },
   { type: "next_to", a: "Bob", b: "Alice", axis: "House" },
   { type: "same_position", a: "Dave", b: "Yellow" },
   { type: "left_of", a: "Blue", b: "Green", axis: "House" },
   { type: "same_position", a: "Carol", b: "Fish" },
-  { type: "at_position", value: "Milk", position: 2 },
+  { type: "same_position", a: "Milk", b: "third" },
   { type: "same_position", a: "Dog", b: "Coffee" },
   { type: "left_of", a: "Dog", b: "Fish", axis: "House" },
   { type: "not_same_position", a: "Alice", b: "Bird" },

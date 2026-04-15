@@ -18,6 +18,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "house",
     verb: ["lives in the", "does not live in the"],
     subjectPriority: -1,
+    lowercase: true,
     valueSuffix: "house",
     positionAdjective: ["is", "is not"],
     values: [
@@ -36,6 +37,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "owner",
     verb: ["owns the", "does not own the"],
     subjectPriority: 1,
+    lowercase: true,
     values: [
       "Cat",
       "Dog",
@@ -52,6 +54,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "drinker",
     verb: ["drinks", "does not drink"],
     subjectPriority: 1,
+    lowercase: true,
     values: ["Tea", "Coffee", "Water", "Milk", "Juice", "Soda", "Wine", "Beer"],
   },
   {
@@ -59,6 +62,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "lover",
     verb: ["eats", "does not eat"],
     subjectPriority: 1,
+    lowercase: true,
     values: [
       "Pizza",
       "Pasta",
@@ -75,6 +79,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "enthusiast",
     verb: ["enjoys", "does not enjoy"],
     subjectPriority: 1,
+    lowercase: true,
     values: [
       "Reading",
       "Painting",
@@ -91,6 +96,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "fan",
     verb: ["listens to", "does not listen to"],
     subjectPriority: 1,
+    lowercase: true,
     values: ["Jazz", "Rock", "Pop", "Blues", "Folk", "Reggae", "Metal", "Punk"],
   },
   {
@@ -98,6 +104,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
     noun: "player",
     verb: ["plays", "does not play"],
     subjectPriority: 1,
+    lowercase: true,
     values: [
       "Soccer",
       "Tennis",

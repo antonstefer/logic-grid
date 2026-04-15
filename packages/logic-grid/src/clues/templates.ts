@@ -1,5 +1,5 @@
 import type { Category, Constraint, Clue, Grid } from "../types";
-import { orderedCategories, resolveAxis } from "../axis";
+import { resolveAxis } from "../axis";
 
 function findCategory(value: string, grid: Grid): Category {
   for (const cat of grid.categories) {
@@ -8,18 +8,23 @@ function findCategory(value: string, grid: Grid): Category {
   throw new Error(`Unknown value: ${value}`);
 }
 
+/** Lowercase a value if the category opts in. */
+function lc(value: string, cat: Category): string {
+  return cat.lowercase ? value.toLowerCase() : value;
+}
+
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 function label(value: string, grid: Grid): string {
-  const noun = findCategory(value, grid).noun;
-  if (!noun) return value;
-  return `the ${value.toLowerCase()} ${noun}`;
+  const cat = findCategory(value, grid);
+  if (!cat.noun) return value;
+  return `the ${lc(value, cat)} ${cat.noun}`;
 }
 
 /** Value as it appears in the object position of a same_position clue. */
 function objectValue(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
   const suffix = cat.valueSuffix;
-  return suffix ? `${value.toLowerCase()} ${suffix}` : value.toLowerCase();
+  return suffix ? `${lc(value, cat)} ${suffix}` : lc(value, cat);
 }
 
 /** Look up a symmetric comparator (plain string). */
@@ -96,10 +101,10 @@ function renderSamePosition(
   // adjective verb. Recovers the classical Color+House idiom:
   // `same_position(Red, "1st")` → "The 1st house is red."
   if (catA.positionAdjective && catB.ordered === true) {
-    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${constraint.a.toLowerCase()}.`;
+    return `${capitalize(label(constraint.b, grid))} ${catA.positionAdjective[idx]} ${lc(constraint.a, catA)}.`;
   }
   if (catB.positionAdjective && catA.ordered === true) {
-    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${constraint.b.toLowerCase()}.`;
+    return `${capitalize(label(constraint.a, grid))} ${catB.positionAdjective[idx]} ${lc(constraint.b, catB)}.`;
   }
 
   const [subj, obj] = ordered(constraint.a, constraint.b, grid);
@@ -177,29 +182,6 @@ function renderText(constraint: Constraint, grid: Grid): string {
         return `${capitalize(la)} ${prefix} ${constraint.distance} ${unitNoun} from ${lb}.`;
       }
       return `${capitalize(la)} ${prefix} ${constraint.distance} from ${lb}.`;
-    }
-    case "at_position": {
-      // Uses the first ordered category (identity-pinned), NOT displayAxis.
-      // at_position encodes row identity, which is tied to the identity-pinned
-      // axis. displayAxis is a presentation concern for column headers only.
-      const axis = orderedCategories(grid)[0];
-      if (!axis) throw new Error("Grid has no ordered category");
-      const axisVal = axis.values[constraint.position];
-      const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective) {
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[0]} ${constraint.value.toLowerCase()}.`;
-      }
-      return `${capitalize(label(constraint.value, grid))} ${axis.verb[0]} ${objectValue(axisVal, grid)}.`;
-    }
-    case "not_at_position": {
-      const axis = orderedCategories(grid)[0];
-      if (!axis) throw new Error("Grid has no ordered category");
-      const axisVal = axis.values[constraint.position];
-      const cat = findCategory(constraint.value, grid);
-      if (cat.positionAdjective) {
-        return `${capitalize(label(axisVal, grid))} ${cat.positionAdjective[1]} ${constraint.value.toLowerCase()}.`;
-      }
-      return `${capitalize(label(constraint.value, grid))} ${axis.verb[1]} ${objectValue(axisVal, grid)}.`;
     }
   }
 }

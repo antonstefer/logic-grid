@@ -40,21 +40,6 @@ describe("buildNudgeText", () => {
     expect(text).toBe("Try looking at Clue 5 \u2014 where must Dog go?");
   });
 
-  it("direct technique uses placement phrasing", () => {
-    const text = buildNudgeText(
-      makeStep({
-        technique: "direct",
-        clueIndices: [0],
-        assignments: [{ value: "Red", position: 2 }],
-        eliminations: [
-          { value: "Red", position: 0 },
-          { value: "Red", position: 1 },
-        ],
-      }),
-    );
-    expect(text).toBe("Try looking at Clue 1 \u2014 where must Red go?");
-  });
-
   it("structural technique uses plain statement", () => {
     const text = buildNudgeText(
       makeStep({
@@ -107,7 +92,7 @@ describe("buildNudgeText", () => {
   it("joins multiple clue indices with 'and'", () => {
     const text = buildNudgeText(
       makeStep({
-        technique: "elimination",
+        technique: "same_position",
         clueIndices: [0, 3],
         eliminations: [{ value: "Tea", position: 1 }],
       }),
@@ -148,10 +133,23 @@ describe("buildNudgeText", () => {
     );
   });
 
+  it("falls back gracefully on unknown techniques (e.g. persisted traces)", () => {
+    // Simulate a persisted deduction trace from before this PR that still
+    // uses the removed "direct" technique. DeductionTechnique no longer
+    // permits it, but runtime data might — buildNudgeText must not throw.
+    const text = buildNudgeText(
+      makeStep({
+        technique: "direct" as unknown as DeductionStep["technique"],
+        clueIndices: [0],
+        eliminations: [{ value: "Red", position: 1 }],
+      }),
+    );
+    expect(text).toContain("Clue 1");
+    expect(text).toContain("Red");
+  });
+
   it("TECHNIQUE_HINTS covers all techniques", () => {
     const techniques = [
-      "direct",
-      "elimination",
       "same_position",
       "not_same_position",
       "next_to",

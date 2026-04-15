@@ -10,12 +10,18 @@ import type {
 } from "./types";
 import type { SolverContext } from "./solver";
 import { createSolverContext } from "./solver";
-import { encodeConstraint } from "./encoding";
+import { encodeConstraint, RankVarAllocator } from "./encoding";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
 import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
 import { deduce } from "./deduce";
-import { isOrdered, orderedCategories, resolveAxis } from "./axis";
+import {
+  displayAxisCategory,
+  isOrdered,
+  orderedCategories,
+  pinnedAxis,
+  resolveAxis,
+} from "./axis";
 import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
 
 const MAX_RETRIES = 100;
@@ -26,6 +32,11 @@ const MAX_RETRIES = 100;
  */
 function validateCategories(categories: Category[]): void {
   const names = new Set<string>();
+  // Values must be globally unique — the SAT variable mapping in
+  // createContext is keyed by value name across all categories, so a
+  // collision silently overwrites the earlier entry. Also affects
+  // isAxisValue in deduce/state.ts which matches by name alone.
+  const valueSource = new Map<string, string>();
   for (const c of categories) {
     if (names.has(c.name)) {
       throw new RangeError(`Duplicate category name "${c.name}"`);
@@ -36,6 +47,16 @@ function validateCategories(categories: Category[]): void {
       throw new RangeError(
         `Category "${c.name}" requires a verb (only the person category may omit it)`,
       );
+    }
+
+    for (const v of c.values) {
+      const existing = valueSource.get(v);
+      if (existing !== undefined) {
+        throw new RangeError(
+          `Duplicate value "${v}" in categories "${existing}" and "${c.name}"`,
+        );
+      }
+      valueSource.set(v, c.name);
     }
 
     if (isOrdered(c)) {
@@ -85,10 +106,13 @@ export function generate(options?: GenerateOptions): Puzzle {
     shuffle(filtered, rng);
 
     // Pre-encode all constraint clauses once
-    const clauseCache = filtered.map((c) => encodeConstraint(solverCtx.ctx, c));
+    const alloc = new RankVarAllocator(solverCtx.ctx);
+    const clauseCache = filtered.map((c) =>
+      encodeConstraint(solverCtx.ctx, c, alloc),
+    );
 
     // Build ONE incremental solver with activation literals for all constraints
-    const incSolver = buildIncrementalSolver(solverCtx, clauseCache);
+    const incSolver = buildIncrementalSolver(solverCtx, clauseCache, alloc);
 
     const minimal = minimizeConstraints(
       filtered,
@@ -119,6 +143,9 @@ export function generate(options?: GenerateOptions): Puzzle {
     };
   }
 
+  // Defensive failsafe: unreachable for supported grid sizes and difficulties
+  // — `generate` can always find a matching puzzle within 100 attempts.
+  /* v8 ignore next 4 */
   throw new Error(
     `Failed to generate a puzzle after ${MAX_RETRIES} attempts. ` +
       `Try a smaller size or easier difficulty.`,
@@ -206,12 +233,12 @@ function sliceCategory(c: Category, size: number): Category {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  // Identity-assign the first ordered category so row = axis rank for it.
-  // This lets the positional fast-path encoder handle constraints on this axis
-  // cheaply. Other ordered axes use the rank-forbidding encoder.
-  const firstOrdered = grid.categories.findIndex((c) => c.ordered === true);
-  return grid.categories.map((cat, idx) => {
-    if (idx === firstOrdered) {
+  // Pin the same axis encodeBase pins (the first ordered category) so the
+  // generated solution matches what the SAT solver will canonicalize to.
+  // grid.displayAxis is a UI hint and does not affect SAT pinning.
+  const pinned = pinnedAxis(grid);
+  return grid.categories.map((cat) => {
+    if (cat === pinned) {
       const assignment: Assignment = {};
       for (let i = 0; i < cat.values.length; i++) {
         assignment[cat.values[i]] = i;
@@ -245,7 +272,7 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
       catArr.push(ci);
     }
   }
-  // Map from value name → its row position. Used for the at_position block.
+  // Map from value name → its row position. Used for position constraints.
   const posOf = new Map<string, number>();
   for (let i = 0; i < allValues.length; i++) posOf.set(allValues[i], posArr[i]);
 
@@ -410,17 +437,26 @@ function enumerateConstraints(solution: Solution, grid: Grid): Constraint[] {
     }
   }
 
-  // --- Position constraints ---
-  // Skip values in the first ordered category — identity pinning makes their
-  // rows trivially determined by encodeBase's identity pinning.
-  const firstOrdered = orderedCats[0];
-  const firstOrderedValues = new Set(firstOrdered.values);
+  // --- Position constraints (via display axis) ---
+  // Express each value's position as same_position / not_same_position against
+  // the display axis values, so clues read naturally ("Alice lives in the
+  // first house" rather than "Alice is at position 0").
+  const dispAxis = displayAxisCategory(grid);
+  const dispValues = new Set(dispAxis.values);
   for (const [val, pos] of posOf) {
-    if (firstOrderedValues.has(val)) continue;
-    constraints.push({ type: "at_position", value: val, position: pos });
+    if (dispValues.has(val)) continue;
+    constraints.push({
+      type: "same_position",
+      a: val,
+      b: dispAxis.values[pos],
+    });
     for (let p = 0; p < n; p++) {
       if (p !== pos) {
-        constraints.push({ type: "not_at_position", value: val, position: p });
+        constraints.push({
+          type: "not_same_position",
+          a: val,
+          b: dispAxis.values[p],
+        });
       }
     }
   }
@@ -462,12 +498,16 @@ interface IncSolverCtx {
 function buildIncrementalSolver(
   solverCtx: SolverContext,
   clauseCache: number[][][],
+  alloc: RankVarAllocator,
 ): IncSolverCtx {
-  const { numValues, numPositions } = solverCtx.ctx;
-  const actBase = numValues * numPositions + 1;
+  // Activation literals must start above ALL variable ranges: position vars
+  // AND rank auxiliary vars allocated during constraint encoding.
+  const actBase = alloc.varCeiling;
   const total = clauseCache.length;
 
   const allClauses: number[][] = [...solverCtx.baseClauses];
+  // Add rank channeling clauses (shared across constraints, not guarded)
+  for (const clause of alloc.channeling) allClauses.push(clause);
   for (let i = 0; i < total; i++) {
     const actVar = actBase + i;
     for (const clause of clauseCache[i]) {

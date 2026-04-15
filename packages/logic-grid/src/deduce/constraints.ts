@@ -4,8 +4,7 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { ordinal } from "../grid-utils";
-import { resolveAxis } from "../axis";
+import { isPinnedAxis, resolveAxis } from "../axis";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -13,7 +12,6 @@ import {
   getAssigned,
   first,
   step,
-  dedup,
   collectAssigns,
   describeResult,
   clueRef,
@@ -22,29 +20,26 @@ import {
   projectRanksToPositions,
 } from "./state";
 
-/** Check whether every position in `set` is adjacent to `p`. */
-function allAdjacent(set: Set<number>, p: number): boolean {
-  for (const q of set) {
-    if (q !== p - 1 && q !== p + 1) return false;
-  }
-  return true;
-}
-
-/** True when `axis` is the first ordered category (identity-pinned). */
-function isIdentityPinned(
-  grid: { categories: Category[] },
-  axis: Category,
-): boolean {
-  return grid.categories.find((c) => c.ordered === true) === axis;
+/**
+ * " on <AxisName>" suffix for multi-axis grids when the constraint targets
+ * a non-pinned axis (disambiguation needed). Single-axis grids and pinned-
+ * axis constraints in multi-axis grids omit the suffix — the pinned axis
+ * is implicit (it's the row anchor), so appending "on House" to every
+ * House-axis deduction is just noise.
+ */
+function axisSuffix(state: DeduceState, axis: Category): string {
+  if (!state.terms.multiAxis) return "";
+  if (isPinnedAxis(state.grid, axis)) return "";
+  return ` on ${axis.name}`;
 }
 
 /**
- * Generic rank-space deduction for binary comparative constraints on a
- * non-identity-pinned axis. Computes the rank domain of both values,
- * applies the predicate `isValid(rankA, rankB)` to decide which ranks
- * to eliminate, then projects back to position eliminations.
+ * Generic deduction for binary comparative constraints.
+ * When the axis is pinned, rank = position so we work directly with
+ * possible sets (O(|ps|) per value). For non-pinned axes, computes
+ * rank domains and projects back through the axis assignment.
  */
-function tryBinaryRankSpace(
+function tryBinaryAxis(
   state: DeduceState,
   a: string,
   b: string,
@@ -54,51 +49,65 @@ function tryBinaryRankSpace(
   isValid: (rankA: number, rankB: number) => boolean,
   description: string,
 ): DeductionStep | null {
-  const rankA = axisRankDomain(state, a, axis);
-  const rankB = axisRankDomain(state, b, axis);
-  if (rankA.size === 0 || rankB.size === 0) return null;
+  const pinned = isPinnedAxis(state.grid, axis);
+  const pa = pinned ? getPossible(state, a) : axisRankDomain(state, a, axis);
+  const pb = pinned ? getPossible(state, b) : axisRankDomain(state, b, axis);
+  if (pa.size === 0 || pb.size === 0) return null;
 
-  // Find ranks to eliminate: a rank is bad for value X if no rank of Y satisfies the predicate.
-  const badRanksA = new Set<number>();
-  for (const ra of rankA) {
-    let hasValidB = false;
-    for (const rb of rankB) {
+  // Find ranks to eliminate: bad for X if no Y satisfies the predicate.
+  const badA = new Set<number>();
+  const badB = new Set<number>();
+  for (const ra of pa) {
+    let ok = false;
+    for (const rb of pb) {
       if (isValid(ra, rb)) {
-        hasValidB = true;
+        ok = true;
         break;
       }
     }
-    if (!hasValidB) badRanksA.add(ra);
+    if (!ok) badA.add(ra);
   }
-  const badRanksB = new Set<number>();
-  for (const rb of rankB) {
-    let hasValidA = false;
-    for (const ra of rankA) {
+  for (const rb of pb) {
+    let ok = false;
+    for (const ra of pa) {
       if (isValid(ra, rb)) {
-        hasValidA = true;
+        ok = true;
         break;
       }
     }
-    if (!hasValidA) badRanksB.add(rb);
+    if (!ok) badB.add(rb);
+  }
+  if (badA.size === 0 && badB.size === 0) return null;
+
+  // Project to position eliminations: pinned axis = direct, otherwise via axis.
+  const elims: { value: string; position: number }[] = [];
+  if (pinned) {
+    for (const r of badA) elims.push({ value: a, position: r });
+    for (const r of badB) elims.push({ value: b, position: r });
+  } else {
+    elims.push(
+      ...projectRanksToPositions(state, a, axis, badA),
+      ...projectRanksToPositions(state, b, axis, badB),
+    );
   }
 
-  if (badRanksA.size === 0 && badRanksB.size === 0) return null;
-
-  const elims = [
-    ...projectRanksToPositions(state, a, axis, badRanksA),
-    ...projectRanksToPositions(state, b, axis, badRanksB),
-  ];
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  if (elims.length === 0) return null;
+  // Capture "because" context from pre-elim state — describeKnown after the
+  // mutation would report this step's own conclusions as the reason. When
+  // both operands have state worth mentioning, join them.
+  const parts = [describeKnown(state, a), describeKnown(state, b)].filter(
+    (s) => s !== "",
+  );
+  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
+  for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
+  const assigns = collectAssigns(state, elims);
   return step(
     technique,
     [ci],
-    uniqueElims,
+    elims,
     assigns,
-    `${clueRef(ci)}${description} ${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${description}${because} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
@@ -110,10 +119,6 @@ export function tryConstraint(
   ci: number,
 ): DeductionStep | null {
   switch (constraint.type) {
-    case "at_position":
-      return tryAtPosition(state, constraint, ci);
-    case "not_at_position":
-      return tryNotAtPosition(state, constraint, ci);
     case "same_position":
       return trySamePosition(state, constraint, ci);
     case "not_same_position":
@@ -135,53 +140,6 @@ export function tryConstraint(
   }
 }
 
-function tryAtPosition(
-  state: DeduceState,
-  c: { value: string; position: number },
-  ci: number,
-): DeductionStep | null {
-  const ps = getPossible(state, c.value);
-  if (ps.size <= 1) return null;
-  const elims: { value: string; position: number }[] = [];
-  for (const p of ps) {
-    if (p !== c.position) elims.push({ value: c.value, position: p });
-  }
-  ps.clear();
-  ps.add(c.position);
-  if (state.silent) return SILENT_STEP;
-  return step(
-    "direct",
-    [ci],
-    elims,
-    [{ value: c.value, position: c.position }],
-    `Clue ${ci + 1}: ${c.value} must be in the ${ordinal(c.position)} position.`,
-  );
-}
-
-function tryNotAtPosition(
-  state: DeduceState,
-  c: { value: string; position: number },
-  ci: number,
-): DeductionStep | null {
-  const ps = getPossible(state, c.value);
-  if (!ps.has(c.position)) return null;
-  ps.delete(c.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns =
-    ps.size === 1 ? [{ value: c.value, position: first(ps) }] : [];
-  const suffix =
-    assigns.length > 0
-      ? `, so ${c.value} must be in the ${ordinal(assigns[0].position)} position.`
-      : ".";
-  return step(
-    "elimination",
-    [ci],
-    [{ value: c.value, position: c.position }],
-    assigns,
-    `Clue ${ci + 1}: ${c.value} is not in the ${ordinal(c.position)} position${suffix}`,
-  );
-}
-
 function trySamePosition(
   state: DeduceState,
   c: { a: string; b: string },
@@ -197,6 +155,13 @@ function trySamePosition(
     if (!pa.has(p)) elims.push({ value: c.b, position: p });
   }
   if (elims.length === 0) return null;
+  // Capture "because" context from pre-intersection state — after we collapse
+  // pa/pb to their intersection describeKnown would report this step's result.
+  const knownParts = [
+    describeKnown(state, c.a),
+    describeKnown(state, c.b),
+  ].filter((s) => s !== "");
+  const ctx = knownParts.join(" and ");
   const intersection = new Set([...pa].filter((p) => pb.has(p)));
   pa.clear();
   pb.clear();
@@ -211,19 +176,28 @@ function trySamePosition(
     assigns.push({ value: c.a, position: p });
     assigns.push({ value: c.b, position: p });
   }
-  // Build "because" context from whichever value is more constrained
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
   const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel, isAxisValue } = state.terms;
+  // When one operand is a display-axis value, use the concise direct form:
+  // "Clue N: X must be in the <axisVal> <noun>." rather than the symmetric
+  // "X and axisVal are in the same <noun>" which reads as a tautology.
+  const axisSide = isAxisValue(c.a) ? c.a : isAxisValue(c.b) ? c.b : null;
+  if (axisSide !== null && assigns.length > 0) {
+    const other = axisSide === c.a ? c.b : c.a;
+    return step(
+      "same_position",
+      [ci],
+      elims,
+      assigns,
+      `${clueRef(ci)}${other} must be in the ${axisSide} ${noun}.`,
+    );
+  }
   let explanation: string;
   if (assigns.length > 0) {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}both are ${prep} the ${ordinal(assigns[0].position)} ${noun}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}both are in the ${posLabel(assigns[0].position)} ${noun}.`;
   } else {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are ${prep} the same ${noun}${because}${describeResult(state.grid, assigns, elims)}.`;
+    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}${describeResult(state.terms, assigns, elims)}.`;
   }
   return step("same_position", [ci], elims, assigns, explanation);
 }
@@ -254,18 +228,31 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const noun = "position";
-  const prep = "in";
+  const { noun, posLabel, isAxisValue } = state.terms;
   const assignSuffix =
     assigns.length > 0
-      ? ` ${assigns.map((a) => `${a.value} must be ${prep} the ${ordinal(a.position)} ${noun}`).join("; ")}.`
+      ? ` ${assigns.map((a) => `${a.value} must be in the ${posLabel(a.position)} ${noun}`).join("; ")}.`
       : "";
+  // When one operand is a display-axis value, use the concise direct form:
+  // "Clue N: X is not in the <axisVal> <noun>." The pinned-is-here reason is
+  // tautological for axis values.
+  const axisSide = isAxisValue(c.a) ? c.a : isAxisValue(c.b) ? c.b : null;
+  if (axisSide !== null) {
+    const nonAxis = axisSide === c.a ? c.b : c.a;
+    return step(
+      "not_same_position",
+      [ci],
+      elims,
+      assigns,
+      `${clueRef(ci)}${nonAxis} is not in the ${axisSide} ${noun}.${assignSuffix}`,
+    );
+  }
   return step(
     "not_same_position",
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are ${prep} different positions. ${pinned} is ${prep} the ${ordinal(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${pinned} and ${other} are in different ${noun}s. ${pinned} is in the ${posLabel(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
   );
 }
 
@@ -275,19 +262,16 @@ function tryNextTo(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBinaryRankSpace(
-      state,
-      c.a,
-      c.b,
-      axis,
-      ci,
-      "next_to",
-      (ra, rb) => Math.abs(ra - rb) === 1,
-      `${c.a} is adjacent to ${c.b} on ${axis.name}.`,
-    );
-  }
-  return tryAdjacency(state, c.a, c.b, ci, "next_to", true);
+  return tryBinaryAxis(
+    state,
+    c.a,
+    c.b,
+    axis,
+    ci,
+    "next_to",
+    (ra, rb) => Math.abs(ra - rb) === 1,
+    `${c.a} is next to ${c.b}${axisSuffix(state, axis)}.`,
+  );
 }
 
 function tryNotNextTo(
@@ -296,97 +280,15 @@ function tryNotNextTo(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBinaryRankSpace(
-      state,
-      c.a,
-      c.b,
-      axis,
-      ci,
-      "not_next_to",
-      (ra, rb) => Math.abs(ra - rb) !== 1,
-      `${c.a} is not adjacent to ${c.b} on ${axis.name}.`,
-    );
-  }
-  return tryAdjacency(state, c.a, c.b, ci, "not_next_to", false);
-}
-
-function tryAdjacency(
-  state: DeduceState,
-  a: string,
-  b: string,
-  ci: number,
-  technique: DeductionTechnique,
-  mustBeAdjacent: boolean,
-): DeductionStep | null {
-  const n = state.n;
-  const pa = getPossible(state, a);
-  const pb = getPossible(state, b);
-  const elims: { value: string; position: number }[] = [];
-
-  if (mustBeAdjacent) {
-    // next_to: for each value, eliminate positions where no neighbor is possible
-    const validForA = new Set<number>();
-    for (const p of pa) {
-      if ((p > 0 && pb.has(p - 1)) || (p < n - 1 && pb.has(p + 1))) {
-        validForA.add(p);
-      }
-    }
-    for (const p of pa) {
-      if (!validForA.has(p)) elims.push({ value: a, position: p });
-    }
-    const validForB = new Set<number>();
-    for (const p of pb) {
-      if ((p > 0 && pa.has(p - 1)) || (p < n - 1 && pa.has(p + 1))) {
-        validForB.add(p);
-      }
-    }
-    for (const p of pb) {
-      if (!validForB.has(p)) elims.push({ value: b, position: p });
-    }
-  } else {
-    // not_next_to: if one is pinned, eliminate adjacent from the other
-    const posA = getAssigned(state, a);
-    if (posA !== null) {
-      if (posA > 0 && pb.has(posA - 1))
-        elims.push({ value: b, position: posA - 1 });
-      if (posA < n - 1 && pb.has(posA + 1))
-        elims.push({ value: b, position: posA + 1 });
-    }
-    const posB = getAssigned(state, b);
-    if (posB !== null) {
-      if (posB > 0 && pa.has(posB - 1))
-        elims.push({ value: a, position: posB - 1 });
-      if (posB < n - 1 && pa.has(posB + 1))
-        elims.push({ value: a, position: posB + 1 });
-    }
-    // Arc-consistency: eliminate p from a if every position in b is adjacent to p
-    for (const p of pa) {
-      if (pb.size > 0 && allAdjacent(pb, p))
-        elims.push({ value: a, position: p });
-    }
-    for (const p of pb) {
-      if (pa.size > 0 && allAdjacent(pa, p))
-        elims.push({ value: b, position: p });
-    }
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
-  const verb = mustBeAdjacent ? "next to" : "not next to";
-  const knownA = describeKnown(state, a);
-  const knownB = describeKnown(state, b);
-  const ctx = knownA || knownB;
-  const because = ctx ? ` ${ctx}, so ` : " ";
-  return step(
-    technique,
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${a} is ${verb} ${b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+  return tryBinaryAxis(
+    state,
+    c.a,
+    c.b,
+    axis,
+    ci,
+    "not_next_to",
+    (ra, rb) => Math.abs(ra - rb) !== 1,
+    `${c.a} is not next to ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -396,44 +298,15 @@ function tryLeftOf(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBinaryRankSpace(
-      state,
-      c.a,
-      c.b,
-      axis,
-      ci,
-      "left_of",
-      (ra, rb) => rb === ra + 1,
-      `${c.a} is directly before ${c.b} on ${axis.name}.`,
-    );
-  }
-  const pa = getPossible(state, c.a);
-  const pb = getPossible(state, c.b);
-  const elims: { value: string; position: number }[] = [];
-
-  for (const p of pa) {
-    if (!pb.has(p + 1)) elims.push({ value: c.a, position: p });
-  }
-  for (const p of pb) {
-    if (!pa.has(p - 1)) elims.push({ value: c.b, position: p });
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
-  const because = ctx ? ` ${ctx}, so ` : " ";
-  return step(
+  return tryBinaryAxis(
+    state,
+    c.a,
+    c.b,
+    axis,
+    ci,
     "left_of",
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${c.a} is directly left of ${c.b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+    (ra, rb) => rb === ra + 1,
+    `${c.a} is directly left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -443,47 +316,15 @@ function tryBefore(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBinaryRankSpace(
-      state,
-      c.a,
-      c.b,
-      axis,
-      ci,
-      "before",
-      (ra, rb) => ra < rb,
-      `${c.a} is before ${c.b} on ${axis.name}.`,
-    );
-  }
-  const pa = getPossible(state, c.a);
-  const pb = getPossible(state, c.b);
-  const elims: { value: string; position: number }[] = [];
-
-  if (pa.size === 0 || pb.size === 0) return null;
-  const maxB = Math.max(...pb);
-  for (const p of pa) {
-    if (p >= maxB) elims.push({ value: c.a, position: p });
-  }
-  const minA = Math.min(...pa);
-  for (const p of pb) {
-    if (p <= minA) elims.push({ value: c.b, position: p });
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
-  const because = ctx ? ` ${ctx}, so ` : " ";
-  return step(
+  return tryBinaryAxis(
+    state,
+    c.a,
+    c.b,
+    axis,
+    ci,
     "before",
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${c.a} is somewhere left of ${c.b}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+    (ra, rb) => ra < rb,
+    `${c.a} is somewhere left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -493,115 +334,7 @@ function tryBetween(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBetweenRankSpace(state, c, axis, ci, false);
-  }
-  const po1 = getPossible(state, c.outer1);
-  const pm = getPossible(state, c.middle);
-  const po2 = getPossible(state, c.outer2);
-  const elims: { value: string; position: number }[] = [];
-
-  const a1 = getAssigned(state, c.outer1);
-  const a2 = getAssigned(state, c.outer2);
-
-  // If both outers are pinned, middle must be strictly between them
-  if (a1 !== null && a2 !== null) {
-    const lo = Math.min(a1, a2);
-    const hi = Math.max(a1, a2);
-    for (const p of pm) {
-      if (p <= lo || p >= hi) elims.push({ value: c.middle, position: p });
-    }
-  }
-
-  // If middle and one outer are pinned, constrain the other outer to the opposite side
-  const am = getAssigned(state, c.middle);
-  if (am !== null && a1 !== null) {
-    for (const p of po2) {
-      // outer1 < middle → outer2 must be > middle; outer1 > middle → outer2 must be < middle
-      if (a1 < am && p <= am) elims.push({ value: c.outer2, position: p });
-      if (a1 > am && p >= am) elims.push({ value: c.outer2, position: p });
-    }
-  }
-  if (am !== null && a2 !== null) {
-    for (const p of po1) {
-      if (a2 < am && p <= am) elims.push({ value: c.outer1, position: p });
-      if (a2 > am && p >= am) elims.push({ value: c.outer1, position: p });
-    }
-  }
-
-  // Arc-consistency: eliminate middle positions where no valid outer pair exists on both sides
-  // Skip when any set is empty — Math.min/max on empty sets returns ±Infinity
-  if (po1.size > 0 && po2.size > 0 && pm.size > 0) {
-    const minO1 = Math.min(...po1);
-    const maxO1 = Math.max(...po1);
-    const minO2 = Math.min(...po2);
-    const maxO2 = Math.max(...po2);
-    for (const p of pm) {
-      const case1 = minO1 < p && maxO2 > p;
-      const case2 = minO2 < p && maxO1 > p;
-      if (!case1 && !case2) elims.push({ value: c.middle, position: p });
-    }
-    // Arc-consistency for outers
-    for (const p1 of po1) {
-      let valid = false;
-      for (const m of pm) {
-        if (p1 < m && maxO2 > m) {
-          valid = true;
-          break;
-        }
-        if (p1 > m && minO2 < m) {
-          valid = true;
-          break;
-        }
-      }
-      if (!valid) elims.push({ value: c.outer1, position: p1 });
-    }
-    for (const p2 of po2) {
-      let valid = false;
-      for (const m of pm) {
-        if (p2 < m && maxO1 > m) {
-          valid = true;
-          break;
-        }
-        if (p2 > m && minO1 < m) {
-          valid = true;
-          break;
-        }
-      }
-      if (!valid) elims.push({ value: c.outer2, position: p2 });
-    }
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
-
-  let because: string;
-  if (a1 !== null && a2 !== null) {
-    const noun = "position";
-    const prep = "in";
-    const parts = [
-      `${c.outer1} is ${prep} the ${ordinal(a1)} ${noun}`,
-      `${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}`,
-    ];
-    because = ` ${parts.join(" and ")}, so `;
-  } else {
-    const knownO1 = describeKnown(state, c.outer1);
-    const knownO2 = describeKnown(state, c.outer2);
-    const knownM = describeKnown(state, c.middle);
-    const ctx = knownO1 || knownO2 || knownM;
-    because = ctx ? ` ${ctx}, so ` : " ";
-  }
-
-  return step(
-    "between",
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${c.middle} is somewhere between ${c.outer1} and ${c.outer2}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
-  );
+  return tryBetweenAxis(state, c, axis, ci, false);
 }
 
 function tryNotBetween(
@@ -610,83 +343,13 @@ function tryNotBetween(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    return tryBetweenRankSpace(state, c, axis, ci, true);
-  }
-  const a1 = getAssigned(state, c.outer1);
-  const a2 = getAssigned(state, c.outer2);
-  const pm = getPossible(state, c.middle);
-  const elims: { value: string; position: number }[] = [];
-
-  if (a1 !== null && a2 !== null) {
-    // Both pinned: middle cannot be strictly between them
-    const lo = Math.min(a1, a2);
-    const hi = Math.max(a1, a2);
-    for (const p of pm) {
-      if (p > lo && p < hi) elims.push({ value: c.middle, position: p });
-    }
-  } else if (a1 !== null || a2 !== null) {
-    // One outer pinned: eliminate middle positions where every position of the
-    // other outer would place the middle between them.
-    const pinnedPos = a1 ?? a2!;
-    const otherPossible =
-      a1 !== null ? getPossible(state, c.outer2) : getPossible(state, c.outer1);
-    if (otherPossible.size === 0) return null;
-    const minOther = Math.min(...otherPossible);
-    const maxOther = Math.max(...otherPossible);
-    for (const m of pm) {
-      if (pinnedPos < m && minOther > m)
-        elims.push({ value: c.middle, position: m });
-      if (pinnedPos > m && maxOther < m)
-        elims.push({ value: c.middle, position: m });
-    }
-  } else {
-    // Neither outer pinned: eliminate middle positions that are always between
-    // all possible outer pairs (all outer1 positions on one side, all outer2 on the other).
-    const po1 = getPossible(state, c.outer1);
-    const po2 = getPossible(state, c.outer2);
-    if (po1.size === 0 || po2.size === 0) return null;
-    const maxO1 = Math.max(...po1);
-    const minO1 = Math.min(...po1);
-    const maxO2 = Math.max(...po2);
-    const minO2 = Math.min(...po2);
-    for (const m of pm) {
-      if ((maxO1 < m && minO2 > m) || (minO1 > m && maxO2 < m))
-        elims.push({ value: c.middle, position: m });
-    }
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
-
-  let because: string;
-  if (a1 !== null && a2 !== null) {
-    const noun = "position";
-    const prep = "in";
-    because = ` ${c.outer1} is ${prep} the ${ordinal(a1)} ${noun} and ${c.outer2} is ${prep} the ${ordinal(a2)} ${noun}, so `;
-  } else {
-    // At least one outer always has a description for supported grid sizes (3–8):
-    // the neither-pinned case needs 4+4+1=9 positions, exceeding max size 8.
-    const ctx =
-      describeKnown(state, c.outer1) || describeKnown(state, c.outer2);
-    because = ` ${ctx}, so `;
-  }
-  return step(
-    "not_between",
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${c.middle} is not between ${c.outer1} and ${c.outer2}.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
-  );
+  return tryBetweenAxis(state, c, axis, ci, true);
 }
 
 /**
- * Rank-space deduction for between / not_between on non-identity-pinned axes.
+ * Generic deduction for between / not_between (pinned or non-pinned axis).
  */
-function tryBetweenRankSpace(
+function tryBetweenAxis(
   state: DeduceState,
   c: { outer1: string; middle: string; outer2: string; axis: string },
   axis: Category,
@@ -696,87 +359,76 @@ function tryBetweenRankSpace(
   const technique: DeductionTechnique = isNotBetween
     ? "not_between"
     : "between";
-  const rO1 = axisRankDomain(state, c.outer1, axis);
-  const rO2 = axisRankDomain(state, c.outer2, axis);
-  const rM = axisRankDomain(state, c.middle, axis);
+  const pinned = isPinnedAxis(state.grid, axis);
+  const rO1 = pinned
+    ? getPossible(state, c.outer1)
+    : axisRankDomain(state, c.outer1, axis);
+  const rO2 = pinned
+    ? getPossible(state, c.outer2)
+    : axisRankDomain(state, c.outer2, axis);
+  const rM = pinned
+    ? getPossible(state, c.middle)
+    : axisRankDomain(state, c.middle, axis);
   if (rO1.size === 0 || rO2.size === 0 || rM.size === 0) return null;
 
-  // For `between`: middle rank must be strictly between the two outers.
-  // Eliminate middle ranks where no valid outer pair exists on both sides.
-  // For `not_between`: middle rank must NOT be strictly between.
-  const badM = new Set<number>();
-  for (const rm of rM) {
-    let ok = false;
-    for (const r1 of rO1) {
-      for (const r2 of rO2) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
-        const isBetween = r1 !== r2 && rm > lo && rm < hi;
-        if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
-        }
-      }
-      if (ok) break;
-    }
-    if (!ok) badM.add(rm);
-  }
-
-  // Similarly eliminate outer ranks that can't participate in any valid triple.
-  const badO1 = new Set<number>();
+  // Single-pass: find which ranks are valid for each role.
+  const okO1 = new Set<number>();
+  const okO2 = new Set<number>();
+  const okM = new Set<number>();
   for (const r1 of rO1) {
-    let ok = false;
     for (const r2 of rO2) {
+      const lo = Math.min(r1, r2);
+      const hi = Math.max(r1, r2);
       for (const rm of rM) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
         const isBetween = r1 !== r2 && rm > lo && rm < hi;
         if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
+          okO1.add(r1);
+          okO2.add(r2);
+          okM.add(rm);
         }
       }
-      if (ok) break;
     }
-    if (!ok) badO1.add(r1);
-  }
-  const badO2 = new Set<number>();
-  for (const r2 of rO2) {
-    let ok = false;
-    for (const r1 of rO1) {
-      for (const rm of rM) {
-        const lo = Math.min(r1, r2);
-        const hi = Math.max(r1, r2);
-        const isBetween = r1 !== r2 && rm > lo && rm < hi;
-        if (isNotBetween ? !isBetween : isBetween) {
-          ok = true;
-          break;
-        }
-      }
-      if (ok) break;
-    }
-    if (!ok) badO2.add(r2);
   }
 
-  if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
-
-  const elims = [
-    ...projectRanksToPositions(state, c.middle, axis, badM),
-    ...projectRanksToPositions(state, c.outer1, axis, badO1),
-    ...projectRanksToPositions(state, c.outer2, axis, badO2),
-  ];
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
+  // Collect eliminations: for pinned axis, rank = position directly.
+  const elims: { value: string; position: number }[] = [];
+  if (pinned) {
+    for (const r of rM)
+      if (!okM.has(r)) elims.push({ value: c.middle, position: r });
+    for (const r of rO1)
+      if (!okO1.has(r)) elims.push({ value: c.outer1, position: r });
+    for (const r of rO2)
+      if (!okO2.has(r)) elims.push({ value: c.outer2, position: r });
+  } else {
+    const badM = new Set([...rM].filter((r) => !okM.has(r)));
+    const badO1 = new Set([...rO1].filter((r) => !okO1.has(r)));
+    const badO2 = new Set([...rO2].filter((r) => !okO2.has(r)));
+    if (badM.size === 0 && badO1.size === 0 && badO2.size === 0) return null;
+    elims.push(
+      ...projectRanksToPositions(state, c.middle, axis, badM),
+      ...projectRanksToPositions(state, c.outer1, axis, badO1),
+      ...projectRanksToPositions(state, c.outer2, axis, badO2),
+    );
+  }
+  if (elims.length === 0) return null;
+  // Capture "because" context from pre-elim state. Between needs both anchors
+  // to explain the middle's placement, so join all non-empty descriptions.
+  const parts = [
+    describeKnown(state, c.outer1),
+    describeKnown(state, c.outer2),
+    describeKnown(state, c.middle),
+  ].filter((s) => s !== "");
+  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
+  for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
+  const assigns = collectAssigns(state, elims);
   const verb = isNotBetween ? "is not between" : "is between";
   return step(
     technique,
     [ci],
-    uniqueElims,
+    elims,
     assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2} on ${axis.name}. ${describeResult(state.grid, assigns, uniqueElims)}.`,
+    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2}${axisSuffix(state, axis)}.${because} ${describeResult(state.terms, assigns, elims)}.`,
   );
 }
 
@@ -786,80 +438,33 @@ function tryExactDistance(
   ci: number,
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
-  if (!isIdentityPinned(state.grid, axis)) {
-    const numVals = axis.numericValues;
-    return tryBinaryRankSpace(
-      state,
-      c.a,
-      c.b,
-      axis,
-      ci,
-      "exact_distance",
-      (ra, rb) => {
-        const d = numVals
-          ? Math.abs(numVals[ra] - numVals[rb])
-          : Math.abs(ra - rb);
-        return d === c.distance;
-      },
-      `${c.a} and ${c.b} are ${c.distance} apart on ${axis.name}.`,
-    );
-  }
-  const n = state.n;
-  const pa = getPossible(state, c.a);
-  const pb = getPossible(state, c.b);
-  const elims: { value: string; position: number }[] = [];
   const numVals = axis.numericValues;
-
-  if (numVals) {
-    // Value-based distance: compute valid partner positions from numeric values
-    const partnersOf = (p: number): number[] => {
-      const result: number[] = [];
-      for (let q = 0; q < n; q++) {
-        if (Math.abs(numVals[p] - numVals[q]) === c.distance) result.push(q);
-      }
-      return result;
-    };
-    for (const p of pa) {
-      if (!partnersOf(p).some((q) => pb.has(q)))
-        elims.push({ value: c.a, position: p });
-    }
-    for (const p of pb) {
-      if (!partnersOf(p).some((q) => pa.has(q)))
-        elims.push({ value: c.b, position: p });
-    }
-  } else {
-    // Position-based distance (original behavior)
-    for (const p of pa) {
-      const canB =
-        (p + c.distance < n && pb.has(p + c.distance)) ||
-        (p - c.distance >= 0 && pb.has(p - c.distance));
-      if (!canB) elims.push({ value: c.a, position: p });
-    }
-    for (const p of pb) {
-      const canA =
-        (p + c.distance < n && pa.has(p + c.distance)) ||
-        (p - c.distance >= 0 && pa.has(p - c.distance));
-      if (!canA) elims.push({ value: c.b, position: p });
-    }
-  }
-
-  const uniqueElims = dedup(elims);
-  if (uniqueElims.length === 0) return null;
-  for (const e of uniqueElims) getPossible(state, e.value).delete(e.position);
-  if (state.silent) return SILENT_STEP;
-  const assigns = collectAssigns(state, uniqueElims);
   const unit = axis.orderingPhrases.unit;
+  // Fall back to the target axis's own noun, not state.terms.noun —
+  // state.terms describes the pinned (row-anchor) axis, which may differ
+  // from the constraint's axis in multi-axis grids. For a Year-axis
+  // exact_distance on a House-pinned grid, we want "3 years" not "3 houses".
+  // The `|| "position"` branch is defensive — ordered categories practically
+  // always declare a noun; `validateCategories` requires `verb` but not
+  // `noun`, so this guards the empty-noun edge case.
+  /* v8 ignore next */
+  const axisNoun = axis.noun || "position";
   const distLabel = unit
     ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? "position" : "positions"}`;
-  // At least one value always has a description for supported grid sizes (3–8).
-  const ctx = describeKnown(state, c.a) || describeKnown(state, c.b);
-  const because = ` ${ctx}, so `;
-  return step(
+    : `${c.distance} ${c.distance === 1 ? axisNoun : axisNoun + "s"}`;
+  return tryBinaryAxis(
+    state,
+    c.a,
+    c.b,
+    axis,
+    ci,
     "exact_distance",
-    [ci],
-    uniqueElims,
-    assigns,
-    `${clueRef(ci)}${c.a} and ${c.b} are exactly ${distLabel} apart.${because}${describeResult(state.grid, assigns, uniqueElims)}.`,
+    (ra, rb) => {
+      const d = numVals
+        ? Math.abs(numVals[ra] - numVals[rb])
+        : Math.abs(ra - rb);
+      return d === c.distance;
+    },
+    `${c.a} and ${c.b} are exactly ${distLabel} apart.`,
   );
 }
