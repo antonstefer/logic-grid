@@ -73,6 +73,10 @@ export function describeKnown(state: DeduceState, value: string): string {
     return `${value} is in the ${posLabel(pos)} ${noun}`;
   }
   const possible = getPossible(state, value);
+  // Only useful when the domain is both small enough to enumerate AND
+  // genuinely narrowed — on a 3-grid with nothing eliminated, "can only be
+  // in the first or second or third house" is true but useless and would
+  // shadow more informative operands in callers like trySamePosition.
   if (possible.size <= 3 && possible.size < state.n) {
     const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
     return `${value} can only be in the ${posStr} ${noun}`;

@@ -85,9 +85,12 @@ function tryBinaryAxis(
 
   if (elims.length === 0) return null;
   // Capture "because" context from pre-elim state — describeKnown after the
-  // mutation would report this step's own conclusions as the reason.
-  const ctx = describeKnown(state, a) || describeKnown(state, b);
-  const because = ctx ? ` ${ctx}, so` : "";
+  // mutation would report this step's own conclusions as the reason. When
+  // both operands have state worth mentioning, join them.
+  const parts = [describeKnown(state, a), describeKnown(state, b)].filter(
+    (s) => s !== "",
+  );
+  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
@@ -146,9 +149,9 @@ function trySamePosition(
   if (elims.length === 0) return null;
   // Capture "because" context from pre-intersection state — after we collapse
   // pa/pb to their intersection describeKnown would report this step's result.
-  const knownA = describeKnown(state, c.a);
-  const knownB = describeKnown(state, c.b);
-  const ctx = knownA || knownB;
+  const knownParts = [describeKnown(state, c.a), describeKnown(state, c.b)]
+    .filter((s) => s !== "");
+  const ctx = knownParts.join(" and ");
   const intersection = new Set([...pa].filter((p) => pb.has(p)));
   pa.clear();
   pb.clear();

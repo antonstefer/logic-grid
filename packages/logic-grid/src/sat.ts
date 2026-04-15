@@ -176,7 +176,14 @@ class SATBase {
     return true;
   }
 
-  /** Process unit clauses and propagate. */
+  /**
+   * Process unit clauses and propagate. The UNDEF-first / non-UNDEF-second
+   * branching order (rather than the inverse `if (UNDEF) else if (mismatch)`)
+   * is a v8-coverage quirk — chained `else if` was reported as a single
+   * branch, hiding the mismatch-path when it wasn't exercised. Functionally
+   * identical; the two tests (`contradictory unit clauses`, `duplicate unit
+   * clauses`) lock the behavior in.
+   */
   protected processUnitClauses(): boolean {
     for (let ci = 0; ci < this.numClauses; ci++) {
       if (this.clauseLen[ci] === 0) return false;

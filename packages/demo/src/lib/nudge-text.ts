@@ -29,8 +29,14 @@ function joinValues(values: string[]): string {
   return values.slice(0, -1).join(", ") + ", and " + values[values.length - 1];
 }
 
+/** Generic fallback when the technique is unrecognized — shields against
+ * persisted deduction traces referring to removed techniques like the
+ * pre-refactor "direct" / "elimination". */
+const UNKNOWN_TECHNIQUE_HINT = "think about what this clue rules out";
+
 export function buildNudgeText(step: DeductionStep): string {
-  const hintTemplate = TECHNIQUE_HINTS[step.technique];
+  const hintTemplate: string =
+    TECHNIQUE_HINTS[step.technique] ?? UNKNOWN_TECHNIQUE_HINT;
 
   // Clue-based steps reference specific clues and substitute {target}.
   // Structural steps (clueIndices empty) use plain statements with no placeholder.

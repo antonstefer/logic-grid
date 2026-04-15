@@ -133,6 +133,21 @@ describe("buildNudgeText", () => {
     );
   });
 
+  it("falls back gracefully on unknown techniques (e.g. persisted traces)", () => {
+    // Simulate a persisted deduction trace from before this PR that still
+    // uses the removed "direct" technique. DeductionTechnique no longer
+    // permits it, but runtime data might — buildNudgeText must not throw.
+    const text = buildNudgeText(
+      makeStep({
+        technique: "direct" as unknown as DeductionStep["technique"],
+        clueIndices: [0],
+        eliminations: [{ value: "Red", position: 1 }],
+      }),
+    );
+    expect(text).toContain("Clue 1");
+    expect(text).toContain("Red");
+  });
+
   it("TECHNIQUE_HINTS covers all techniques", () => {
     const techniques = [
       "same_position",
