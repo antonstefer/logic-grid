@@ -288,7 +288,13 @@ describe("generate", () => {
 
   it("expert puzzles require contradiction", () => {
     // Seed chosen so the first generation attempt produces a non-expert
-    // puzzle, forcing at least one difficulty-retry iteration.
+    // puzzle, forcing at least one difficulty-retry iteration. The natural
+    // assertion below pins that premise — if RNG/scoring shifts and seed 1
+    // starts producing expert naturally, this test fails loudly so we can
+    // pick a new seed instead of silently losing retry-branch coverage.
+    const natural = generate({ size: 4, categories: 4, seed: 1 });
+    expect(natural.difficulty).not.toBe("expert");
+
     const puzzle = generate({
       size: 4,
       categories: 4,
