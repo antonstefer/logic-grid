@@ -51,6 +51,21 @@ export function axisRank(category: Category, value: string): number {
 }
 
 /**
+ * The pinned axis: the first ordered category, identity-pinned by `encodeBase`
+ * (rank = position) for symmetry breaking. This is the canonical "row anchor"
+ * of the SAT encoding and is independent of `grid.displayAxis` (which is a
+ * UI presentation hint, not a solver concern).
+ */
+export function pinnedAxis(grid: Grid): OrderedCategory | undefined {
+  return grid.categories.find(isOrdered);
+}
+
+/** True when `axis` is the pinned (row-anchor) axis. */
+export function isPinnedAxis(grid: Grid, axis: Category): boolean {
+  return pinnedAxis(grid) === axis;
+}
+
+/**
  * Return the presentation display-anchor category for the grid. Reads
  * `grid.displayAxis` when set; otherwise returns the first ordered category.
  * Throws if no ordered category exists.

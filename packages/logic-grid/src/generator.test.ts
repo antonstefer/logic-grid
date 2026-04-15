@@ -309,6 +309,63 @@ describe("generate", () => {
     );
   });
 
+  it("generates a unique-solution puzzle when displayAxis is a non-first ordered category", () => {
+    // Two ordered categories; pick the second as displayAxis. SAT pinning
+    // anchors the first ordered axis (encoder convention) regardless of the
+    // displayAxis hint — verify that constraint generation, encoding, and
+    // uniqueness checking all stay consistent.
+    const puzzle = generate({
+      size: 3,
+      seed: 1,
+      categoryNames: [
+        { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+        {
+          name: "Year",
+          values: ["2020", "2021", "2022"],
+          noun: "year",
+          verb: ["is from", "is not from"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: {
+              before: ["is older than", "is younger than"],
+              left_of: ["is one year before", "is one year after"],
+              next_to: "is one year apart from",
+              not_next_to: "is not one year apart from",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        {
+          name: "Score",
+          values: ["10", "20", "30"],
+          noun: "score",
+          verb: ["scored", "did not score"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: {
+              before: ["scored less than", "scored more than"],
+              left_of: ["scored just below", "scored just above"],
+              next_to: "scored adjacent to",
+              not_next_to: "did not score adjacent to",
+              between: "scored between",
+              not_between: "did not score between",
+              exact_distance: "scored exactly",
+            },
+          },
+        },
+      ],
+      displayAxis: "Score",
+    });
+    expect(puzzle.solution.length).toBe(3);
+    expect(hasUniqueSolution(puzzle.constraints, puzzle.grid)).toBe(true);
+    // The SAT-canonical solution pins Year (first ordered) at identity.
+    expect(puzzle.solution[1]["2020"]).toBe(0);
+    expect(puzzle.solution[1]["2021"]).toBe(1);
+    expect(puzzle.solution[1]["2022"]).toBe(2);
+  });
+
   it("throws when custom categoryNames count is out of range", () => {
     expect(() =>
       generate({

@@ -1,10 +1,5 @@
 import type { Category, Constraint, Grid } from "./types";
-import { resolveAxis } from "./axis";
-
-/** True when `axis` is pinned (rank = position) by encodeBase for symmetry breaking. */
-function isPinnedAxis(grid: Grid, axis: Category): boolean {
-  return grid.categories.find((c) => c.ordered === true) === axis;
-}
+import { isPinnedAxis, pinnedAxis, resolveAxis } from "./axis";
 
 /**
  * Predicate `isValid(rank_a, rank_b)` for a binary comparative.
@@ -327,14 +322,14 @@ export function encodeBase(ctx: EncodingContext): number[][] {
     }
   }
 
-  // Pin the display axis to break the n!-fold position symmetry. Without
-  // this, every puzzle would have n! equivalent solutions (one per
+  // Pin the first ordered axis to break the n!-fold position symmetry.
+  // Without this, every puzzle would have n! equivalent solutions (one per
   // permutation of abstract position slots). This is the only axis that
   // gets pinned; all others use the general rank-var encoder.
-  const dispAxis = grid.categories.find((c) => c.ordered === true);
-  if (!dispAxis) throw new Error("Grid has no ordered category");
-  for (let i = 0; i < dispAxis.values.length; i++) {
-    clauses.push([variable(ctx, dispAxis.values[i], i)]);
+  const axis = pinnedAxis(grid);
+  if (!axis) throw new Error("Grid has no ordered category");
+  for (let i = 0; i < axis.values.length; i++) {
+    clauses.push([variable(ctx, axis.values[i], i)]);
   }
 
   return clauses;

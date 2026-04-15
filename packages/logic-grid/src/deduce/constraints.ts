@@ -4,7 +4,7 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
-import { resolveAxis } from "../axis";
+import { isPinnedAxis, resolveAxis } from "../axis";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -19,11 +19,6 @@ import {
   axisRankDomain,
   projectRanksToPositions,
 } from "./state";
-
-/** True when `axis` is the pinned display axis (rank = position). */
-function isPinnedAxis(state: DeduceState, axis: Category): boolean {
-  return state.grid.categories.find((c) => c.ordered === true) === axis;
-}
 
 /** " on <AxisName>" suffix for multi-axis grids; empty string otherwise. */
 function axisSuffix(state: DeduceState, axis: Category): string {
@@ -46,7 +41,7 @@ function tryBinaryAxis(
   isValid: (rankA: number, rankB: number) => boolean,
   description: string,
 ): DeductionStep | null {
-  const pinned = isPinnedAxis(state, axis);
+  const pinned = isPinnedAxis(state.grid, axis);
   const pa = pinned ? getPossible(state, a) : axisRankDomain(state, a, axis);
   const pb = pinned ? getPossible(state, b) : axisRankDomain(state, b, axis);
   if (pa.size === 0 || pb.size === 0) return null;
@@ -351,7 +346,7 @@ function tryBetweenAxis(
   const technique: DeductionTechnique = isNotBetween
     ? "not_between"
     : "between";
-  const pinned = isPinnedAxis(state, axis);
+  const pinned = isPinnedAxis(state.grid, axis);
   const rO1 = pinned
     ? getPossible(state, c.outer1)
     : axisRankDomain(state, c.outer1, axis);

@@ -4,6 +4,7 @@ import type {
   DeductionStep,
   DeductionTechnique,
 } from "../types";
+import { pinnedAxis } from "../axis";
 
 // --- Display utilities ---
 
@@ -18,10 +19,10 @@ export interface AxisTerms {
   multiAxis: boolean;
 }
 
-/** Compute axis terms for the grid's display axis. */
+/** Compute axis terms for the grid's pinned axis (the row anchor). */
 function computeAxisTerms(grid: Grid): AxisTerms {
   // createState throws if no ordered category exists, so axis is always defined here.
-  const axis = grid.categories.find((c) => c.ordered === true)!;
+  const axis = pinnedAxis(grid)!;
   const axisValues = new Set(axis.values);
   const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
   return {
@@ -116,14 +117,14 @@ export function createState(grid: Grid): DeduceState {
       valueInfo.set(grid.categories[ci].values[vi], [ci, vi]);
     }
   }
-  // Pin the display axis to match encodeBase and randomSolution: value[k]
-  // is fixed at position k to break the n!-fold position symmetry.
-  const firstOrderedIdx = grid.categories.findIndex((c) => c.ordered === true);
-  if (firstOrderedIdx < 0) throw new Error("Grid has no ordered category");
-  const pinCat = grid.categories[firstOrderedIdx];
+  // Pin the first ordered axis to match encodeBase and randomSolution:
+  // value[k] is fixed at position k to break the n!-fold position symmetry.
+  const pinCat = pinnedAxis(grid);
+  if (!pinCat) throw new Error("Grid has no ordered category");
+  const pinCatIdx = grid.categories.indexOf(pinCat);
   for (let vi = 0; vi < pinCat.values.length; vi++) {
-    possible[firstOrderedIdx][vi].clear();
-    possible[firstOrderedIdx][vi].add(vi);
+    possible[pinCatIdx][vi].clear();
+    possible[pinCatIdx][vi].add(vi);
   }
   return {
     grid,

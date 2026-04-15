@@ -19,6 +19,7 @@ import {
   displayAxisCategory,
   isOrdered,
   orderedCategories,
+  pinnedAxis,
   resolveAxis,
 } from "./axis";
 import { DEFAULT_CATEGORIES, defaultHouseCategory } from "./default-config";
@@ -217,11 +218,12 @@ function sliceCategory(c: Category, size: number): Category {
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
-  // The display axis is pinned (value[i] at position i) to break the
-  // n!-fold position symmetry. All other categories are shuffled.
-  const dispAxis = displayAxisCategory(grid);
+  // Pin the same axis encodeBase pins (the first ordered category) so the
+  // generated solution matches what the SAT solver will canonicalize to.
+  // grid.displayAxis is a UI hint and does not affect SAT pinning.
+  const pinned = pinnedAxis(grid);
   return grid.categories.map((cat) => {
-    if (cat === dispAxis) {
+    if (cat === pinned) {
       const assignment: Assignment = {};
       for (let i = 0; i < cat.values.length; i++) {
         assignment[cat.values[i]] = i;
