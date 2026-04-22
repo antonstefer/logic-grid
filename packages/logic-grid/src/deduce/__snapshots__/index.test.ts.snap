@@ -8,13 +8,13 @@ exports[`deduce > snapshots explanation strings 1`] = `
   "Clue 4: Blue lives in the first or second house, so Dog does not live in the third house.",
   "Clue 5: Dog lives in the first or second house, so Coffee does not live in the third house.",
   "Clue 6: Tea lives in the first house.",
-  "Red has no other possible house — Red lives in the first house.",
+  "Red lives in the first house (no other house possible).",
   "Clue 3: Blue lives in the second house and Green lives in the second or third house, so Green lives in the third house.",
   "Clue 4: Blue lives in the second house and Dog lives in the first or second house, so Dog lives in the second house.",
   "Clue 5: Dog lives in the second house and Coffee lives in the first or second house, so Coffee lives in the second house.",
-  "Cat has no other possible house — Cat lives in the first house.",
-  "Dog has no other possible house — Dog lives in the second house.",
-  "Tea has no other possible house — Tea lives in the first house.",
-  "Coffee has no other possible house — Coffee lives in the second house.",
+  "Cat lives in the first house (no other house possible).",
+  "Dog lives in the second house (no other house possible).",
+  "Tea lives in the first house (no other house possible).",
+  "Coffee lives in the second house (no other house possible).",
 ]
 `;

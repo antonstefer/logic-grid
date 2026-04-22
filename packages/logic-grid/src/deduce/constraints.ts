@@ -94,7 +94,7 @@ function tryBinaryAxis(
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
-  const result = describeResult(state.grid, state.terms, assigns, elims);
+  const result = describeResult(state.grid, assigns, elims);
   const tail = ctx ? `${capitalize(ctx)}, so ${result}` : capitalize(result);
   return step(technique, [ci], elims, assigns, `${clueRef(ci)}${tail}.`);
 }
@@ -189,7 +189,7 @@ function trySamePosition(
   }
   // Drop the "X and Y are in the same <noun>" opener — the clue itself
   // already says that. Explanation shows only the reasoning and conclusion.
-  const result = describeResult(state.grid, state.terms, assigns, elims);
+  const result = describeResult(state.grid, assigns, elims);
   const explanation = ctx
     ? `${clueRef(ci)}${capitalize(ctx)}, so ${result}.`
     : `${clueRef(ci)}${capitalize(result)}.`;
@@ -414,7 +414,7 @@ function tryBetweenAxis(
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
-  const result = describeResult(state.grid, state.terms, assigns, elims);
+  const result = describeResult(state.grid, assigns, elims);
   const tail = ctx ? `${capitalize(ctx)}, so ${result}` : capitalize(result);
   return step(technique, [ci], elims, assigns, `${clueRef(ci)}${tail}.`);
 }

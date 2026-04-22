@@ -52,25 +52,19 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
       const { axisName } = state.terms;
-      const val = cat.values[vi];
-      // For positionAdjective categories ("Red" describes "house"), using the
-      // full label "the red house" alongside "the Nth house" would read as
-      // containment between two houses. Use the bare adjective as subject and
-      // flip the conclusion: "Red has no other possible house — the first
-      // house must be red."
-      const subject = subjectForm(val, cat, state.grid);
-      const conclusion = formatAtSingle(val, pos, state.grid, false);
-      // Use axis *name* ("bounty", "house", "year") rather than axis *noun*
-      // ("fugitive", "house", "fund"). The name describes the concept being
-      // measured; the noun describes the row entity and can semantically
-      // overlap with the subject ("Blackbeard has no other possible fugitive"
-      // is nonsense when Blackbeard is a pirate/fugitive).
+      // Parenthetical reasoning hint mirrors hidden_single's structure and
+      // avoids repeating the subject ("Carol lives in the fourth house —
+      // Carol lives in the fourth house" before). Uses axis *name* ("bounty",
+      // "house", "year") not axis *noun* ("fugitive", "slot", "fund") — the
+      // name is the concept being measured and doesn't semantically overlap
+      // with the subject.
+      const conclusion = formatAtSingle(cat.values[vi], pos, state.grid, false);
       return step(
         "naked_single",
         [],
         elims,
         assigns,
-        `${capitalize(subject)} has no other possible ${axisName} — ${conclusion}.`,
+        `${capitalize(conclusion)} (no other ${axisName} possible).`,
       );
     }
   }

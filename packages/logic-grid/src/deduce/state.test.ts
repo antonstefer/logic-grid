@@ -10,33 +10,20 @@ const grid = makeGrid({
   ],
 });
 
-const terms = createState(grid).terms;
-
 describe("describeResult", () => {
   it("describes assignments", () => {
-    const result = describeResult(
-      grid,
-      terms,
-      [{ value: "Alice", position: 0 }],
-      [],
-    );
+    const result = describeResult(grid, [{ value: "Alice", position: 0 }], []);
     expect(result).toBe("Alice lives in the first house");
   });
 
   it("describes eliminations", () => {
-    const result = describeResult(
-      grid,
-      terms,
-      [],
-      [{ value: "Bob", position: 1 }],
-    );
+    const result = describeResult(grid, [], [{ value: "Bob", position: 1 }]);
     expect(result).toBe("Bob does not live in the second house");
   });
 
   it("combines assignments and eliminations", () => {
     const result = describeResult(
       grid,
-      terms,
       [{ value: "Alice", position: 0 }],
       [{ value: "Bob", position: 2 }],
     );
@@ -56,37 +43,6 @@ describe("createState invariant", () => {
       ],
     };
     expect(() => createState(bare)).toThrow("no ordered category");
-  });
-});
-
-describe("axisTerms fallback", () => {
-  it("uses 'position' when ordered category has no noun", () => {
-    const noNounGrid = {
-      size: 2,
-      categories: [
-        {
-          name: "Idx",
-          values: ["A", "B"],
-          ordered: true as const,
-          verb: ["is", "is not"] as [string, string],
-          orderingPhrases: {
-            comparators: {
-              before: ["is before", "is after"] as [string, string],
-              left_of: ["is left of", "is right of"] as [string, string],
-              next_to: "is next to",
-              not_next_to: "is not next to",
-              between: "is between",
-              not_between: "is not between",
-              exact_distance: "is exactly",
-            },
-          },
-        },
-        { name: "X", values: ["x1", "x2"] },
-      ],
-    };
-    const state = createState(noNounGrid);
-    expect(state.terms.noun).toBe("position");
-    expect(state.terms.posLabel(0)).toBe("A");
   });
 });
 
@@ -149,10 +105,8 @@ describe("axisNames pluralizer", () => {
         { name: "Person", values: ["A", "B"] },
       ],
     };
-    // "day" ends in vowel+y, should become "days" (naive pluralizer keeps -y + s)
-    // But our rule says "vowel+y → y+s". Let me check: /[^aeiou]y$/ tests
-    // consonant+y. "day" has "ay" (a is vowel) so doesn't match → falls to
-    // "word + s" = "days".
+    // The pluralizer only special-cases consonant+y ([^aeiou]y$). "day" has
+    // "ay" (vowel+y) so it doesn't match and falls through to `word + "s"`.
     const state = createState(dayGrid);
     expect(state.terms.axisName).toBe("day");
     expect(state.terms.axisNames).toBe("days");

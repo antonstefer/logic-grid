@@ -11,7 +11,6 @@ import { formatAtMulti, formatAtSingle, pluralize } from "../clues/templates";
 
 /** Axis-derived phrasing for deduction explanations. */
 export interface AxisTerms {
-  noun: string;
   /** Lowercased name of the pinned axis category — the *concept* being measured.
    * Used in structural phrasings ("no other possible X", "in the A and B Xs"),
    * where the row-entity `noun` can semantically overlap with the subject
@@ -40,7 +39,6 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
   const axisName = axis.name.toLowerCase();
   return {
-    noun: axis.noun || "position",
     axisName,
     axisNames: pluralize(axisName),
     posLabel: (p) => axis.values[p],
@@ -51,7 +49,6 @@ function computeAxisTerms(grid: Grid): AxisTerms {
 
 export function describeResult(
   grid: Grid,
-  _terms: AxisTerms,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {

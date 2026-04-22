@@ -22,6 +22,14 @@ export function pluralize(word: string): string {
   return word + "s";
 }
 
+/** Join a list with "or", Oxford-comma for 3+ items:
+ *  ["a"] → "a"; ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c". */
+function joinOr(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} or ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
+}
+
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
 export function label(value: string, grid: Grid): string {
   const cat = findCategory(value, grid);
@@ -147,7 +155,7 @@ export function formatAtMulti(
   const axis = pinnedAxis(grid);
   if (!axis) throw new RangeError("Grid has no ordered category");
   const axisNoun = axis.noun || "position";
-  const posStrOr = positions.map((p) => axis.values[p]).join(" or ");
+  const posStrOr = joinOr(positions.map((p) => axis.values[p]));
   if (cat.positionAdjective) {
     const posAdj = cat.positionAdjective[0];
     // Negative multi-pos: classical "neither...nor" with the pinned-axis

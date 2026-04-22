@@ -203,34 +203,28 @@ function buildGrid(
   return grid;
 }
 
-/** Copy a user-provided category, slicing values/numericValues to grid size. */
+/** Copy a user-provided category, slicing values/numericValues to grid size.
+ *  Preserves all fields via spread — future Category additions survive this
+ *  step without per-field enumeration. Only the fields that need
+ *  transformation (values → sliced, noun/subjectPriority → defaults,
+ *  numericValues/displayLabels → sliced when ordered) are overridden. */
 function sliceCategory(c: Category, size: number): Category {
   const noun = c.noun ?? "";
   const subjectPriority = c.subjectPriority ?? (noun === "" ? 2 : 0);
-  const base = {
-    name: c.name,
+  const sliced = {
+    ...c,
     values: c.values.slice(0, size),
     noun,
-    verb: c.verb,
     subjectPriority,
-    lowercase: c.lowercase,
   };
-  // Spread optional valueSuffix/positionAdjective respecting the discriminated union.
-  const withSuffix =
-    c.valueSuffix !== undefined
-      ? { valueSuffix: c.valueSuffix, positionAdjective: c.positionAdjective }
-      : {};
-  if (isOrdered(c)) {
+  if (isOrdered(sliced)) {
     return {
-      ...base,
-      ordered: true,
-      numericValues: c.numericValues?.slice(0, size),
-      orderingPhrases: c.orderingPhrases,
-      displayLabels: c.displayLabels?.slice(0, size),
-      ...withSuffix,
+      ...sliced,
+      numericValues: sliced.numericValues?.slice(0, size),
+      displayLabels: sliced.displayLabels?.slice(0, size),
     } as Category; // spread loses union discrimination
   }
-  return { ...base, ...withSuffix } as Category;
+  return sliced as Category;
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
