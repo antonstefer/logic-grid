@@ -13,16 +13,23 @@ function lc(value: string, cat: Category): string {
   return cat.lowercase ? value.toLowerCase() : value;
 }
 
-/** Join a list with "or", Oxford-comma for 3+ items:
- *  ["x"] → "x"; ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c".
- *  Throws on empty input — an empty list has no natural "or" form and
- *  empty strings would silently leak into templates. */
-export function joinOr(items: string[]): string {
+/** Join a list with the given conjunction word, Oxford-comma for 3+ items:
+ *  ["x"] → "x"; ["a","b"] → "a <joiner> b";
+ *  ["a","b","c"] → "a, b, <joiner> c".
+ *  Throws on empty input — an empty list has no natural form and empty
+ *  strings would silently leak into templates. */
+function joinWith(items: string[], joiner: string): string {
   if (items.length === 0)
-    throw new RangeError("joinOr: items must be non-empty");
+    throw new RangeError("joinWith: items must be non-empty");
   if (items.length === 1) return items[0];
-  if (items.length === 2) return `${items[0]} or ${items[1]}`;
-  return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
+  if (items.length === 2) return `${items[0]} ${joiner} ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, ${joiner} ${items[items.length - 1]}`;
+}
+
+/** Join with "or" (disjunctive). Thin wrapper — kept as the primary public
+ *  helper because most callsites want disjunction. */
+export function joinOr(items: string[]): string {
+  return joinWith(items, "or");
 }
 
 /** Natural noun phrase: "Alice", "the red house", "the cat owner". */
@@ -181,15 +188,12 @@ export function formatAtMulti(
     // house is red" reads in the same rhythm as the singular PA flip
     // "the first house is not red"). Singular verb agrees with "neither…nor".
     if (negative) {
-      // Parallel structure to joinOr but uses "nor" and repeats "the " before
-      // each item ("neither the first nor the fourth house"). Sharing a helper
-      // would need both customizations; for one callsite, inline is cheaper.
+      // "neither the first nor the fourth house" / "neither the first, the
+      // second, nor the fourth house". Each item gets "the " prepended so
+      // the disjunction reads definite; `joinWith` handles the 2-vs-3+
+      // shape uniformly.
       const withThe = positions.map((p) => `the ${axis.values[p]}`);
-      const joined =
-        withThe.length === 2
-          ? `${withThe[0]} nor ${withThe[1]}`
-          : `${withThe.slice(0, -1).join(", ")}, nor ${withThe[withThe.length - 1]}`;
-      return `neither ${joined} ${axisNoun} ${posAdj} ${lc(value, cat)}`;
+      return `neither ${joinWith(withThe, "nor")} ${axisNoun} ${posAdj} ${lc(value, cat)}`;
     }
     // Positive multi-pos: bare adjective as subject ("red") with the
     // positionAdjective verb and a singular disjunction. Reads
