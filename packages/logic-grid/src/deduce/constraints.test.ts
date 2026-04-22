@@ -901,6 +901,22 @@ describe("rank-space deduction on non-pinned axis", () => {
     ],
   });
 
+  it("explanations on non-pinned axis don't include ' on <Axis>' tail", () => {
+    // Pre-refactor, comparative deductions on a non-pinned ordered axis
+    // appended " on Return" / " on Rank" to disambiguate. That suffix is
+    // gone now — the phrasing relies on the pinned axis's verb being
+    // self-clear. Lock this in so we don't accidentally reintroduce it.
+    const constraints: Constraint[] = [
+      { type: "same_position", a: "Alice", b: "8%" },
+      { type: "before", a: "Alice", b: "Bob", axis: "Return" },
+    ];
+    const result = deduce(constraints, multiGrid);
+    for (const s of result.steps) {
+      expect(s.explanation).not.toMatch(/ on Return\b/);
+      expect(s.explanation).not.toMatch(/ on Year\b/);
+    }
+  });
+
   it("before on non-pinned axis propagates", () => {
     // Pin 8% to position 0, so Alice at pos 0 has return rank 3 (the highest).
     // before(Alice, Bob, Return) means Alice's return rank < Bob's → but

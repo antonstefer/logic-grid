@@ -40,7 +40,7 @@ function objectValue(value: string, grid: Grid): string {
 }
 
 /** Look up a symmetric comparator (plain string). */
-export function symmetricComp(
+function symmetricComp(
   grid: Grid,
   type:
     | "next_to"
@@ -58,7 +58,7 @@ export function symmetricComp(
  * side becomes the subject (priority first, then hash tiebreaker) and selects
  * the matching forward/reverse phrase from the tuple.
  */
-export function directionalComp(
+function directionalComp(
   grid: Grid,
   type: "before" | "left_of",
   a: string,
@@ -77,11 +77,7 @@ export function directionalComp(
  * broken by a deterministic hash so the same constraint pair always renders
  * the same way, but different pairs vary across left/right phrasings.
  */
-export function orderedPair(
-  a: string,
-  b: string,
-  grid: Grid,
-): [string, string] {
+function orderedPair(a: string, b: string, grid: Grid): [string, string] {
   const pa = findCategory(a, grid).subjectPriority ?? 0;
   const pb = findCategory(b, grid).subjectPriority ?? 0;
   if (pa !== pb) return pb > pa ? [b, a] : [a, b];
@@ -168,6 +164,9 @@ export function formatAtMulti(
     // house is red" reads in the same rhythm as the singular PA flip
     // "the first house is not red"). Singular verb agrees with "neither…nor".
     if (negative) {
+      // Parallel structure to joinOr but uses "nor" and repeats "the " before
+      // each item ("neither the first nor the fourth house"). Sharing a helper
+      // would need both customizations; for one callsite, inline is cheaper.
       const withThe = positions.map((p) => `the ${axis.values[p]}`);
       const joined =
         withThe.length === 2
