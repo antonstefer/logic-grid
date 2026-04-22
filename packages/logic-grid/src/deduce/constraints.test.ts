@@ -779,6 +779,23 @@ describe("deduce constraint types", () => {
 });
 
 describe("empty-set guards", () => {
+  it("same_position returns null when one operand is empty", () => {
+    // Prevents a contradiction-state value (empty possibles) from producing
+    // nonsense elims on the other operand — especially problematic when the
+    // non-empty operand is a pinned-axis value whose position would be
+    // "eliminated" (emptying an invariant-set).
+    const state = createState(grid);
+    getPossible(state, "Red").clear();
+    const result = tryConstraint(
+      state,
+      { type: "same_position", a: "Red", b: "first" },
+      0,
+    );
+    expect(result).toBeNull();
+    // "first" stays pinned at position 0.
+    expect(getPossible(state, "first").has(0)).toBe(true);
+  });
+
   it("before returns null when a possible set is empty", () => {
     const state = createState(grid);
     getPossible(state, "Red").clear();

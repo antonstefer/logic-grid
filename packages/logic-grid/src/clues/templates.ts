@@ -14,10 +14,13 @@ function lc(value: string, cat: Category): string {
 }
 
 /** Join a list with "or", Oxford-comma for 3+ items:
- *  ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c".
- *  Precondition: `items.length >= 2` — the only call site (formatAtMulti
- *  positive-disjunction path) is reached only with 2+ positions. */
-function joinOr(items: string[]): string {
+ *  ["x"] → "x"; ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c".
+ *  Throws on empty input — an empty list has no natural "or" form and
+ *  empty strings would silently leak into templates. */
+export function joinOr(items: string[]): string {
+  if (items.length === 0)
+    throw new RangeError("joinOr: items must be non-empty");
+  if (items.length === 1) return items[0];
   if (items.length === 2) return `${items[0]} or ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
 }
@@ -172,8 +175,12 @@ export function formatAtMulti(
           : `${withThe.slice(0, -1).join(", ")}, nor ${withThe[withThe.length - 1]}`;
       return `neither ${joined} ${axisNoun} ${posAdj} ${lc(value, cat)}`;
     }
-    // Positive multi-pos: "red is the first or second house" — the disjunction
-    // reads correctly as "one of these is red". No flip needed.
+    // Positive multi-pos: bare adjective as subject ("red") with the
+    // positionAdjective verb and a singular disjunction. Reads
+    // distributively — "red is the first or second house" = "one of these
+    // houses is red" — without needing the neither-nor flip the negative
+    // case uses, and without the double-noun problem the non-PA fallback
+    // would hit ("the red house is in the first or second house").
     return `${lc(value, cat)} ${posAdj} the ${posStrOr} ${axisNoun}`;
   }
   const axisObjects = axis.valueSuffix

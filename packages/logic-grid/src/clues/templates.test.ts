@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatAtMulti, formatAtSingle, renderClue } from "./templates";
+import { formatAtMulti, formatAtSingle, joinOr, renderClue } from "./templates";
 import { makeGrid } from "../test-helpers";
 import type { Grid } from "../types";
 
@@ -762,5 +762,69 @@ describe("formatAtSingle / formatAtMulti edge cases", () => {
     expect(clue.text).toBe(
       "The red house is not between Alice and the cat owner.",
     );
+  });
+});
+
+describe("joinOr", () => {
+  it("single item returns as-is", () => {
+    expect(joinOr(["first"])).toBe("first");
+  });
+  it("two items join with ' or '", () => {
+    expect(joinOr(["first", "second"])).toBe("first or second");
+  });
+  it("three+ items use Oxford comma", () => {
+    expect(joinOr(["first", "second", "third"])).toBe(
+      "first, second, or third",
+    );
+    expect(joinOr(["a", "b", "c", "d"])).toBe("a, b, c, or d");
+  });
+  it("throws on empty input", () => {
+    expect(() => joinOr([])).toThrow("items must be non-empty");
+  });
+});
+
+describe("renderClue — exact_distance singular unit", () => {
+  // Pre-refactor this was tested via deduction output. The deduction no
+  // longer restates "N <unit> apart", so the singular unit path is only
+  // exercised through renderClue now — cover it directly.
+  it("uses the singular unit form when distance === 1", () => {
+    const g = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: {
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: ["has a return right below", "has a return right above"],
+              next_to: "has the return right above or below",
+              not_next_to: "does not have the return right above or below",
+              between: "has a return between",
+              not_between: "does not have a return between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+      ],
+    });
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Return",
+      },
+      g,
+    );
+    expect(clue.text).toContain("1 percentage point from");
+    expect(clue.text).not.toContain("percentage points");
   });
 });
