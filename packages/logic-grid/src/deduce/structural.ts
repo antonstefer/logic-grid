@@ -15,6 +15,12 @@ import {
  * describes "house"), the bare adjective ("red") avoids the double-noun
  * "the red house ... the Nth house" idiom. Otherwise the full label
  * ("the bird owner") is used.
+ *
+ * Scope: used by naked_pair / naked_triple / hidden_pair / hidden_triple,
+ * which assemble multiple subjects into one clause ("Red and Blue can only
+ * be in the A and B houses"). Single-value conclusions go through
+ * `formatAtSingle`, which has its own built-in positionAdjective flip and
+ * fits the full "subject + verb + object" form on its own.
  */
 function subjectForm(value: string, cat: Category, grid: Grid): string {
   if (cat.positionAdjective) {
