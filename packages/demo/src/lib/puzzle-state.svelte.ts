@@ -31,9 +31,9 @@ interface DerivedWrite extends CellCoord {
 }
 
 /**
- * A propagation rule observes a just-changed cell and returns implied writes.
- * Pure function — must not mutate state. v1 ships one rule (sub-grid uniqueness);
- * future rules (triangle, last-cell, contrapositive-triangle) fit the same shape.
+ * Observes a just-changed cell and returns implied writes. Pure — must not
+ * mutate state. New rules (triangle, last-cell, etc.) plug into `rules[]`
+ * without touching call sites.
  */
 interface PropagationRule {
   name: string;

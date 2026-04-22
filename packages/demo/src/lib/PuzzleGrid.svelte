@@ -141,10 +141,9 @@
               {valueLabel(rowCatIdx, rvi)}
             </th>
             {#each cats.slice(0, -1) as topCat, q}
-              {@const topCatIdx = q}
               {#if p + q <= N - 2}
                 {#each topCat.values as _, tvi}
-                  {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
+                  {@const cell = pair[rowCatIdx][rvi][q][tvi]}
                   <td
                     class="cell"
                     class:eliminated={cell.state === "eliminated"}
@@ -153,24 +152,22 @@
                     class:sub-end-col={tvi === S - 1}
                     class:sub-start-row={rvi === 0}
                     class:sub-end-row={rvi === S - 1}
-                    onclick={() =>
-                      handleClick(rowCatIdx, rvi, topCatIdx, tvi)}
+                    onclick={() => handleClick(rowCatIdx, rvi, q, tvi)}
                     ontouchstart={(e) =>
-                      handleTouchStart(e, rowCatIdx, rvi, topCatIdx, tvi)}
+                      handleTouchStart(e, rowCatIdx, rvi, q, tvi)}
                     ontouchmove={handleTouchMove}
                     ontouchend={handleTouchEnd}
                     oncontextmenu={(e) => e.preventDefault()}
                     onmouseup={(e) => {
-                      if (e.button === 2)
-                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
+                      if (e.button === 2) onEliminate(rowCatIdx, rvi, q, tvi);
                     }}
                     role="button"
                     tabindex="0"
                     onkeydown={(e) => {
                       if (e.key === "Enter" || e.key === " ")
-                        onConfirm(rowCatIdx, rvi, topCatIdx, tvi);
+                        onConfirm(rowCatIdx, rvi, q, tvi);
                       if (e.key === "Delete" || e.key === "Backspace")
-                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
+                        onEliminate(rowCatIdx, rvi, q, tvi);
                     }}
                   >
                     {cellSymbol(cell.state)}
@@ -213,11 +210,7 @@
     font-weight: 600;
     color: #475569;
     background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-top: 2px solid #94a3b8;
-    border-left: 2px solid #94a3b8;
-    border-right: 2px solid #94a3b8;
-    border-bottom: 2px solid #94a3b8;
+    border: 2px solid #94a3b8;
     text-transform: capitalize;
   }
 
@@ -256,11 +249,7 @@
     padding: 0.375rem 0.75rem;
     font-weight: 600;
     background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-left: 2px solid #94a3b8;
-    border-right: 2px solid #94a3b8;
-    border-top: 2px solid #94a3b8;
-    border-bottom: 2px solid #94a3b8;
+    border: 2px solid #94a3b8;
     vertical-align: middle;
     white-space: nowrap;
     text-transform: capitalize;
