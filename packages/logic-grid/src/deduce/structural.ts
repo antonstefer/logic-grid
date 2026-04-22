@@ -223,6 +223,10 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           const assigns = collectAssigns(state, elims);
           const { posLabel, axisAnchor } = state.terms;
           const items = [...union].map((p) => posLabel(p));
+          // Inline Oxford-comma "or" join (parallel to the private joinOr in
+          // templates.ts). Kept local because it's the only 3+-item callsite
+          // in this file; if a naked_quadruple (or similar) ever lands,
+          // lift both uses into a shared export.
           const posList = `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
           const s1 = subjectForm(cat.values[vi1], cat, state.grid);
           const s2 = subjectForm(cat.values[vi2], cat, state.grid);
