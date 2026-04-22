@@ -10,27 +10,25 @@ const grid = makeGrid({
   ],
 });
 
-const terms = createState(grid).terms;
-
 describe("describeResult", () => {
   it("describes assignments", () => {
-    const result = describeResult(terms, [{ value: "Alice", position: 0 }], []);
-    expect(result).toBe("Alice must be in the first house");
+    const result = describeResult(grid, [{ value: "Alice", position: 0 }], []);
+    expect(result).toBe("Alice lives in the first house");
   });
 
   it("describes eliminations", () => {
-    const result = describeResult(terms, [], [{ value: "Bob", position: 1 }]);
-    expect(result).toBe("Bob can't be in the second house");
+    const result = describeResult(grid, [], [{ value: "Bob", position: 1 }]);
+    expect(result).toBe("Bob does not live in the second house");
   });
 
   it("combines assignments and eliminations", () => {
     const result = describeResult(
-      terms,
+      grid,
       [{ value: "Alice", position: 0 }],
       [{ value: "Bob", position: 2 }],
     );
     expect(result).toBe(
-      "Alice must be in the first house; Bob can't be in the third house",
+      "Alice lives in the first house; Bob does not live in the third house",
     );
   });
 });
@@ -48,9 +46,53 @@ describe("createState invariant", () => {
   });
 });
 
-describe("axisTerms fallback", () => {
-  it("uses 'position' when ordered category has no noun", () => {
-    const noNounGrid = {
+describe("axisName casing", () => {
+  function simpleGrid(name: string) {
+    return {
+      size: 2,
+      categories: [
+        {
+          name,
+          values: ["A", "B"],
+          noun: "row",
+          ordered: true as const,
+          verb: ["is", "is not"] as [string, string],
+          orderingPhrases: {
+            comparators: {
+              before: ["is before", "is after"] as [string, string],
+              left_of: ["is left of", "is right of"] as [string, string],
+              next_to: "is next to",
+              not_next_to: "is not next to",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        { name: "Other", values: ["x1", "x2"] },
+      ],
+    };
+  }
+
+  it("lowercases plain single-word names", () => {
+    expect(createState(simpleGrid("Bounty")).terms.axisName).toBe("bounty");
+    expect(createState(simpleGrid("House")).terms.axisName).toBe("house");
+  });
+
+  it("preserves acronyms and multi-word names", () => {
+    // "ytd return" from naive lowercasing would mangle the acronym.
+    expect(createState(simpleGrid("YTD Return")).terms.axisName).toBe(
+      "YTD Return",
+    );
+    expect(createState(simpleGrid("Day of Week")).terms.axisName).toBe(
+      "Day of Week",
+    );
+  });
+});
+
+describe("axisAnchor fallback", () => {
+  it("uses 'position' when the ordered axis has neither valueSuffix nor noun", () => {
+    const noAnchorGrid = {
       size: 2,
       categories: [
         {
@@ -73,9 +115,8 @@ describe("axisTerms fallback", () => {
         { name: "X", values: ["x1", "x2"] },
       ],
     };
-    const state = createState(noNounGrid);
-    expect(state.terms.noun).toBe("position");
-    expect(state.terms.posLabel(0)).toBe("A");
+    const state = createState(noAnchorGrid);
+    expect(state.terms.axisAnchor).toBe("position");
   });
 });
 
@@ -85,7 +126,9 @@ describe("describeKnown", () => {
     const state = createState(grid);
     state.possible[1][0].clear();
     state.possible[1][0].add(0);
-    expect(describeKnown(state, "Alice")).toBe("Alice is in the first house");
+    expect(describeKnown(state, "Alice")).toBe(
+      "Alice lives in the first house",
+    );
   });
 
   it("describes possible positions", () => {
@@ -94,7 +137,7 @@ describe("describeKnown", () => {
     state.possible[1][1].add(0);
     state.possible[1][1].add(2);
     expect(describeKnown(state, "Bob")).toBe(
-      "Bob can only be in the first or third house",
+      "Bob lives in the first or third house",
     );
   });
 });

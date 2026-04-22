@@ -5,18 +5,29 @@ import type {
   DeductionTechnique,
 } from "../types";
 import { pinnedAxis } from "../axis";
+import { formatAtMulti, formatAtSingle } from "../clues/templates";
 
 // --- Display utilities ---
 
 /** Axis-derived phrasing for deduction explanations. */
 export interface AxisTerms {
-  noun: string;
+  /** Lowercased name of the pinned axis category — the *concept* being measured.
+   * Used in the singular ("no other possible X") structural phrasing where
+   * the row-entity `noun` can semantically overlap with the subject
+   * (e.g. `noun: "fugitive"` clashes with pirate subjects). The concept word
+   * (`name: "Bounty"` → "bounty") reads uniformly across themes. */
+  axisName: string;
+  /** Anchor noun for "the <pos> <anchor>" references in multi-position
+   * phrasings (naked_pair etc.). Prefers `valueSuffix` ("house" for House,
+   * "gold pieces" for Bounty) since that's the object-form anchor already
+   * used in clue rendering; falls back to `noun` for axes without a suffix
+   * (Year → "fund", Time → "slot"). Singular — pair/triple phrasings use
+   * disjunction ("first or second house"), not conjunction, so plural
+   * morphology is unneeded. */
+  axisAnchor: string;
   posLabel: (p: number) => string;
   /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
   isAxisValue: (value: string) => boolean;
-  /** True when the grid has more than one ordered category — used to decide
-   * whether comparative deductions include the " on <Axis>" disambiguator. */
-  multiAxis: boolean;
 }
 
 /** Compute axis terms for the grid's pinned axis (the row anchor). */
@@ -28,24 +39,37 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // categories. If that invariant weakens, this lookup silently
   // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
-  const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
+  // Lowercase only plain single-word common-noun names ("Bounty" → "bounty",
+  // "House" → "house"). Preserve acronyms and multi-word names as-authored
+  // ("YTD Return" stays "YTD Return") so naked_single's "(no other <X>
+  // possible)" doesn't mangle them into "(no other ytd return possible)".
+  // Mirrors the same choice hidden_single makes with `cat.name`.
+  //
+  // Known limitation: the regex matches any initial-capital word of 2+
+  // chars, so a miscapitalized acronym like "Hr" (meant as hours / HR)
+  // would be treated as a common noun and lowercased to "hr". Real
+  // acronyms are all-caps ("HR", "YTD") and bypass the rule. Miscapitalized
+  // input is a preset-authoring bug; the engine doesn't try to detect it.
+  const rawName = axis.name;
+  const axisName = /^[A-Z][a-z]+$/.test(rawName)
+    ? rawName.toLowerCase()
+    : rawName;
   return {
-    noun: axis.noun || "position",
+    axisName,
+    axisAnchor: axis.valueSuffix ?? axis.noun ?? "position",
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),
-    multiAxis: orderedCount > 1,
   };
 }
 
 export function describeResult(
-  terms: AxisTerms,
+  grid: Grid,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const { noun, posLabel } = terms;
   const parts: string[] = [];
   for (const a of assigns) {
-    parts.push(`${a.value} must be in the ${posLabel(a.position)} ${noun}`);
+    parts.push(formatAtSingle(a.value, a.position, grid, false));
   }
   // Group eliminations by value
   const byValue = new Map<string, number[]>();
@@ -56,8 +80,11 @@ export function describeResult(
     byValue.get(e.value)!.push(e.position);
   }
   for (const [value, positions] of byValue) {
-    const posStr = positions.map((p) => posLabel(p)).join(" or ");
-    parts.push(`${value} can't be in the ${posStr} ${noun}`);
+    if (positions.length === 1) {
+      parts.push(formatAtSingle(value, positions[0], grid, true));
+    } else {
+      parts.push(formatAtMulti(value, positions, grid, true));
+    }
   }
   return parts.join("; ");
 }
@@ -68,13 +95,13 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const { noun, posLabel } = state.terms;
+  const { posLabel } = state.terms;
   const pos = getAssigned(state, value);
   if (pos !== null) {
     // Display-axis values are pinned to their own index — "first is in the
     // first house" is tautological and shadows more informative operands.
     if (posLabel(pos) === value) return "";
-    return `${value} is in the ${posLabel(pos)} ${noun}`;
+    return formatAtSingle(value, pos, state.grid, false);
   }
   const possible = getPossible(state, value);
   // Only useful when the domain is both small enough to enumerate AND
@@ -82,8 +109,7 @@ export function describeKnown(state: DeduceState, value: string): string {
   // in the first or second or third house" is true but useless and would
   // shadow more informative operands in callers like trySamePosition.
   if (possible.size <= 3 && possible.size < state.n) {
-    const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
-    return `${value} can only be in the ${posStr} ${noun}`;
+    return formatAtMulti(value, [...possible], state.grid, false);
   }
   return "";
 }

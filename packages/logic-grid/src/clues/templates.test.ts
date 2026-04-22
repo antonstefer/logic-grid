@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { renderClue } from "./templates";
+import { formatAtMulti, formatAtSingle, joinOr, renderClue } from "./templates";
 import { makeGrid } from "../test-helpers";
+import type { Grid } from "../types";
 
 const grid = makeGrid({
   size: 3,
@@ -549,5 +550,304 @@ describe("per-axis orderingPhrases in rendering", () => {
     );
     // Year has no unit → bare number.
     expect(clue.text).toContain("2 from");
+  });
+});
+
+describe("formatAtSingle / formatAtMulti edge cases", () => {
+  // Grid with no ordered category — bypasses makeGrid's auto-House so we can
+  // exercise the "Grid has no ordered category" guard directly.
+  const unordered: Grid = {
+    size: 2,
+    categories: [
+      { name: "A", values: ["a1", "a2"] },
+      { name: "B", values: ["b1", "b2"] },
+    ],
+  };
+
+  it("formatAtSingle throws when grid has no ordered category", () => {
+    expect(() => formatAtSingle("a1", 0, unordered, false)).toThrow(
+      "Grid has no ordered category",
+    );
+  });
+
+  it("formatAtMulti throws when grid has no ordered category", () => {
+    // Two positions so it hits formatAtMulti's own throw, not the length-1
+    // delegation to formatAtSingle.
+    expect(() => formatAtMulti("a1", [0, 1], unordered, false)).toThrow(
+      "Grid has no ordered category",
+    );
+  });
+
+  it("formatAtMulti delegates length-1 input to formatAtSingle", () => {
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    // Same output as the single-position helper.
+    const single = formatAtSingle("Alice", 1, g, false);
+    const multi = formatAtMulti("Alice", [1], g, false);
+    expect(multi).toBe(single);
+  });
+
+  // Grid whose pinned axis has no `noun` — exercises the `|| "position"`
+  // fallback on the positionAdjective flip path (the only place in these
+  // helpers where the axis noun is used).
+  const noAxisNounGrid: Grid = {
+    size: 2,
+    categories: [
+      {
+        name: "Idx",
+        values: ["one", "two"],
+        ordered: true,
+        verb: ["is", "is not"],
+        orderingPhrases: {
+          comparators: {
+            before: ["is before", "is after"],
+            left_of: ["is right before", "is right after"],
+            next_to: "is right next to",
+            not_next_to: "is not right next to",
+            between: "is between",
+            not_between: "is not between",
+            exact_distance: "is exactly",
+          },
+        },
+      },
+      {
+        name: "Color",
+        values: ["Red", "Blue"],
+        noun: "thing",
+        verb: ["is", "is not"],
+        valueSuffix: "thing",
+        positionAdjective: ["is", "is not"],
+        subjectPriority: -1,
+        lowercase: true,
+      },
+    ],
+  };
+
+  it("formatAtSingle falls back to 'position' when axis has no noun", () => {
+    // Color has positionAdjective → flipped path uses axis noun; falls back
+    // to "position" when absent.
+    expect(formatAtSingle("Red", 0, noAxisNounGrid, false)).toBe(
+      "the one position is red",
+    );
+  });
+
+  it("formatAtMulti falls back to 'position' when axis has no noun", () => {
+    expect(formatAtMulti("Red", [0, 1], noAxisNounGrid, false)).toBe(
+      "red is the one or two position",
+    );
+  });
+
+  it("formatAtMulti positionAdjective negative uses 'neither...nor' (2 pos)", () => {
+    // "red is not the first or fourth house" is ambiguous (could parse as
+    // "is not the first" OR "is the fourth"). Classical neither/nor with
+    // pinned-axis subject reads unambiguously.
+    const paGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow"],
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          positionAdjective: ["is", "is not"],
+          lowercase: true,
+          subjectPriority: -1,
+        },
+      ],
+    });
+    expect(formatAtMulti("Red", [0, 3], paGrid, true)).toBe(
+      "neither the first nor the fourth house is red",
+    );
+  });
+
+  it("formatAtMulti positionAdjective negative with 3 positions uses Oxford 'nor'", () => {
+    const paGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow"],
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          positionAdjective: ["is", "is not"],
+          lowercase: true,
+          subjectPriority: -1,
+        },
+      ],
+    });
+    expect(formatAtMulti("Red", [0, 1, 3], paGrid, true)).toBe(
+      "neither the first, the second, nor the fourth house is red",
+    );
+  });
+
+  it("renderClue between with positionAdjective middle uses 'is between'", () => {
+    // House's comparator for between is "lives somewhere between", which
+    // assumes a person-like middle. For a Color middle (positionAdjective),
+    // flip to the adjective verb: "The red house is between X and Y."
+    const paGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow"],
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          positionAdjective: ["is", "is not"],
+          lowercase: true,
+          subjectPriority: -1,
+        },
+        {
+          name: "Pet",
+          values: ["Cat", "Dog", "Fish", "Bird"],
+          noun: "owner",
+          verb: ["owns the", "does not own the"],
+          lowercase: true,
+        },
+      ],
+    });
+    const clue = renderClue(
+      {
+        type: "between",
+        outer1: "Alice",
+        middle: "Red",
+        outer2: "Cat",
+        axis: "House",
+      },
+      paGrid,
+    );
+    expect(clue.text).toBe("The red house is between Alice and the cat owner.");
+  });
+
+  it("formatAtSingle rejects pinned-axis values", () => {
+    // Passing a pinned-axis value ("first") as the subject would produce
+    // "the first house lives in the first house" — tautology.
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    expect(() => formatAtSingle("first", 0, g, false)).toThrow(
+      'formatAtSingle: "first" is a pinned-axis value',
+    );
+  });
+
+  it("formatAtMulti rejects pinned-axis values", () => {
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    expect(() => formatAtMulti("first", [0, 1], g, false)).toThrow(
+      'formatAtMulti: "first" is a pinned-axis value',
+    );
+  });
+
+  it("renderClue not_between with positionAdjective middle uses 'is not between'", () => {
+    const paGrid = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow"],
+          noun: "house",
+          verb: ["lives in the", "does not live in the"],
+          valueSuffix: "house",
+          positionAdjective: ["is", "is not"],
+          lowercase: true,
+          subjectPriority: -1,
+        },
+        {
+          name: "Pet",
+          values: ["Cat", "Dog", "Fish", "Bird"],
+          noun: "owner",
+          verb: ["owns the", "does not own the"],
+          lowercase: true,
+        },
+      ],
+    });
+    const clue = renderClue(
+      {
+        type: "not_between",
+        outer1: "Alice",
+        middle: "Red",
+        outer2: "Cat",
+        axis: "House",
+      },
+      paGrid,
+    );
+    expect(clue.text).toBe(
+      "The red house is not between Alice and the cat owner.",
+    );
+  });
+});
+
+describe("joinOr", () => {
+  it("single item returns as-is", () => {
+    expect(joinOr(["first"])).toBe("first");
+  });
+  it("two items join with ' or '", () => {
+    expect(joinOr(["first", "second"])).toBe("first or second");
+  });
+  it("three+ items use Oxford comma", () => {
+    expect(joinOr(["first", "second", "third"])).toBe(
+      "first, second, or third",
+    );
+    expect(joinOr(["a", "b", "c", "d"])).toBe("a, b, c, or d");
+  });
+  it("throws on empty input", () => {
+    expect(() => joinOr([])).toThrow("items must be non-empty");
+  });
+});
+
+describe("renderClue — exact_distance singular unit", () => {
+  // Pre-refactor this was tested via deduction output. The deduction no
+  // longer restates "N <unit> apart", so the singular unit path is only
+  // exercised through renderClue now — cover it directly.
+  it("uses the singular unit form when distance === 1", () => {
+    const g = makeGrid({
+      size: 4,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave"], noun: "" },
+        {
+          name: "Return",
+          values: ["6%", "7%", "8%", "9%"],
+          noun: "fund",
+          verb: ["has a return of", "does not have a return of"],
+          ordered: true,
+          numericValues: [6, 7, 8, 9],
+          orderingPhrases: {
+            unit: ["percentage point", "percentage points"],
+            comparators: {
+              before: ["has a lower return than", "has a higher return than"],
+              left_of: ["has a return right below", "has a return right above"],
+              next_to: "has the return right above or below",
+              not_next_to: "does not have the return right above or below",
+              between: "has a return between",
+              not_between: "does not have a return between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+      ],
+    });
+    const clue = renderClue(
+      {
+        type: "exact_distance",
+        a: "Alice",
+        b: "Bob",
+        distance: 1,
+        axis: "Return",
+      },
+      g,
+    );
+    expect(clue.text).toContain("1 percentage point from");
+    expect(clue.text).not.toContain("percentage points");
   });
 });

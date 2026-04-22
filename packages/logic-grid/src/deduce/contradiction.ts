@@ -1,4 +1,5 @@
 import type { Constraint, DeductionStep } from "../types";
+import { formatAtSingle } from "../clues/templates";
 import { type DeduceState, first, step, cloneState } from "./state";
 import { propagateToFixpoint } from "./propagate";
 
@@ -31,17 +32,19 @@ export function tryContradiction(
           ps.delete(p);
           const value = state.grid.categories[ci].values[vi];
           const assigns = ps.size === 1 ? [{ value, position: first(ps) }] : [];
-          const { noun, posLabel } = state.terms;
+          // Reuse formatAtSingle so the phrasing matches the rest of the
+          // explanation output (axis verb + PA flip).
+          const hypothetical = formatAtSingle(value, p, state.grid, false);
           const assignSuffix =
             assigns.length > 0
-              ? ` So ${value} must be in the ${posLabel(assigns[0].position)} ${noun}.`
+              ? ` So ${formatAtSingle(value, assigns[0].position, state.grid, false)}.`
               : "";
           return step(
             "contradiction",
             [],
             [{ value, position: p }],
             assigns,
-            `If ${value} were in the ${posLabel(p)} ${noun}, it would lead to a contradiction.${assignSuffix}`,
+            `If ${hypothetical}, it would lead to a contradiction.${assignSuffix}`,
           );
         }
       }

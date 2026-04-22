@@ -3,7 +3,7 @@ import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    files: ["src/**/*.ts", "bench/**/*.ts"],
+    files: ["src/**/*.ts", "bench/**/*.ts", "scripts/**/*.ts"],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {

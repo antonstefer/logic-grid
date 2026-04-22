@@ -3,8 +3,10 @@ import type {
   Constraint,
   DeductionStep,
   DeductionTechnique,
+  OrderedCategory,
 } from "../types";
 import { isPinnedAxis, resolveAxis } from "../axis";
+import { capitalize, formatAtSingle } from "../clues/templates";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -21,23 +23,14 @@ import {
 } from "./state";
 
 /**
- * " on <AxisName>" suffix for multi-axis grids when the constraint targets
- * a non-pinned axis (disambiguation needed). Single-axis grids and pinned-
- * axis constraints in multi-axis grids omit the suffix — the pinned axis
- * is implicit (it's the row anchor), so appending "on House" to every
- * House-axis deduction is just noise.
- */
-function axisSuffix(state: DeduceState, axis: Category): string {
-  if (!state.terms.multiAxis) return "";
-  if (isPinnedAxis(state.grid, axis)) return "";
-  return ` on ${axis.name}`;
-}
-
-/**
  * Generic deduction for binary comparative constraints.
  * When the axis is pinned, rank = position so we work directly with
  * possible sets (O(|ps|) per value). For non-pinned axes, computes
  * rank domains and projects back through the axis assignment.
+ *
+ * Explanations carry only reasoning + conclusion — no opener that
+ * paraphrases the clue. The clue itself is already referenced by
+ * `Clue N:` and shown to the reader elsewhere.
  */
 function tryBinaryAxis(
   state: DeduceState,
@@ -47,7 +40,6 @@ function tryBinaryAxis(
   ci: number,
   technique: DeductionTechnique,
   isValid: (rankA: number, rankB: number) => boolean,
-  description: string,
 ): DeductionStep | null {
   const pinned = isPinnedAxis(state.grid, axis);
   const pa = pinned ? getPossible(state, a) : axisRankDomain(state, a, axis);
@@ -98,17 +90,13 @@ function tryBinaryAxis(
   const parts = [describeKnown(state, a), describeKnown(state, b)].filter(
     (s) => s !== "",
   );
-  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
+  const ctx = parts.join(" and ");
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
-  return step(
-    technique,
-    [ci],
-    elims,
-    assigns,
-    `${clueRef(ci)}${description}${because} ${describeResult(state.terms, assigns, elims)}.`,
-  );
+  const result = describeResult(state.grid, assigns, elims);
+  const tail = ctx ? `${capitalize(ctx)}, so ${result}` : capitalize(result);
+  return step(technique, [ci], elims, assigns, `${clueRef(ci)}${tail}.`);
 }
 
 // --- Constraint deductions ---
@@ -147,6 +135,12 @@ function trySamePosition(
 ): DeductionStep | null {
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
+  // Contradiction state already — let tryContradiction handle it. Without
+  // this guard, an empty `pa` combined with a non-empty `pb` would push all
+  // of `pb`'s positions into elims as "remove from pb" (because no position
+  // is shared with pa). If `pb` is a pinned-axis value, that empties its
+  // pinned set and later formatAtSingle chokes on the tautology.
+  if (pa.size === 0 || pb.size === 0) return null;
   const elims: { value: string; position: number }[] = [];
   for (const p of pa) {
     if (!pb.has(p)) elims.push({ value: c.a, position: p });
@@ -173,32 +167,38 @@ function trySamePosition(
   const assigns: { value: string; position: number }[] = [];
   if (pa.size === 1) {
     const p = first(pa);
-    assigns.push({ value: c.a, position: p });
-    assigns.push({ value: c.b, position: p });
+    // Only report values that were newly pinned by this step. A value that
+    // had no eliminations was already at its single possibility before —
+    // repeating it in the conclusion reads as redundant ("the first house
+    // is red, so the first house must be red").
+    const aChanged = elims.some((e) => e.value === c.a);
+    const bChanged = elims.some((e) => e.value === c.b);
+    if (aChanged) assigns.push({ value: c.a, position: p });
+    if (bChanged) assigns.push({ value: c.b, position: p });
   }
-  const because = ctx ? `. ${ctx}, so ` : ", so ";
 
-  const { noun, posLabel, isAxisValue } = state.terms;
+  const { isAxisValue } = state.terms;
   // When one operand is a display-axis value, use the concise direct form:
-  // "Clue N: X must be in the <axisVal> <noun>." rather than the symmetric
-  // "X and axisVal are in the same <noun>" which reads as a tautology.
+  // "Clue N: X must be in the <axisVal> <noun>." — the pinned axis value
+  // is self-descriptive, no need to state "X and <axisVal> are in the same".
   const axisSide = isAxisValue(c.a) ? c.a : isAxisValue(c.b) ? c.b : null;
   if (axisSide !== null && assigns.length > 0) {
     const other = axisSide === c.a ? c.b : c.a;
+    const axisPos = first(pa); // pa.size === 1 here (intersection pinned)
     return step(
       "same_position",
       [ci],
       elims,
       assigns,
-      `${clueRef(ci)}${other} must be in the ${axisSide} ${noun}.`,
+      `${clueRef(ci)}${capitalize(formatAtSingle(other, axisPos, state.grid, false))}.`,
     );
   }
-  let explanation: string;
-  if (assigns.length > 0) {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}both are in the ${posLabel(assigns[0].position)} ${noun}.`;
-  } else {
-    explanation = `${clueRef(ci)}${c.a} and ${c.b} are in the same ${noun}${because}${describeResult(state.terms, assigns, elims)}.`;
-  }
+  // Drop the "X and Y are in the same <noun>" opener — the clue itself
+  // already says that. Explanation shows only the reasoning and conclusion.
+  const result = describeResult(state.grid, assigns, elims);
+  const explanation = ctx
+    ? `${clueRef(ci)}${capitalize(ctx)}, so ${result}.`
+    : `${clueRef(ci)}${capitalize(result)}.`;
   return step("same_position", [ci], elims, assigns, explanation);
 }
 
@@ -228,10 +228,10 @@ function tryNotSamePosition(
   const pinned = posA !== null ? c.a : c.b;
   const pinnedPos = posA ?? posB!;
   const other = posA !== null ? c.b : c.a;
-  const { noun, posLabel, isAxisValue } = state.terms;
+  const { isAxisValue } = state.terms;
   const assignSuffix =
     assigns.length > 0
-      ? ` ${assigns.map((a) => `${a.value} must be in the ${posLabel(a.position)} ${noun}`).join("; ")}.`
+      ? ` ${assigns.map((a) => capitalize(formatAtSingle(a.value, a.position, state.grid, false))).join("; ")}.`
       : "";
   // When one operand is a display-axis value, use the concise direct form:
   // "Clue N: X is not in the <axisVal> <noun>." The pinned-is-here reason is
@@ -244,15 +244,17 @@ function tryNotSamePosition(
       [ci],
       elims,
       assigns,
-      `${clueRef(ci)}${nonAxis} is not in the ${axisSide} ${noun}.${assignSuffix}`,
+      `${clueRef(ci)}${capitalize(formatAtSingle(nonAxis, pinnedPos, state.grid, true))}.${assignSuffix}`,
     );
   }
+  // Drop the "X and Y are in different <noun>s" opener — the clue itself
+  // already says they differ. Show only the pinned-is-here reason + conclusion.
   return step(
     "not_same_position",
     [ci],
     elims,
     assigns,
-    `${clueRef(ci)}${pinned} and ${other} are in different ${noun}s. ${pinned} is in the ${posLabel(pinnedPos)} ${noun}, so ${other} can't be there.${assignSuffix}`,
+    `${clueRef(ci)}${capitalize(formatAtSingle(pinned, pinnedPos, state.grid, false))}, so ${formatAtSingle(other, pinnedPos, state.grid, true)}.${assignSuffix}`,
   );
 }
 
@@ -270,7 +272,6 @@ function tryNextTo(
     ci,
     "next_to",
     (ra, rb) => Math.abs(ra - rb) === 1,
-    `${c.a} is next to ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -288,7 +289,6 @@ function tryNotNextTo(
     ci,
     "not_next_to",
     (ra, rb) => Math.abs(ra - rb) !== 1,
-    `${c.a} is not next to ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -306,7 +306,6 @@ function tryLeftOf(
     ci,
     "left_of",
     (ra, rb) => rb === ra + 1,
-    `${c.a} is directly left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -324,7 +323,6 @@ function tryBefore(
     ci,
     "before",
     (ra, rb) => ra < rb,
-    `${c.a} is somewhere left of ${c.b}${axisSuffix(state, axis)}.`,
   );
 }
 
@@ -352,7 +350,7 @@ function tryNotBetween(
 function tryBetweenAxis(
   state: DeduceState,
   c: { outer1: string; middle: string; outer2: string; axis: string },
-  axis: Category,
+  axis: OrderedCategory,
   ci: number,
   isNotBetween: boolean,
 ): DeductionStep | null {
@@ -418,18 +416,13 @@ function tryBetweenAxis(
     describeKnown(state, c.outer2),
     describeKnown(state, c.middle),
   ].filter((s) => s !== "");
-  const because = parts.length > 0 ? ` ${parts.join(" and ")}, so` : "";
+  const ctx = parts.join(" and ");
   for (const e of elims) getPossible(state, e.value).delete(e.position);
   if (state.silent) return SILENT_STEP;
   const assigns = collectAssigns(state, elims);
-  const verb = isNotBetween ? "is not between" : "is between";
-  return step(
-    technique,
-    [ci],
-    elims,
-    assigns,
-    `${clueRef(ci)}${c.middle} ${verb} ${c.outer1} and ${c.outer2}${axisSuffix(state, axis)}.${because} ${describeResult(state.terms, assigns, elims)}.`,
-  );
+  const result = describeResult(state.grid, assigns, elims);
+  const tail = ctx ? `${capitalize(ctx)}, so ${result}` : capitalize(result);
+  return step(technique, [ci], elims, assigns, `${clueRef(ci)}${tail}.`);
 }
 
 function tryExactDistance(
@@ -439,19 +432,6 @@ function tryExactDistance(
 ): DeductionStep | null {
   const axis = resolveAxis(state.grid, c.axis);
   const numVals = axis.numericValues;
-  const unit = axis.orderingPhrases.unit;
-  // Fall back to the target axis's own noun, not state.terms.noun —
-  // state.terms describes the pinned (row-anchor) axis, which may differ
-  // from the constraint's axis in multi-axis grids. For a Year-axis
-  // exact_distance on a House-pinned grid, we want "3 years" not "3 houses".
-  // The `|| "position"` branch is defensive — ordered categories practically
-  // always declare a noun; `validateCategories` requires `verb` but not
-  // `noun`, so this guards the empty-noun edge case.
-  /* v8 ignore next */
-  const axisNoun = axis.noun || "position";
-  const distLabel = unit
-    ? `${c.distance} ${c.distance === 1 ? unit[0] : unit[1]}`
-    : `${c.distance} ${c.distance === 1 ? axisNoun : axisNoun + "s"}`;
   return tryBinaryAxis(
     state,
     c.a,
@@ -465,6 +445,5 @@ function tryExactDistance(
         : Math.abs(ra - rb);
       return d === c.distance;
     },
-    `${c.a} and ${c.b} are exactly ${distLabel} apart.`,
   );
 }

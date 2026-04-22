@@ -1,4 +1,5 @@
-import type { DeductionStep } from "../types";
+import type { Category, DeductionStep, Grid } from "../types";
+import { capitalize, formatAtSingle, joinOr, label } from "../clues/templates";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -7,6 +8,26 @@ import {
   step,
   collectAssigns,
 } from "./state";
+
+/**
+ * Subject noun-phrase for a value in a context where the pinned-axis noun
+ * will also appear. For positionAdjective categories (e.g. Color, "Red"
+ * describes "house"), the bare adjective ("red") avoids the double-noun
+ * "the red house ... the Nth house" idiom. Otherwise the full label
+ * ("the bird owner") is used.
+ *
+ * Scope: used by naked_pair / naked_triple / hidden_pair / hidden_triple,
+ * which assemble multiple subjects into one clause ("Red and Blue can only
+ * be in the A and B houses"). Single-value conclusions go through
+ * `formatAtSingle`, which has its own built-in positionAdjective flip and
+ * fits the full "subject + verb + object" form on its own.
+ */
+function subjectForm(value: string, cat: Category, grid: Grid): string {
+  if (cat.positionAdjective) {
+    return cat.lowercase ? value.toLowerCase() : value;
+  }
+  return label(value, grid);
+}
 
 // --- Structural deductions ---
 
@@ -36,13 +57,27 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       if (elims.length === 0) continue;
       if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
-      const { noun, posLabel } = state.terms;
+      const { axisName } = state.terms;
+      // Parenthetical reasoning hint mirrors hidden_single's structure and
+      // avoids repeating the subject ("Carol lives in the fourth house —
+      // Carol lives in the fourth house" before). Uses axis *name* ("bounty",
+      // "house", "year") not axis *noun* ("fugitive", "slot", "fund") — the
+      // name is the concept being measured and doesn't semantically overlap
+      // with the subject.
+      //
+      // Note the asymmetry with pair/triple techniques below: they use
+      // `axisAnchor` ("house", "gold pieces", "fund") because they form a
+      // positional compound ("the first or second <anchor>"). naked_single
+      // makes a conceptual claim ("no other <concept> possible"), where the
+      // concept word reads better than the object anchor ("no other house
+      // possible" vs "no other gold pieces possible" for a Bounty axis).
+      const conclusion = formatAtSingle(cat.values[vi], pos, state.grid, false);
       return step(
         "naked_single",
         [],
         elims,
         assigns,
-        `${cat.values[vi]} has no other possible ${noun} — it must be in the ${posLabel(pos)} ${noun}. So no other ${cat.name} can be there.`,
+        `${capitalize(conclusion)} (no other ${axisName} possible).`,
       );
     }
   }
@@ -71,13 +106,18 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
       state.possible[ci][lastVi].clear();
       state.possible[ci][lastVi].add(p);
       if (state.silent) return SILENT_STEP;
-      const { noun, posLabel } = state.terms;
       return step(
         "hidden_single",
         [],
         elims,
         [{ value: val, position: p }],
-        `The ${posLabel(p)} ${noun} must be ${val} (only remaining ${cat.name}).`,
+        // `cat.name` is kept as-is (capitalized) — it's a category label,
+        // not a free-running noun. Lowercasing it for tone-uniformity with
+        // naked_single's "(no other bounty possible)" reads poorly for
+        // multi-word names like "YTD Return" → "ytd return". The semantic
+        // difference is real: naked's anchor is the axis *concept*, hidden's
+        // anchor is the specific category being scanned.
+        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name}).`,
       );
     }
   }
@@ -130,14 +170,20 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
-        const { noun, posLabel } = state.terms;
-        const positions = [...ps1].map((p) => posLabel(p)).join(" and ");
+        const { posLabel, axisAnchor } = state.terms;
+        // Disjunctive "or" joins with the singular anchor: "the first or
+        // second house" reads distributively (each of X, Y is in one of
+        // those positions) without needing plural morphology.
+        const posList = joinOr([...ps1].map((p) => posLabel(p)));
+        const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+        const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+        const prep = cat.positionAdjective ? "" : "in ";
         return step(
           "naked_pair",
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
+          `${capitalize(s1)} and ${s2} can only be ${prep}the ${posList} ${axisAnchor}.`,
         );
       }
     }
@@ -182,14 +228,18 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
-          const { noun, posLabel } = state.terms;
-          const positions = [...union].map((p) => posLabel(p)).join(", ");
+          const { posLabel, axisAnchor } = state.terms;
+          const posList = joinOr([...union].map((p) => posLabel(p)));
+          const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+          const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+          const s3 = subjectForm(cat.values[vi3], cat, state.grid);
+          const prep = cat.positionAdjective ? "" : "in ";
           return step(
             "naked_triple",
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} can only be ${prep}the ${posList} ${axisAnchor}.`,
           );
         }
       }
@@ -231,13 +281,21 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
         for (const e of elims) getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, elims);
-        const { noun, posLabel } = state.terms;
+        const { posLabel, axisAnchor } = state.terms;
+        const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+        const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+        // Conjunction ("A and B") rather than disjunction here: hidden_pair
+        // is a collective claim — X and Y together are the only candidates
+        // for BOTH positions. naked_pair's distributive "each of X,Y at one
+        // of A,B" uses "or"; hidden_pair's "X,Y collectively at A,B" uses
+        // "and". Compound "the A and B <anchor>" reads as plural-ish even
+        // with singular anchor.
         return step(
           "hidden_pair",
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${noun}s, so they must be restricted to those ${noun}s.`,
+          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${axisAnchor}.`,
         );
       }
     }
@@ -279,13 +337,16 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
           for (const e of elims) getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, elims);
-          const { noun, posLabel } = state.terms;
+          const { posLabel, axisAnchor } = state.terms;
+          const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+          const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+          const s3 = subjectForm(cat.values[vi3], cat, state.grid);
           return step(
             "hidden_triple",
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${noun}s, so they must be restricted to those ${noun}s.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${axisAnchor}.`,
           );
         }
       }

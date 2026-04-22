@@ -61,6 +61,41 @@ describe("deduce structural techniques", () => {
     );
   });
 
+  it("naked_triple with positionAdjective category flips subject phrasing", () => {
+    // Color has positionAdjective so subjectForm uses bare adjective.
+    // Also tests the lowercase=false branch of subjectForm (values preserved).
+    const grid5 = makeGrid({
+      size: 5,
+      categories: [
+        { name: "Name", values: ["Alice", "Bob", "Carol", "Dave", "Eve"] },
+        {
+          name: "Color",
+          values: ["Red", "Blue", "Green", "Yellow", "White"],
+          noun: "house",
+          verb: ["lives in the", "does not live in the"] as [string, string],
+          valueSuffix: "house",
+          positionAdjective: ["is", "is not"] as [string, string],
+          subjectPriority: -1,
+          // lowercase: false (default) — exercises that branch of subjectForm
+        },
+      ],
+    });
+    const constraints: Constraint[] = [
+      { type: "not_same_position", a: "Red", b: "fourth" },
+      { type: "not_same_position", a: "Red", b: "fifth" },
+      { type: "not_same_position", a: "Blue", b: "fourth" },
+      { type: "not_same_position", a: "Blue", b: "fifth" },
+      { type: "not_same_position", a: "Green", b: "fourth" },
+      { type: "not_same_position", a: "Green", b: "fifth" },
+    ];
+    const result = deduce(constraints, grid5);
+    const step = result.steps.find((s) => s.technique === "naked_triple");
+    expect(step).toBeDefined();
+    // PA flip: subjects are bare capitalized adjectives, no "in" prep.
+    expect(step!.explanation).toMatch(/^Red, Blue, and Green can only be the/);
+    expect(step!.explanation).not.toContain("in the");
+  });
+
   it("naked_triple eliminates positions from other values in category", () => {
     // Needs 5 values so hidden_single doesn't fire first
     const grid5 = makeGrid({
