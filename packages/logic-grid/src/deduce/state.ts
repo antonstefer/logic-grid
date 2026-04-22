@@ -39,8 +39,17 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // categories. If that invariant weakens, this lookup silently
   // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
+  // Lowercase only plain single-word common-noun names ("Bounty" → "bounty",
+  // "House" → "house"). Preserve acronyms and multi-word names as-authored
+  // ("YTD Return" stays "YTD Return") so naked_single's "(no other <X>
+  // possible)" doesn't mangle them into "(no other ytd return possible)".
+  // Mirrors the same choice hidden_single makes with `cat.name`.
+  const rawName = axis.name;
+  const axisName = /^[A-Z][a-z]+$/.test(rawName)
+    ? rawName.toLowerCase()
+    : rawName;
   return {
-    axisName: axis.name.toLowerCase(),
+    axisName,
     axisAnchor: axis.valueSuffix ?? axis.noun ?? "position",
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),

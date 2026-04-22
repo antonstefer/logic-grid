@@ -46,6 +46,50 @@ describe("createState invariant", () => {
   });
 });
 
+describe("axisName casing", () => {
+  function simpleGrid(name: string) {
+    return {
+      size: 2,
+      categories: [
+        {
+          name,
+          values: ["A", "B"],
+          noun: "row",
+          ordered: true as const,
+          verb: ["is", "is not"] as [string, string],
+          orderingPhrases: {
+            comparators: {
+              before: ["is before", "is after"] as [string, string],
+              left_of: ["is left of", "is right of"] as [string, string],
+              next_to: "is next to",
+              not_next_to: "is not next to",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        { name: "Other", values: ["x1", "x2"] },
+      ],
+    };
+  }
+
+  it("lowercases plain single-word names", () => {
+    expect(createState(simpleGrid("Bounty")).terms.axisName).toBe("bounty");
+    expect(createState(simpleGrid("House")).terms.axisName).toBe("house");
+  });
+
+  it("preserves acronyms and multi-word names", () => {
+    // "ytd return" from naive lowercasing would mangle the acronym.
+    expect(createState(simpleGrid("YTD Return")).terms.axisName).toBe(
+      "YTD Return",
+    );
+    expect(createState(simpleGrid("Day of Week")).terms.axisName).toBe(
+      "Day of Week",
+    );
+  });
+});
+
 describe("axisAnchor fallback", () => {
   it("uses 'position' when the ordered axis has neither valueSuffix nor noun", () => {
     const noAnchorGrid = {

@@ -284,12 +284,18 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
         const { posLabel, axisAnchor } = state.terms;
         const s1 = subjectForm(cat.values[vi1], cat, state.grid);
         const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+        // Conjunction ("A and B") rather than disjunction here: hidden_pair
+        // is a collective claim — X and Y together are the only candidates
+        // for BOTH positions. naked_pair's distributive "each of X,Y at one
+        // of A,B" uses "or"; hidden_pair's "X,Y collectively at A,B" uses
+        // "and". Compound "the A and B <anchor>" reads as plural-ish even
+        // with singular anchor.
         return step(
           "hidden_pair",
           [],
           elims,
           assigns,
-          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} or ${posLabel(p2)} ${axisAnchor}.`,
+          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${axisAnchor}.`,
         );
       }
     }
@@ -340,7 +346,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             [],
             elims,
             assigns,
-            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, or ${posLabel(p3)} ${axisAnchor}.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${axisAnchor}.`,
           );
         }
       }
