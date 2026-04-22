@@ -571,9 +571,22 @@ describe("formatAtSingle / formatAtMulti edge cases", () => {
   });
 
   it("formatAtMulti throws when grid has no ordered category", () => {
-    expect(() => formatAtMulti("a1", [0], unordered, false)).toThrow(
+    // Two positions so it hits formatAtMulti's own throw, not the length-1
+    // delegation to formatAtSingle.
+    expect(() => formatAtMulti("a1", [0, 1], unordered, false)).toThrow(
       "Grid has no ordered category",
     );
+  });
+
+  it("formatAtMulti delegates length-1 input to formatAtSingle", () => {
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    // Same output as the single-position helper.
+    const single = formatAtSingle("Alice", 1, g, false);
+    const multi = formatAtMulti("Alice", [1], g, false);
+    expect(multi).toBe(single);
   });
 
   // Grid whose pinned axis has no `noun` — exercises the `|| "position"`

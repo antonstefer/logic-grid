@@ -151,6 +151,13 @@ export function formatAtMulti(
   grid: Grid,
   negative: boolean,
 ): string {
+  // Degenerate case: a single position is the formatAtSingle contract.
+  // joinOr handles length-1 gracefully; mirror that here so callers don't
+  // hit the broken "neither , nor the first house" output from the nor-path
+  // when positions.length === 1.
+  if (positions.length === 1) {
+    return formatAtSingle(value, positions[0], grid, negative);
+  }
   const cat = findCategory(value, grid);
   const axis = pinnedAxis(grid);
   if (!axis) throw new RangeError("Grid has no ordered category");

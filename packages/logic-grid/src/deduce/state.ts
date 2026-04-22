@@ -44,6 +44,12 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // ("YTD Return" stays "YTD Return") so naked_single's "(no other <X>
   // possible)" doesn't mangle them into "(no other ytd return possible)".
   // Mirrors the same choice hidden_single makes with `cat.name`.
+  //
+  // Known limitation: the regex matches any initial-capital word of 2+
+  // chars, so a miscapitalized acronym like "Hr" (meant as hours / HR)
+  // would be treated as a common noun and lowercased to "hr". Real
+  // acronyms are all-caps ("HR", "YTD") and bypass the rule. Miscapitalized
+  // input is a preset-authoring bug; the engine doesn't try to detect it.
   const rawName = axis.name;
   const axisName = /^[A-Z][a-z]+$/.test(rawName)
     ? rawName.toLowerCase()
