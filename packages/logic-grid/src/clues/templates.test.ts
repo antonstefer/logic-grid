@@ -713,6 +713,18 @@ describe("formatAtSingle / formatAtMulti edge cases", () => {
     expect(clue.text).toBe("The red house is between Alice and the cat owner.");
   });
 
+  it("formatAtSingle rejects pinned-axis values", () => {
+    // Passing a pinned-axis value ("first") as the subject would produce
+    // "the first house lives in the first house" — tautology.
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    expect(() => formatAtSingle("first", 0, g, false)).toThrow(
+      'formatAtSingle: "first" is a pinned-axis value',
+    );
+  });
+
   it("renderClue not_between with positionAdjective middle uses 'is not between'", () => {
     const paGrid = makeGrid({
       size: 4,

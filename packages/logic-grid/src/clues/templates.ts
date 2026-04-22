@@ -13,22 +13,11 @@ function lc(value: string, cat: Category): string {
   return cat.lowercase ? value.toLowerCase() : value;
 }
 
-/** Naive English pluralizer — consonant+y → ies, otherwise add s. Enough for
- *  typical category nouns (bounty → bounties, year → years, house → houses).
- *  Does not handle -s/-sh/-ch/-x/-z → es (bus → buses, box → boxes) or
- *  irregulars (child → children). If a real grid hits one, extend the rule;
- *  none of the supported presets currently do. */
-export function pluralize(word: string): string {
-  if (/[^aeiou]y$/i.test(word)) {
-    return word.slice(0, -1) + "ies";
-  }
-  return word + "s";
-}
-
 /** Join a list with "or", Oxford-comma for 3+ items:
- *  ["a"] → "a"; ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c". */
+ *  ["a","b"] → "a or b"; ["a","b","c"] → "a, b, or c".
+ *  Precondition: `items.length >= 2` — the only call site (formatAtMulti
+ *  positive-disjunction path) is reached only with 2+ positions. */
 function joinOr(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} or ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
 }
@@ -124,6 +113,15 @@ export function formatAtSingle(
   const cat = findCategory(value, grid);
   const axis = pinnedAxis(grid);
   if (!axis) throw new RangeError("Grid has no ordered category");
+  // Pinned-axis values (e.g. "first" on House) are row anchors themselves;
+  // passing one here would produce tautologies like "the first house lives
+  // in the first house". Callers should use the axis value directly in the
+  // sentence's anchor slot instead.
+  if (axis.values.includes(value)) {
+    throw new RangeError(
+      `formatAtSingle: "${value}" is a pinned-axis value; use it as the anchor, not the subject`,
+    );
+  }
   const axisVal = axis.values[position];
   // Ordered categories practically always declare a noun; `validateCategories`
   // requires `verb` but not `noun`, so this guards the empty-noun edge case.

@@ -5,20 +5,26 @@ import type {
   DeductionTechnique,
 } from "../types";
 import { pinnedAxis } from "../axis";
-import { formatAtMulti, formatAtSingle, pluralize } from "../clues/templates";
+import { formatAtMulti, formatAtSingle } from "../clues/templates";
 
 // --- Display utilities ---
 
 /** Axis-derived phrasing for deduction explanations. */
 export interface AxisTerms {
   /** Lowercased name of the pinned axis category — the *concept* being measured.
-   * Used in structural phrasings ("no other possible X", "in the A and B Xs"),
-   * where the row-entity `noun` can semantically overlap with the subject
+   * Used in the singular ("no other possible X") structural phrasing where
+   * the row-entity `noun` can semantically overlap with the subject
    * (e.g. `noun: "fugitive"` clashes with pirate subjects). The concept word
    * (`name: "Bounty"` → "bounty") reads uniformly across themes. */
   axisName: string;
-  /** Pluralized `axisName` ("bounties", "houses", "years"). */
-  axisNames: string;
+  /** Anchor noun for "the <pos> <anchor>" references in multi-position
+   * phrasings (naked_pair etc.). Prefers `valueSuffix` ("house" for House,
+   * "gold pieces" for Bounty) since that's the object-form anchor already
+   * used in clue rendering; falls back to `noun` for axes without a suffix
+   * (Year → "fund", Time → "slot"). Singular — pair/triple phrasings use
+   * disjunction ("first or second house"), not conjunction, so plural
+   * morphology is unneeded. */
+  axisAnchor: string;
   posLabel: (p: number) => string;
   /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
   isAxisValue: (value: string) => boolean;
@@ -33,10 +39,9 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // categories. If that invariant weakens, this lookup silently
   // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
-  const axisName = axis.name.toLowerCase();
   return {
-    axisName,
-    axisNames: pluralize(axisName),
+    axisName: axis.name.toLowerCase(),
+    axisAnchor: axis.valueSuffix ?? axis.noun ?? "position",
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),
   };

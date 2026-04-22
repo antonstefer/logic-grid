@@ -135,6 +135,12 @@ function trySamePosition(
 ): DeductionStep | null {
   const pa = getPossible(state, c.a);
   const pb = getPossible(state, c.b);
+  // Contradiction state already — let tryContradiction handle it. Without
+  // this guard, an empty `pa` combined with a non-empty `pb` would push all
+  // of `pb`'s positions into elims as "remove from pb" (because no position
+  // is shared with pa). If `pb` is a pinned-axis value, that empties its
+  // pinned set and later formatAtSingle chokes on the tautology.
+  if (pa.size === 0 || pb.size === 0) return null;
   const elims: { value: string; position: number }[] = [];
   for (const p of pa) {
     if (!pb.has(p)) elims.push({ value: c.a, position: p });

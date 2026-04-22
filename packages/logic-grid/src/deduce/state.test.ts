@@ -46,20 +46,16 @@ describe("createState invariant", () => {
   });
 });
 
-describe("axisNames pluralizer", () => {
-  it("pluralizes consonant+y as ies (bounty → bounties)", () => {
-    const bountyGrid = {
+describe("axisAnchor fallback", () => {
+  it("uses 'position' when the ordered axis has neither valueSuffix nor noun", () => {
+    const noAnchorGrid = {
       size: 2,
       categories: [
         {
-          name: "Bounty",
-          values: ["500", "1000"],
-          noun: "fugitive",
+          name: "Idx",
+          values: ["A", "B"],
           ordered: true as const,
-          verb: ["has a bounty of", "does not have a bounty of"] as [
-            string,
-            string,
-          ],
+          verb: ["is", "is not"] as [string, string],
           orderingPhrases: {
             comparators: {
               before: ["is before", "is after"] as [string, string],
@@ -72,44 +68,11 @@ describe("axisNames pluralizer", () => {
             },
           },
         },
-        { name: "Pirate", values: ["Anne", "Blackbeard"] },
+        { name: "X", values: ["x1", "x2"] },
       ],
     };
-    const state = createState(bountyGrid);
-    expect(state.terms.axisName).toBe("bounty");
-    expect(state.terms.axisNames).toBe("bounties");
-  });
-
-  it("pluralizes vowel+y as ys (day → days)", () => {
-    const dayGrid = {
-      size: 2,
-      categories: [
-        {
-          name: "Day",
-          values: ["Mon", "Tue"],
-          noun: "slot",
-          ordered: true as const,
-          verb: ["meets on", "does not meet on"] as [string, string],
-          orderingPhrases: {
-            comparators: {
-              before: ["is before", "is after"] as [string, string],
-              left_of: ["is left of", "is right of"] as [string, string],
-              next_to: "is next to",
-              not_next_to: "is not next to",
-              between: "is between",
-              not_between: "is not between",
-              exact_distance: "is exactly",
-            },
-          },
-        },
-        { name: "Person", values: ["A", "B"] },
-      ],
-    };
-    // The pluralizer only special-cases consonant+y ([^aeiou]y$). "day" has
-    // "ay" (vowel+y) so it doesn't match and falls through to `word + "s"`.
-    const state = createState(dayGrid);
-    expect(state.terms.axisName).toBe("day");
-    expect(state.terms.axisNames).toBe("days");
+    const state = createState(noAnchorGrid);
+    expect(state.terms.axisAnchor).toBe("position");
   });
 });
 

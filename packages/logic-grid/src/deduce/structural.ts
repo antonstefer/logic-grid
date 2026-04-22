@@ -104,12 +104,13 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
         [],
         elims,
         [{ value: val, position: p }],
-        // Lowercase the category name + " value" so the parenthetical matches
-        // naked_single's tone: "(no other bounty possible)" vs
-        // "(only remaining pirate value)". Without "value" the phrase could
-        // be read narratively ("only remaining pirate" = last survivor) —
-        // "value" marks it as a category-scoped claim.
-        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name.toLowerCase()} value).`,
+        // `cat.name` is kept as-is (capitalized) — it's a category label,
+        // not a free-running noun. Lowercasing it for tone-uniformity with
+        // naked_single's "(no other bounty possible)" reads poorly for
+        // multi-word names like "YTD Return" → "ytd return". The semantic
+        // difference is real: naked's anchor is the axis *concept*, hidden's
+        // anchor is the specific category being scanned.
+        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name}).`,
       );
     }
   }
@@ -162,8 +163,11 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
-        const { posLabel, axisNames } = state.terms;
-        const positions = [...ps1].map((p) => posLabel(p)).join(" and ");
+        const { posLabel, axisAnchor } = state.terms;
+        // Disjunctive "or" joins with the singular anchor: "the first or
+        // second house" reads distributively (each of X, Y is in one of
+        // those positions) without needing plural morphology.
+        const posList = [...ps1].map((p) => posLabel(p)).join(" or ");
         const s1 = subjectForm(cat.values[vi1], cat, state.grid);
         const s2 = subjectForm(cat.values[vi2], cat, state.grid);
         const prep = cat.positionAdjective ? "" : "in ";
@@ -172,7 +176,7 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
           [],
           elims,
           assigns,
-          `${capitalize(s1)} and ${s2} can only be ${prep}the ${positions} ${axisNames}.`,
+          `${capitalize(s1)} and ${s2} can only be ${prep}the ${posList} ${axisAnchor}.`,
         );
       }
     }
@@ -217,8 +221,9 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
-          const { posLabel, axisNames } = state.terms;
-          const positions = [...union].map((p) => posLabel(p)).join(", ");
+          const { posLabel, axisAnchor } = state.terms;
+          const items = [...union].map((p) => posLabel(p));
+          const posList = `${items.slice(0, -1).join(", ")}, or ${items[items.length - 1]}`;
           const s1 = subjectForm(cat.values[vi1], cat, state.grid);
           const s2 = subjectForm(cat.values[vi2], cat, state.grid);
           const s3 = subjectForm(cat.values[vi3], cat, state.grid);
@@ -228,7 +233,7 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
             [],
             elims,
             assigns,
-            `${capitalize(s1)}, ${s2}, and ${s3} can only be ${prep}the ${positions} ${axisNames}.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} can only be ${prep}the ${posList} ${axisAnchor}.`,
           );
         }
       }
@@ -270,7 +275,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
         for (const e of elims) getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, elims);
-        const { posLabel, axisNames } = state.terms;
+        const { posLabel, axisAnchor } = state.terms;
         const s1 = subjectForm(cat.values[vi1], cat, state.grid);
         const s2 = subjectForm(cat.values[vi2], cat, state.grid);
         return step(
@@ -278,7 +283,7 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
           [],
           elims,
           assigns,
-          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${axisNames}, so they must be restricted to those ${axisNames}.`,
+          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} or ${posLabel(p2)} ${axisAnchor}.`,
         );
       }
     }
@@ -320,7 +325,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
           for (const e of elims) getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, elims);
-          const { posLabel, axisNames } = state.terms;
+          const { posLabel, axisAnchor } = state.terms;
           const s1 = subjectForm(cat.values[vi1], cat, state.grid);
           const s2 = subjectForm(cat.values[vi2], cat, state.grid);
           const s3 = subjectForm(cat.values[vi3], cat, state.grid);
@@ -329,7 +334,7 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
             [],
             elims,
             assigns,
-            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${axisNames}, so they must be restricted to those ${axisNames}.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, or ${posLabel(p3)} ${axisAnchor}.`,
           );
         }
       }
