@@ -269,30 +269,81 @@ export function createPuzzleState() {
   }
 
   /**
-   * After a user undo inside sub-grid (a,b), clear auto-eliminations that no
-   * surviving confirm still forces. Scoped to one sub-grid because that's all
-   * subgridUniquenessRule touches — more rules would need their own checks.
+   * Derive cross-sub-grid pair state from pinned-axis knowledge. Translates
+   * library positional facts (which only touch pinned sub-grids) into their
+   * implications for non-pinned sub-grids:
+   *  - If a[i] and b[j] are both confirmed at the same pinned position → confirmed pair.
+   *  - If every pinned position has at least one of them eliminated → eliminated pair.
    */
-  function restoreAutoInSubgrid(a: number, b: number) {
-    if (a === b) return;
-    const aSize = pair[a].length;
-    const bSize = pair[a][0][b].length;
-    for (let i = 0; i < aSize; i++) {
-      for (let j = 0; j < bSize; j++) {
-        const cell = pair[a][i][b][j];
-        if (cell.state !== "eliminated" || cell.source !== "auto") continue;
-        let forced = false;
-        for (let jp = 0; jp < bSize && !forced; jp++) {
-          if (jp !== j && pair[a][i][b][jp].state === "confirmed")
-            forced = true;
+  function syncCrossSubgrids() {
+    if (!puzzle) return;
+    const pin = pinIdx();
+    const N = puzzle.grid.categories.length;
+    const S = puzzle.grid.size;
+    for (let a = 0; a < N; a++) {
+      if (a === pin) continue;
+      for (let b = a + 1; b < N; b++) {
+        if (b === pin) continue;
+        const aSize = puzzle.grid.categories[a].values.length;
+        const bSize = puzzle.grid.categories[b].values.length;
+        for (let i = 0; i < aSize; i++) {
+          for (let j = 0; j < bSize; j++) {
+            if (pair[a][i][b][j].state !== "empty") continue;
+            let bothConfirmed = false;
+            let anyBothPossible = false;
+            for (let p = 0; p < S; p++) {
+              const aState = pair[a][i][pin][p].state;
+              const bState = pair[b][j][pin][p].state;
+              if (aState === "confirmed" && bState === "confirmed") {
+                bothConfirmed = true;
+                break;
+              }
+              if (aState !== "eliminated" && bState !== "eliminated") {
+                anyBothPossible = true;
+              }
+            }
+            if (bothConfirmed) {
+              setPair(a, i, b, j, "confirmed", "auto");
+            } else if (!anyBothPossible) {
+              setPair(a, i, b, j, "eliminated", "auto");
+            }
+          }
         }
-        for (let ip = 0; ip < aSize && !forced; ip++) {
-          if (ip !== i && pair[a][ip][b][j].state === "confirmed")
-            forced = true;
-        }
-        if (!forced) setPair(a, i, b, j, "empty", "user");
       }
     }
+  }
+
+  /** Reset every auto-derived cell to empty so rules can re-run cleanly. */
+  function clearAutoCells() {
+    if (!puzzle) return;
+    const N = puzzle.grid.categories.length;
+    for (let a = 0; a < N; a++) {
+      for (let i = 0; i < pair[a].length; i++) {
+        for (let b = 0; b < N; b++) {
+          for (let j = 0; j < pair[a][i][b].length; j++) {
+            if (pair[a][i][b][j].source === "auto") {
+              pair[a][i][b][j] = { state: "empty", source: "user" };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Re-derive every auto cell from scratch based on current user cells. Called
+   * after any user modification so un-confirms cleanly retract all dependent
+   * auto propagation without per-rule undo bookkeeping.
+   */
+  function recomputeAuto() {
+    if (!puzzle) return;
+    clearAutoCells();
+    forEachPair((a, i, b, j) => {
+      if (pair[a][i][b][j].state === "confirmed") {
+        applyRules({ a, i, b, j });
+      }
+    });
+    syncCrossSubgrids();
   }
 
   function toggleConfirm(a: number, i: number, b: number, j: number) {
@@ -300,11 +351,10 @@ export function createPuzzleState() {
     const cur = pair[a][i][b][j];
     if (cur.state === "confirmed") {
       setPair(a, i, b, j, "empty", "user");
-      restoreAutoInSubgrid(a, b);
     } else {
       setPair(a, i, b, j, "confirmed", "user");
-      applyRules({ a, i, b, j });
     }
+    recomputeAuto();
     message = null;
   }
 
@@ -316,11 +366,10 @@ export function createPuzzleState() {
     } else {
       if (cur.state === "confirmed") {
         setPair(a, i, b, j, "empty", "user");
-        restoreAutoInSubgrid(a, b);
       }
       setPair(a, i, b, j, "eliminated", "user");
-      applyRules({ a, i, b, j });
     }
+    recomputeAuto();
     message = null;
   }
 
@@ -416,10 +465,9 @@ export function createPuzzleState() {
       }
     });
     for (const w of wrongs) {
-      const wasConfirmed = pair[w.a][w.i][w.b][w.j].state === "confirmed";
       setPair(w.a, w.i, w.b, w.j, "empty", "user");
-      if (wasConfirmed) restoreAutoInSubgrid(w.a, w.b);
     }
+    if (wrongs.length > 0) recomputeAuto();
     return wrongs.length > 0;
   }
 
@@ -479,7 +527,6 @@ export function createPuzzleState() {
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
         setPair(coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
-        applyRules(coord);
       }
     }
     for (const a of step.assignments) {
@@ -487,9 +534,9 @@ export function createPuzzleState() {
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
         setPair(coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
-        applyRules(coord);
       }
     }
+    recomputeAuto();
     const prefix = hadWrongMoves ? "Incorrect moves cleared. " : "";
     message = { text: prefix + step.explanation, type: "info" };
   }
@@ -508,7 +555,7 @@ export function createPuzzleState() {
     }
     const c = candidates[Math.floor(Math.random() * candidates.length)];
     setPair(c.a, c.i, c.b, c.j, "confirmed", "user");
-    applyRules(c);
+    recomputeAuto();
     message = { text: "One cell revealed.", type: "info" };
   }
 
