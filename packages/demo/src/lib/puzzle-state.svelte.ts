@@ -1,7 +1,7 @@
 import {
   generate,
   deduce,
-  displayAxisCategory,
+  pinnedAxis,
   type Category,
   type Puzzle,
   type Difficulty,
@@ -11,10 +11,62 @@ import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 
 export type CellState = "empty" | "eliminated" | "confirmed";
+export type CellSource = "user" | "auto";
+export interface Cell {
+  state: CellState;
+  source: CellSource;
+}
+/** pair[catA][valA][catB][valB] — symmetric: pair[a][i][b][j] mirrors pair[b][j][a][i] */
+export type PairState = Cell[][][][];
+
+interface CellCoord {
+  a: number;
+  i: number;
+  b: number;
+  j: number;
+}
+
+interface DerivedWrite extends CellCoord {
+  state: CellState;
+}
+
+/**
+ * A propagation rule observes a just-changed cell and returns implied writes.
+ * Pure function — must not mutate state. v1 ships one rule (sub-grid uniqueness);
+ * future rules (triangle, last-cell, contrapositive-triangle) fit the same shape.
+ */
+interface PropagationRule {
+  name: string;
+  derive(pair: PairState, changed: CellCoord): DerivedWrite[];
+}
+
+/** When (a,i,b,j) is confirmed, eliminate the rest of that sub-row/sub-col in sub-grid (a,b). */
+const subgridUniquenessRule: PropagationRule = {
+  name: "subgridUniqueness",
+  derive(pair, { a, i, b, j }) {
+    const writes: DerivedWrite[] = [];
+    if (pair[a][i][b][j].state !== "confirmed") return writes;
+    const aSize = pair[a].length;
+    const bSize = pair[a][i][b].length;
+    for (let jp = 0; jp < bSize; jp++) {
+      if (jp !== j && pair[a][i][b][jp].state === "empty") {
+        writes.push({ a, i, b, j: jp, state: "eliminated" });
+      }
+    }
+    for (let ip = 0; ip < aSize; ip++) {
+      if (ip !== i && pair[a][ip][b][j].state === "empty") {
+        writes.push({ a, i: ip, b, j, state: "eliminated" });
+      }
+    }
+    return writes;
+  },
+};
+
+const rules: PropagationRule[] = [subgridUniquenessRule];
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
-  let grid = $state<CellState[][]>([]);
+  let pair = $state<PairState>([]);
   let genTime = $state(0);
   let loading = $state(false);
   let loadingMessage = $state("Generating…");
@@ -33,6 +85,24 @@ export function createPuzzleState() {
     customCategories?: Category[];
   }
 
+  function initPair(categories: Category[]): PairState {
+    const N = categories.length;
+    const p: PairState = [];
+    for (let a = 0; a < N; a++) {
+      p[a] = [];
+      for (let i = 0; i < categories[a].values.length; i++) {
+        p[a][i] = [];
+        for (let b = 0; b < N; b++) {
+          p[a][i][b] = [];
+          for (let j = 0; j < categories[b].values.length; j++) {
+            p[a][i][b][j] = { state: "empty", source: "user" };
+          }
+        }
+      }
+    }
+    return p;
+  }
+
   function newPuzzle(opts: NewPuzzleOptions) {
     const { size, categories, difficulty, theme, clueStyle, customCategories } =
       opts;
@@ -40,7 +110,6 @@ export function createPuzzleState() {
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
 
-    // Defer so the UI can show the loading state before blocking
     setTimeout(() => {
       void (async () => {
         try {
@@ -113,23 +182,7 @@ export function createPuzzleState() {
           loadingMessage = "Generating…";
           return;
         }
-        // grid[valueIndex][position] — one row per value across all categories
-        const totalValues = puzzle.grid.categories.reduce(
-          (sum: number, c) => sum + c.values.length,
-          0,
-        );
-        grid = Array.from({ length: totalValues }, () =>
-          Array.from({ length: puzzle!.grid.size }, () => "empty" as CellState),
-        );
-        // Pre-confirm the display-axis category (identity-assigned, not a mystery)
-        const displayCat = displayAxisCategory(puzzle.grid);
-        const displayCatIdx = puzzle.grid.categories.indexOf(displayCat);
-        for (let vi = 0; vi < displayCat.values.length; vi++) {
-          const valueIdx = getValueIndex(displayCatIdx, vi);
-          for (let p = 0; p < puzzle.grid.size; p++) {
-            grid[valueIdx][p] = p === vi ? "confirmed" : "eliminated";
-          }
-        }
+        pair = initPair(puzzle.grid.categories);
         hintSteps = [];
         loading = false;
         loadingMessage = "Generating…";
@@ -137,288 +190,254 @@ export function createPuzzleState() {
     }, 0);
   }
 
-  function getValueIndex(
-    categoryIndex: number,
-    valueIndexInCategory: number,
-  ): number {
-    let offset = 0;
-    for (let i = 0; i < categoryIndex; i++) {
-      offset += puzzle!.grid.categories[i].values.length;
-    }
-    return offset + valueIndexInCategory;
-  }
-
-  function findValueIdx(value: string): number {
+  function findCatValOf(value: string): [number, number] {
     if (!puzzle) throw new Error("No active puzzle");
     for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
       const vi = puzzle.grid.categories[ci].values.indexOf(value);
-      if (vi !== -1) return getValueIndex(ci, vi);
+      if (vi !== -1) return [ci, vi];
     }
     throw new Error(`Unknown value: ${value}`);
   }
 
-  /** Click: toggle confirmed (empty ↔ ✓). Auto-eliminates/restores. */
-  function toggleConfirm(valueIdx: number, position: number) {
-    if (grid[valueIdx][position] === "confirmed") {
-      // Un-confirm: restore auto-eliminated cells
-      grid[valueIdx][position] = "empty";
-      autoRestore(valueIdx, position);
+  function pinIdx(): number {
+    if (!puzzle) throw new Error("No active puzzle");
+    const pin = pinnedAxis(puzzle.grid);
+    if (!pin) throw new Error("Grid has no pinned axis");
+    return puzzle.grid.categories.indexOf(pin);
+  }
+
+  /**
+   * Translate a library-produced positional fact {value, position} to a pairwise coord.
+   * Position p means "index p on the pinned axis" — so the cell is (catOfValue, pinnedAxis).
+   * Returns null if the value belongs to the pinned axis itself (tautological by identity).
+   */
+  function libEffToPair(e: {
+    value: string;
+    position: number;
+  }): CellCoord | null {
+    if (!puzzle) return null;
+    const [catV, viOfV] = findCatValOf(e.value);
+    const pi = pinIdx();
+    if (catV === pi) return null;
+    return { a: catV, i: viOfV, b: pi, j: e.position };
+  }
+
+  /** Expected state for pair (a,i,b,j) given the puzzle's solution. */
+  function solutionPair(a: number, i: number, b: number, j: number): CellState {
+    if (!puzzle || a === b) return "empty";
+    const aVal = puzzle.grid.categories[a].values[i];
+    const bVal = puzzle.grid.categories[b].values[j];
+    const aPos = puzzle.solution[a][aVal];
+    const bPos = puzzle.solution[b][bVal];
+    return aPos === bPos ? "confirmed" : "eliminated";
+  }
+
+  /** Single writer: always mirrors to preserve pair[a][i][b][j] === pair[b][j][a][i]. */
+  function setPair(
+    a: number,
+    i: number,
+    b: number,
+    j: number,
+    state: CellState,
+    source: CellSource,
+  ) {
+    if (a === b) return;
+    pair[a][i][b][j] = { state, source };
+    pair[b][j][a][i] = { state, source };
+  }
+
+  /** Fixed-point runner. New rules plug in via `rules[]` without touching call sites. */
+  function applyRules(start: CellCoord) {
+    const queue: CellCoord[] = [start];
+    const seen = new Set<string>();
+    while (queue.length > 0) {
+      const c = queue.shift()!;
+      const key = `${c.a}:${c.i}:${c.b}:${c.j}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      for (const rule of rules) {
+        for (const w of rule.derive(pair, c)) {
+          const cur = pair[w.a][w.i][w.b][w.j];
+          if (cur.state === w.state) continue;
+          // Don't clobber user-set non-empty cells; allow overwriting other auto writes.
+          if (cur.state !== "empty" && cur.source === "user") continue;
+          setPair(w.a, w.i, w.b, w.j, w.state, "auto");
+          queue.push({ a: w.a, i: w.i, b: w.b, j: w.j });
+        }
+      }
+    }
+  }
+
+  /**
+   * After a user undo inside sub-grid (a,b), clear auto-eliminations that no
+   * surviving confirm still forces. Scoped to one sub-grid because that's all
+   * subgridUniquenessRule touches — more rules would need their own checks.
+   */
+  function restoreAutoInSubgrid(a: number, b: number) {
+    if (a === b) return;
+    const aSize = pair[a].length;
+    const bSize = pair[a][0][b].length;
+    for (let i = 0; i < aSize; i++) {
+      for (let j = 0; j < bSize; j++) {
+        const cell = pair[a][i][b][j];
+        if (cell.state !== "eliminated" || cell.source !== "auto") continue;
+        let forced = false;
+        for (let jp = 0; jp < bSize && !forced; jp++) {
+          if (jp !== j && pair[a][i][b][jp].state === "confirmed")
+            forced = true;
+        }
+        for (let ip = 0; ip < aSize && !forced; ip++) {
+          if (ip !== i && pair[a][ip][b][j].state === "confirmed")
+            forced = true;
+        }
+        if (!forced) setPair(a, i, b, j, "empty", "user");
+      }
+    }
+  }
+
+  function toggleConfirm(a: number, i: number, b: number, j: number) {
+    if (a === b) return;
+    const cur = pair[a][i][b][j];
+    if (cur.state === "confirmed") {
+      setPair(a, i, b, j, "empty", "user");
+      restoreAutoInSubgrid(a, b);
     } else {
-      // Confirm: set ✓ and auto-eliminate row/category
-      grid[valueIdx][position] = "confirmed";
-      autoEliminate(valueIdx, position);
+      setPair(a, i, b, j, "confirmed", "user");
+      applyRules({ a, i, b, j });
     }
     message = null;
   }
 
-  /** Right-click: toggle eliminated. Confirmed → eliminated (un-confirms first). */
-  function toggleEliminate(valueIdx: number, position: number) {
-    if (grid[valueIdx][position] === "eliminated") {
-      grid[valueIdx][position] = "empty";
+  function toggleEliminate(a: number, i: number, b: number, j: number) {
+    if (a === b) return;
+    const cur = pair[a][i][b][j];
+    if (cur.state === "eliminated") {
+      setPair(a, i, b, j, "empty", "user");
     } else {
-      if (grid[valueIdx][position] === "confirmed") {
-        grid[valueIdx][position] = "empty"; // un-confirm before restore
-        autoRestore(valueIdx, position);
+      if (cur.state === "confirmed") {
+        setPair(a, i, b, j, "empty", "user");
+        restoreAutoInSubgrid(a, b);
       }
-      grid[valueIdx][position] = "eliminated";
+      setPair(a, i, b, j, "eliminated", "user");
+      applyRules({ a, i, b, j });
     }
     message = null;
   }
 
-  function categoryRange(valueIdx: number): [number, number] {
-    if (!puzzle) return [0, 0];
-    let start = 0;
-    for (const cat of puzzle.grid.categories) {
-      const end = start + cat.values.length;
-      if (valueIdx >= start && valueIdx < end) return [start, end];
-      start = end;
-    }
-    return [0, 0];
-  }
-
-  function autoEliminate(confirmedValueIdx: number, confirmedPosition: number) {
+  /** Iterate each unique (catA < catB) sub-grid and every cell inside it. */
+  function forEachPair(
+    fn: (a: number, i: number, b: number, j: number) => void,
+  ) {
     if (!puzzle) return;
-    const [catStart, catEnd] = categoryRange(confirmedValueIdx);
-
-    // Eliminate same value from other positions (flip existing ✓ to ✗, cascading)
-    for (let p = 0; p < puzzle.grid.size; p++) {
-      if (p !== confirmedPosition) {
-        if (grid[confirmedValueIdx][p] === "confirmed") {
-          grid[confirmedValueIdx][p] = "empty";
-          autoRestore(confirmedValueIdx, p);
-          grid[confirmedValueIdx][p] = "eliminated";
-        } else if (grid[confirmedValueIdx][p] === "empty") {
-          grid[confirmedValueIdx][p] = "eliminated";
-        }
-      }
-    }
-
-    // Eliminate other values in same category from this position
-    for (let v = catStart; v < catEnd; v++) {
-      if (v !== confirmedValueIdx) {
-        if (grid[v][confirmedPosition] === "confirmed") {
-          grid[v][confirmedPosition] = "empty";
-          autoRestore(v, confirmedPosition);
-          grid[v][confirmedPosition] = "eliminated";
-        } else if (grid[v][confirmedPosition] === "empty") {
-          grid[v][confirmedPosition] = "eliminated";
-        }
-      }
-    }
-  }
-
-  function autoRestore(valueIdx: number, position: number) {
-    if (!puzzle) return;
-    const [catStart, catEnd] = categoryRange(valueIdx);
-
-    // Restore same value's other positions — only if NO confirm forces the cross
-    // (check both: another confirm in the same row, OR a confirm in that column)
-    for (let p = 0; p < puzzle.grid.size; p++) {
-      if (p !== position && grid[valueIdx][p] === "eliminated") {
-        if (
-          !hasConfirmInRow(valueIdx) &&
-          !hasConfirmInColumn(valueIdx, p, catStart, catEnd)
-        ) {
-          grid[valueIdx][p] = "empty";
-        }
-      }
-    }
-
-    // Restore other values in same category at this position — only if NO confirm forces it
-    // (check both: a confirm in that column, OR a confirm in that value's row)
-    for (let v = catStart; v < catEnd; v++) {
-      if (v !== valueIdx && grid[v][position] === "eliminated") {
-        if (
-          !hasConfirmInColumn(v, position, catStart, catEnd) &&
-          !hasConfirmInRow(v)
-        ) {
-          grid[v][position] = "empty";
-        }
-      }
-    }
-  }
-
-  function hasConfirmInRow(valueIdx: number): boolean {
-    if (!puzzle) return false;
-    for (let p = 0; p < puzzle.grid.size; p++) {
-      if (grid[valueIdx][p] === "confirmed") return true;
-    }
-    return false;
-  }
-
-  function hasConfirmInColumn(
-    valueIdx: number,
-    position: number,
-    catStart: number,
-    catEnd: number,
-  ): boolean {
-    for (let v = catStart; v < catEnd; v++) {
-      if (v !== valueIdx && grid[v][position] === "confirmed") return true;
-    }
-    return false;
-  }
-
-  function checkSolution(): boolean {
-    if (!puzzle) return false;
-
-    let correctCount = 0;
-    let wrongCount = 0;
-    const totalValues = puzzle.grid.categories.reduce(
-      (sum: number, c) => sum + c.values.length,
-      0,
-    );
-
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const expectedPos = puzzle.solution[ci][cat.values[vi]];
-
-        for (let p = 0; p < puzzle.grid.size; p++) {
-          if (grid[valueIdx][p] === "confirmed") {
-            if (p === expectedPos) correctCount++;
-            else wrongCount++;
+    const N = puzzle.grid.categories.length;
+    for (let a = 0; a < N; a++) {
+      const aSize = puzzle.grid.categories[a].values.length;
+      for (let b = a + 1; b < N; b++) {
+        const bSize = puzzle.grid.categories[b].values.length;
+        for (let i = 0; i < aSize; i++) {
+          for (let j = 0; j < bSize; j++) {
+            fn(a, i, b, j);
           }
         }
       }
     }
+  }
 
-    if (correctCount === 0 && wrongCount === 0) {
+  function checkSolution(): boolean {
+    if (!puzzle) return false;
+    let correct = 0;
+    let wrong = 0;
+    forEachPair((a, i, b, j) => {
+      if (pair[a][i][b][j].state !== "confirmed") return;
+      if (solutionPair(a, i, b, j) === "confirmed") correct++;
+      else wrong++;
+    });
+    const N = puzzle.grid.categories.length;
+    const S = puzzle.grid.size;
+    const totalTruePairs = ((N * (N - 1)) / 2) * S;
+
+    if (correct === 0 && wrong === 0) {
       message = {
         text: "No cells confirmed yet. Click cells to mark your answers.",
         type: "info",
       };
       return false;
     }
-
-    if (wrongCount > 0) {
+    if (wrong > 0) {
       message = {
         text: "Not quite right. Some confirmed cells are incorrect.",
         type: "error",
       };
       return false;
     }
-
-    if (correctCount < totalValues) {
+    if (correct < totalTruePairs) {
       message = {
-        text: `Looking good so far! ${totalValues - correctCount} values left to place.`,
+        text: `Looking good so far! ${totalTruePairs - correct} pair${totalTruePairs - correct === 1 ? "" : "s"} left.`,
         type: "info",
       };
       return false;
     }
-
     message = { text: "Correct! Puzzle solved!", type: "success" };
     return true;
   }
 
   function showSolution() {
     if (!puzzle) return;
-
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        for (let p = 0; p < puzzle.grid.size; p++) {
-          grid[valueIdx][p] = p === correctPos ? "confirmed" : "eliminated";
-        }
-      }
-    }
+    forEachPair((a, i, b, j) => {
+      setPair(a, i, b, j, solutionPair(a, i, b, j), "user");
+    });
     message = { text: "Solution revealed.", type: "info" };
   }
 
-  /** Check whether any user move contradicts the solution (without clearing). */
   function hasWrongMoves(): boolean {
     if (!puzzle) return false;
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        for (let p = 0; p < puzzle.grid.size; p++) {
-          if (grid[valueIdx][p] === "confirmed" && p !== correctPos)
-            return true;
-        }
-        if (grid[valueIdx][correctPos] === "eliminated") return true;
-      }
-    }
-    return false;
+    let wrong = false;
+    forEachPair((a, i, b, j) => {
+      if (wrong) return;
+      const cur = pair[a][i][b][j].state;
+      const sol = solutionPair(a, i, b, j);
+      if (cur === "confirmed" && sol !== "confirmed") wrong = true;
+      if (cur === "eliminated" && sol === "confirmed") wrong = true;
+    });
+    return wrong;
   }
 
-  /** Undo every user move that contradicts the solution. Returns true if anything was cleared. */
   function clearWrongMoves(): boolean {
     if (!puzzle) return false;
-    let cleared = false;
-    // Undo wrong confirmations first (triggers autoRestore to clean up cascades)
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        for (let p = 0; p < puzzle.grid.size; p++) {
-          if (grid[valueIdx][p] === "confirmed" && p !== correctPos) {
-            grid[valueIdx][p] = "empty";
-            autoRestore(valueIdx, p);
-            cleared = true;
-          }
-        }
+    const wrongs: CellCoord[] = [];
+    forEachPair((a, i, b, j) => {
+      const cur = pair[a][i][b][j];
+      if (cur.source !== "user") return;
+      const sol = solutionPair(a, i, b, j);
+      if (cur.state === "confirmed" && sol !== "confirmed") {
+        wrongs.push({ a, i, b, j });
+      } else if (cur.state === "eliminated" && sol === "confirmed") {
+        wrongs.push({ a, i, b, j });
       }
+    });
+    for (const w of wrongs) {
+      const wasConfirmed = pair[w.a][w.i][w.b][w.j].state === "confirmed";
+      setPair(w.a, w.i, w.b, w.j, "empty", "user");
+      if (wasConfirmed) restoreAutoInSubgrid(w.a, w.b);
     }
-    // Restore cells where the user eliminated the correct answer
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        if (grid[valueIdx][correctPos] === "eliminated") {
-          grid[valueIdx][correctPos] = "empty";
-          cleared = true;
-        }
-      }
-    }
-    return cleared;
+    return wrongs.length > 0;
   }
 
-  /**
-   * Find the next deduction step whose effects haven't been applied yet.
-   * Returns a shallow copy with only the unapplied eliminations/assignments,
-   * so nudge text and hint application only reference remaining work.
-   */
   function findNextStep(): DeductionStep | null {
     if (!puzzle) return null;
-
-    // Lazily compute deduction steps on first request.
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
-
     for (const candidate of hintSteps) {
       const newElims = candidate.eliminations.filter((e) => {
-        const cell = grid[findValueIdx(e.value)][e.position];
-        return cell === "empty";
+        const coord = libEffToPair(e);
+        if (!coord) return false;
+        return pair[coord.a][coord.i][coord.b][coord.j].state === "empty";
       });
       const newAssigns = candidate.assignments.filter((a) => {
-        return grid[findValueIdx(a.value)][a.position] !== "confirmed";
+        const coord = libEffToPair(a);
+        if (!coord) return false;
+        return pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed";
       });
       if (newElims.length > 0 || newAssigns.length > 0) {
         return {
@@ -449,69 +468,53 @@ export function createPuzzleState() {
 
   function hint() {
     if (!puzzle) return;
-
     const hadWrongMoves = clearWrongMoves();
     const step = findNextStep();
-
     if (!step) {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
-
-    // Apply the hint's eliminations and assignments to the grid
     for (const e of step.eliminations) {
-      const valueIdx = findValueIdx(e.value);
-      if (grid[valueIdx][e.position] === "empty") {
-        grid[valueIdx][e.position] = "eliminated";
+      const coord = libEffToPair(e);
+      if (!coord) continue;
+      if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
+        setPair(coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
+        applyRules(coord);
       }
     }
     for (const a of step.assignments) {
-      const valueIdx = findValueIdx(a.value);
-      if (grid[valueIdx][a.position] !== "confirmed") {
-        grid[valueIdx][a.position] = "confirmed";
-        autoEliminate(valueIdx, a.position);
+      const coord = libEffToPair(a);
+      if (!coord) continue;
+      if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
+        setPair(coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
+        applyRules(coord);
       }
     }
-
     const prefix = hadWrongMoves ? "Incorrect moves cleared. " : "";
     message = { text: prefix + step.explanation, type: "info" };
   }
 
   function revealCell() {
     if (!puzzle) return;
-
-    // Find all unconfirmed correct cells
-    const candidates: [number, number][] = [];
-    for (let ci = 0; ci < puzzle.grid.categories.length; ci++) {
-      const cat = puzzle.grid.categories[ci];
-      for (let vi = 0; vi < cat.values.length; vi++) {
-        const valueIdx = getValueIndex(ci, vi);
-        const correctPos = puzzle.solution[ci][cat.values[vi]];
-        if (grid[valueIdx][correctPos] !== "confirmed") {
-          candidates.push([valueIdx, correctPos]);
-        }
-      }
-    }
-
+    const candidates: CellCoord[] = [];
+    forEachPair((a, i, b, j) => {
+      if (solutionPair(a, i, b, j) !== "confirmed") return;
+      if (pair[a][i][b][j].state !== "confirmed")
+        candidates.push({ a, i, b, j });
+    });
     if (candidates.length === 0) {
-      message = { text: "All cells are already confirmed!", type: "info" };
+      message = { text: "All pairs are already confirmed!", type: "info" };
       return;
     }
-
-    const [valueIdx, pos] =
-      candidates[Math.floor(Math.random() * candidates.length)];
-    grid[valueIdx][pos] = "confirmed";
-    autoEliminate(valueIdx, pos);
+    const c = candidates[Math.floor(Math.random() * candidates.length)];
+    setPair(c.a, c.i, c.b, c.j, "confirmed", "user");
+    applyRules(c);
     message = { text: "One cell revealed.", type: "info" };
   }
 
   function clear() {
     if (!puzzle) return;
-    for (let v = 0; v < grid.length; v++) {
-      for (let p = 0; p < grid[v].length; p++) {
-        grid[v][p] = "empty";
-      }
-    }
+    pair = initPair(puzzle.grid.categories);
     message = null;
   }
 
@@ -519,8 +522,8 @@ export function createPuzzleState() {
     get puzzle() {
       return puzzle;
     },
-    get grid() {
-      return grid;
+    get pair() {
+      return pair;
     },
     get genTime() {
       return genTime;
@@ -535,7 +538,6 @@ export function createPuzzleState() {
       return message;
     },
     newPuzzle,
-    getValueIndex,
     toggleConfirm,
     toggleEliminate,
     clear,

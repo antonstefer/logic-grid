@@ -240,11 +240,10 @@
 
       <div class="grid-section">
         <PuzzleGrid
-          grid={puzzleState.puzzle.grid}
           puzzleGrid={puzzleState.puzzle.grid}
-          cellStates={puzzleState.grid}
-          onConfirm={(v, p) => puzzleState.toggleConfirm(v, p)}
-          onEliminate={(v, p) => puzzleState.toggleEliminate(v, p)}
+          pair={puzzleState.pair}
+          onConfirm={(a, i, b, j) => puzzleState.toggleConfirm(a, i, b, j)}
+          onEliminate={(a, i, b, j) => puzzleState.toggleEliminate(a, i, b, j)}
         />
 
         <div class="actions">
