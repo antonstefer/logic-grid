@@ -213,6 +213,7 @@ function sliceCategory(c: Category, size: number): Category {
     noun,
     verb: c.verb,
     subjectPriority,
+    lowercase: c.lowercase,
   };
   // Spread optional valueSuffix/positionAdjective respecting the discriminated union.
   const withSuffix =
