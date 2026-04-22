@@ -725,6 +725,16 @@ describe("formatAtSingle / formatAtMulti edge cases", () => {
     );
   });
 
+  it("formatAtMulti rejects pinned-axis values", () => {
+    const g = makeGrid({
+      size: 3,
+      categories: [{ name: "Name", values: ["Alice", "Bob", "Carol"] }],
+    });
+    expect(() => formatAtMulti("first", [0, 1], g, false)).toThrow(
+      'formatAtMulti: "first" is a pinned-axis value',
+    );
+  });
+
   it("renderClue not_between with positionAdjective middle uses 'is not between'", () => {
     const paGrid = makeGrid({
       size: 4,

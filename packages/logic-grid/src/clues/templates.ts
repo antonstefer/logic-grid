@@ -154,6 +154,16 @@ export function formatAtMulti(
   const cat = findCategory(value, grid);
   const axis = pinnedAxis(grid);
   if (!axis) throw new RangeError("Grid has no ordered category");
+  // Same contract as formatAtSingle: a pinned-axis value as subject would
+  // produce a tautology against its own anchor slot. Unreachable in current
+  // callers (pinned-axis values are size-1 and route through formatAtSingle
+  // via describeKnown/describeResult's assign path), but the symmetric guard
+  // keeps the two helpers' preconditions honest.
+  if (axis.values.includes(value)) {
+    throw new RangeError(
+      `formatAtMulti: "${value}" is a pinned-axis value; use it as the anchor, not the subject`,
+    );
+  }
   const axisNoun = axis.noun || "position";
   const posStrOr = joinOr(positions.map((p) => axis.values[p]));
   if (cat.positionAdjective) {

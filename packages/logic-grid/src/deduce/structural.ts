@@ -64,6 +64,13 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       // "house", "year") not axis *noun* ("fugitive", "slot", "fund") — the
       // name is the concept being measured and doesn't semantically overlap
       // with the subject.
+      //
+      // Note the asymmetry with pair/triple techniques below: they use
+      // `axisAnchor` ("house", "gold pieces", "fund") because they form a
+      // positional compound ("the first or second <anchor>"). naked_single
+      // makes a conceptual claim ("no other <concept> possible"), where the
+      // concept word reads better than the object anchor ("no other house
+      // possible" vs "no other gold pieces possible" for a Bounty axis).
       const conclusion = formatAtSingle(cat.values[vi], pos, state.grid, false);
       return step(
         "naked_single",
