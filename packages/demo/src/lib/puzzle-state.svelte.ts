@@ -215,7 +215,6 @@ export function createPuzzleState() {
     value: string;
     position: number;
   }): CellCoord | null {
-    if (!puzzle) return null;
     const [catV, viOfV] = findCatValOf(e.value);
     const pi = pinIdx();
     if (catV === pi) return null;
@@ -224,7 +223,7 @@ export function createPuzzleState() {
 
   /** Expected state for pair (a,i,b,j) given the puzzle's solution. */
   function solutionPair(a: number, i: number, b: number, j: number): CellState {
-    if (!puzzle || a === b) return "empty";
+    if (!puzzle) throw new Error("No active puzzle");
     const aVal = puzzle.grid.categories[a].values[i];
     const bVal = puzzle.grid.categories[b].values[j];
     const aPos = puzzle.solution[a][aVal];
@@ -276,7 +275,7 @@ export function createPuzzleState() {
    *  - If every pinned position has at least one of them eliminated → eliminated pair.
    */
   function syncCrossSubgrids() {
-    if (!puzzle) return;
+    if (!puzzle) throw new Error("No active puzzle");
     const pin = pinIdx();
     const N = puzzle.grid.categories.length;
     const S = puzzle.grid.size;
@@ -315,7 +314,7 @@ export function createPuzzleState() {
 
   /** Reset every auto-derived cell to empty so rules can re-run cleanly. */
   function clearAutoCells() {
-    if (!puzzle) return;
+    if (!puzzle) throw new Error("No active puzzle");
     const N = puzzle.grid.categories.length;
     for (let a = 0; a < N; a++) {
       for (let i = 0; i < pair[a].length; i++) {
@@ -336,7 +335,6 @@ export function createPuzzleState() {
    * auto propagation without per-rule undo bookkeeping.
    */
   function recomputeAuto() {
-    if (!puzzle) return;
     clearAutoCells();
     forEachPair((a, i, b, j) => {
       if (pair[a][i][b][j].state === "confirmed") {
@@ -377,7 +375,7 @@ export function createPuzzleState() {
   function forEachPair(
     fn: (a: number, i: number, b: number, j: number) => void,
   ) {
-    if (!puzzle) return;
+    if (!puzzle) throw new Error("No active puzzle");
     const N = puzzle.grid.categories.length;
     for (let a = 0; a < N; a++) {
       const aSize = puzzle.grid.categories[a].values.length;
@@ -393,7 +391,7 @@ export function createPuzzleState() {
   }
 
   function checkSolution(): boolean {
-    if (!puzzle) return false;
+    if (!puzzle) throw new Error("No active puzzle");
     let correct = 0;
     let wrong = 0;
     forEachPair((a, i, b, j) => {
@@ -431,7 +429,6 @@ export function createPuzzleState() {
   }
 
   function showSolution() {
-    if (!puzzle) return;
     forEachPair((a, i, b, j) => {
       setPair(a, i, b, j, solutionPair(a, i, b, j), "user");
     });
@@ -439,7 +436,6 @@ export function createPuzzleState() {
   }
 
   function hasWrongMoves(): boolean {
-    if (!puzzle) return false;
     let wrong = false;
     forEachPair((a, i, b, j) => {
       if (wrong) return;
@@ -452,7 +448,6 @@ export function createPuzzleState() {
   }
 
   function clearWrongMoves(): boolean {
-    if (!puzzle) return false;
     const wrongs: CellCoord[] = [];
     forEachPair((a, i, b, j) => {
       const cur = pair[a][i][b][j];
@@ -472,7 +467,7 @@ export function createPuzzleState() {
   }
 
   function findNextStep(): DeductionStep | null {
-    if (!puzzle) return null;
+    if (!puzzle) throw new Error("No active puzzle");
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
@@ -515,7 +510,6 @@ export function createPuzzleState() {
   }
 
   function hint() {
-    if (!puzzle) return;
     const hadWrongMoves = clearWrongMoves();
     const step = findNextStep();
     if (!step) {
@@ -542,7 +536,6 @@ export function createPuzzleState() {
   }
 
   function revealCell() {
-    if (!puzzle) return;
     const candidates: CellCoord[] = [];
     forEachPair((a, i, b, j) => {
       if (solutionPair(a, i, b, j) !== "confirmed") return;
@@ -560,7 +553,7 @@ export function createPuzzleState() {
   }
 
   function clear() {
-    if (!puzzle) return;
+    if (!puzzle) throw new Error("No active puzzle");
     pair = initPair(puzzle.grid.categories);
     message = null;
   }
