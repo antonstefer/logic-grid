@@ -14,7 +14,10 @@ function lc(value: string, cat: Category): string {
 }
 
 /** Naive English pluralizer — consonant+y → ies, otherwise add s. Enough for
- *  typical category nouns (bounty → bounties, year → years, house → houses). */
+ *  typical category nouns (bounty → bounties, year → years, house → houses).
+ *  Does not handle -s/-sh/-ch/-x/-z → es (bus → buses, box → boxes) or
+ *  irregulars (child → children). If a real grid hits one, extend the rule;
+ *  none of the supported presets currently do. */
 export function pluralize(word: string): string {
   if (/[^aeiou]y$/i.test(word)) {
     return word.slice(0, -1) + "ies";

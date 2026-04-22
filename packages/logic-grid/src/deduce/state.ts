@@ -22,9 +22,6 @@ export interface AxisTerms {
   posLabel: (p: number) => string;
   /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
   isAxisValue: (value: string) => boolean;
-  /** True when the grid has more than one ordered category — used to decide
-   * whether comparative deductions include the " on <Axis>" disambiguator. */
-  multiAxis: boolean;
 }
 
 /** Compute axis terms for the grid's pinned axis (the row anchor). */
@@ -36,14 +33,12 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // categories. If that invariant weakens, this lookup silently
   // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
-  const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
   const axisName = axis.name.toLowerCase();
   return {
     axisName,
     axisNames: pluralize(axisName),
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),
-    multiAxis: orderedCount > 1,
   };
 }
 

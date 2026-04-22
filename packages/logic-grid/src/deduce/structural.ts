@@ -104,7 +104,12 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
         [],
         elims,
         [{ value: val, position: p }],
-        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name}).`,
+        // Lowercase the category name + " value" so the parenthetical matches
+        // naked_single's tone: "(no other bounty possible)" vs
+        // "(only remaining pirate value)". Without "value" the phrase could
+        // be read narratively ("only remaining pirate" = last survivor) —
+        // "value" marks it as a category-scoped claim.
+        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name.toLowerCase()} value).`,
       );
     }
   }
