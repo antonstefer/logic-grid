@@ -1,4 +1,5 @@
-import type { DeductionStep } from "../types";
+import type { Category, DeductionStep, Grid } from "../types";
+import { capitalize, formatAtSingle, label } from "../clues/templates";
 import {
   type DeduceState,
   SILENT_STEP,
@@ -7,6 +8,20 @@ import {
   step,
   collectAssigns,
 } from "./state";
+
+/**
+ * Subject noun-phrase for a value in a context where the pinned-axis noun
+ * will also appear. For positionAdjective categories (e.g. Color, "Red"
+ * describes "house"), the bare adjective ("red") avoids the double-noun
+ * "the red house ... the Nth house" idiom. Otherwise the full label
+ * ("the bird owner") is used.
+ */
+function subjectForm(value: string, cat: Category, grid: Grid): string {
+  if (cat.positionAdjective) {
+    return cat.lowercase ? value.toLowerCase() : value;
+  }
+  return label(value, grid);
+}
 
 // --- Structural deductions ---
 
@@ -36,13 +51,26 @@ export function tryNakedSingles(state: DeduceState): DeductionStep | null {
       if (elims.length === 0) continue;
       if (state.silent) return SILENT_STEP;
       const assigns = collectAssigns(state, elims);
-      const { noun, posLabel } = state.terms;
+      const { axisName } = state.terms;
+      const val = cat.values[vi];
+      // For positionAdjective categories ("Red" describes "house"), using the
+      // full label "the red house" alongside "the Nth house" would read as
+      // containment between two houses. Use the bare adjective as subject and
+      // flip the conclusion: "Red has no other possible house — the first
+      // house must be red."
+      const subject = subjectForm(val, cat, state.grid);
+      const conclusion = formatAtSingle(val, pos, state.grid, false);
+      // Use axis *name* ("bounty", "house", "year") rather than axis *noun*
+      // ("fugitive", "house", "fund"). The name describes the concept being
+      // measured; the noun describes the row entity and can semantically
+      // overlap with the subject ("Blackbeard has no other possible fugitive"
+      // is nonsense when Blackbeard is a pirate/fugitive).
       return step(
         "naked_single",
         [],
         elims,
         assigns,
-        `${cat.values[vi]} has no other possible ${noun} — it must be in the ${posLabel(pos)} ${noun}. So no other ${cat.name} can be there.`,
+        `${capitalize(subject)} has no other possible ${axisName} — ${conclusion}.`,
       );
     }
   }
@@ -71,13 +99,12 @@ export function tryHiddenSingles(state: DeduceState): DeductionStep | null {
       state.possible[ci][lastVi].clear();
       state.possible[ci][lastVi].add(p);
       if (state.silent) return SILENT_STEP;
-      const { noun, posLabel } = state.terms;
       return step(
         "hidden_single",
         [],
         elims,
         [{ value: val, position: p }],
-        `The ${posLabel(p)} ${noun} must be ${val} (only remaining ${cat.name}).`,
+        `${capitalize(formatAtSingle(val, p, state.grid, false))} (only remaining ${cat.name}).`,
       );
     }
   }
@@ -130,14 +157,17 @@ export function tryNakedPairs(state: DeduceState): DeductionStep | null {
         if (state.silent) return SILENT_STEP;
 
         const assigns = collectAssigns(state, elims);
-        const { noun, posLabel } = state.terms;
+        const { posLabel, axisNames } = state.terms;
         const positions = [...ps1].map((p) => posLabel(p)).join(" and ");
+        const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+        const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+        const prep = cat.positionAdjective ? "" : "in ";
         return step(
           "naked_pair",
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
+          `${capitalize(s1)} and ${s2} can only be ${prep}the ${positions} ${axisNames}.`,
         );
       }
     }
@@ -182,14 +212,18 @@ export function tryNakedTriples(state: DeduceState): DeductionStep | null {
           if (state.silent) return SILENT_STEP;
 
           const assigns = collectAssigns(state, elims);
-          const { noun, posLabel } = state.terms;
+          const { posLabel, axisNames } = state.terms;
           const positions = [...union].map((p) => posLabel(p)).join(", ");
+          const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+          const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+          const s3 = subjectForm(cat.values[vi3], cat, state.grid);
+          const prep = cat.positionAdjective ? "" : "in ";
           return step(
             "naked_triple",
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} can only be in the ${positions} ${noun}s, so no other ${cat.name} can be there.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} can only be ${prep}the ${positions} ${axisNames}.`,
           );
         }
       }
@@ -231,13 +265,15 @@ export function tryHiddenPairs(state: DeduceState): DeductionStep | null {
         for (const e of elims) getPossible(state, e.value).delete(e.position);
         if (state.silent) return SILENT_STEP;
         const assigns = collectAssigns(state, elims);
-        const { noun, posLabel } = state.terms;
+        const { posLabel, axisNames } = state.terms;
+        const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+        const s2 = subjectForm(cat.values[vi2], cat, state.grid);
         return step(
           "hidden_pair",
           [],
           elims,
           assigns,
-          `${cat.values[vi1]} and ${cat.values[vi2]} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${noun}s, so they must be restricted to those ${noun}s.`,
+          `${capitalize(s1)} and ${s2} are the only ${cat.name} values for the ${posLabel(p1)} and ${posLabel(p2)} ${axisNames}, so they must be restricted to those ${axisNames}.`,
         );
       }
     }
@@ -279,13 +315,16 @@ export function tryHiddenTriples(state: DeduceState): DeductionStep | null {
           for (const e of elims) getPossible(state, e.value).delete(e.position);
           if (state.silent) return SILENT_STEP;
           const assigns = collectAssigns(state, elims);
-          const { noun, posLabel } = state.terms;
+          const { posLabel, axisNames } = state.terms;
+          const s1 = subjectForm(cat.values[vi1], cat, state.grid);
+          const s2 = subjectForm(cat.values[vi2], cat, state.grid);
+          const s3 = subjectForm(cat.values[vi3], cat, state.grid);
           return step(
             "hidden_triple",
             [],
             elims,
             assigns,
-            `${cat.values[vi1]}, ${cat.values[vi2]}, and ${cat.values[vi3]} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${noun}s, so they must be restricted to those ${noun}s.`,
+            `${capitalize(s1)}, ${s2}, and ${s3} are the only ${cat.name} values for the ${posLabel(p1)}, ${posLabel(p2)}, and ${posLabel(p3)} ${axisNames}, so they must be restricted to those ${axisNames}.`,
           );
         }
       }

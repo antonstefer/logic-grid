@@ -2,19 +2,19 @@
 
 exports[`deduce > snapshots explanation strings 1`] = `
 [
-  "Clue 1: Red must be in the first house.",
-  "Clue 2: Red and Cat are in the same house. Red is in the first house, so both are in the first house.",
-  "Clue 3: Blue is directly left of Green. Blue can't be in the third house; Green can't be in the first house.",
-  "Clue 4: Blue and Dog are in the same house. Blue can only be in the first or second house, so Dog can't be in the third house.",
-  "Clue 5: Dog and Coffee are in the same house. Dog can only be in the first or second house, so Coffee can't be in the third house.",
-  "Clue 6: Tea must be in the first house.",
-  "Red has no other possible house — it must be in the first house. So no other Color can be there.",
-  "Clue 3: Blue is directly left of Green. Blue is in the second house and Green can only be in the second or third house, so Green must be in the third house.",
-  "Clue 4: Blue and Dog are in the same house. Blue is in the second house and Dog can only be in the first or second house, so both are in the second house.",
-  "Clue 5: Dog and Coffee are in the same house. Dog is in the second house and Coffee can only be in the first or second house, so both are in the second house.",
-  "Cat has no other possible house — it must be in the first house. So no other Pet can be there.",
-  "Dog has no other possible house — it must be in the second house. So no other Pet can be there.",
-  "Tea has no other possible house — it must be in the first house. So no other Drink can be there.",
-  "Coffee has no other possible house — it must be in the second house. So no other Drink can be there.",
+  "Clue 1: Red lives in the first house.",
+  "Clue 2: Red lives in the first house, so Cat lives in the first house.",
+  "Clue 3: Blue does not live in the third house; Green does not live in the first house.",
+  "Clue 4: Blue lives in the first or second house, so Dog does not live in the third house.",
+  "Clue 5: Dog lives in the first or second house, so Coffee does not live in the third house.",
+  "Clue 6: Tea lives in the first house.",
+  "Red has no other possible house — Red lives in the first house.",
+  "Clue 3: Blue lives in the second house and Green lives in the second or third house, so Green lives in the third house.",
+  "Clue 4: Blue lives in the second house and Dog lives in the first or second house, so Dog lives in the second house.",
+  "Clue 5: Dog lives in the second house and Coffee lives in the first or second house, so Coffee lives in the second house.",
+  "Cat has no other possible house — Cat lives in the first house.",
+  "Dog has no other possible house — Dog lives in the second house.",
+  "Tea has no other possible house — Tea lives in the first house.",
+  "Coffee has no other possible house — Coffee lives in the second house.",
 ]
 `;

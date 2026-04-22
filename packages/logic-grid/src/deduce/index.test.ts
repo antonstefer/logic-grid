@@ -66,7 +66,10 @@ describe("deduce", () => {
     }
   });
 
-  it("steps collectively assign all values", () => {
+  it("steps collectively assign all non-pinned values", () => {
+    // Pinned-axis values (first/second/third) are fixed at state creation
+    // and don't appear in step.assignments — each step reports only values
+    // whose possible set was changed by that step.
     const result = deduce(puzzle3x3, grid3x3);
     const assigned = new Map<string, number>();
     for (const s of result.steps) {
@@ -74,8 +77,7 @@ describe("deduce", () => {
         assigned.set(a.value, a.position);
       }
     }
-    expect(assigned.size).toBe(10);
-    expect(assigned.get("first")).toBe(0);
+    expect(assigned.size).toBe(9);
     expect(assigned.get("Red")).toBe(0);
     expect(assigned.get("Cat")).toBe(0);
     expect(assigned.get("Blue")).toBe(1);

@@ -5,12 +5,21 @@ import type {
   DeductionTechnique,
 } from "../types";
 import { pinnedAxis } from "../axis";
+import { formatAtMulti, formatAtSingle, pluralize } from "../clues/templates";
 
 // --- Display utilities ---
 
 /** Axis-derived phrasing for deduction explanations. */
 export interface AxisTerms {
   noun: string;
+  /** Lowercased name of the pinned axis category — the *concept* being measured.
+   * Used in structural phrasings ("no other possible X", "in the A and B Xs"),
+   * where the row-entity `noun` can semantically overlap with the subject
+   * (e.g. `noun: "fugitive"` clashes with pirate subjects). The concept word
+   * (`name: "Bounty"` → "bounty") reads uniformly across themes. */
+  axisName: string;
+  /** Pluralized `axisName` ("bounties", "houses", "years"). */
+  axisNames: string;
   posLabel: (p: number) => string;
   /** True when `value` is a display-axis value (e.g. "first" on the House axis). */
   isAxisValue: (value: string) => boolean;
@@ -29,8 +38,11 @@ function computeAxisTerms(grid: Grid): AxisTerms {
   // misclassifies cross-category collisions.
   const axisValues = new Set(axis.values);
   const orderedCount = grid.categories.filter((c) => c.ordered === true).length;
+  const axisName = axis.name.toLowerCase();
   return {
     noun: axis.noun || "position",
+    axisName,
+    axisNames: pluralize(axisName),
     posLabel: (p) => axis.values[p],
     isAxisValue: (value) => axisValues.has(value),
     multiAxis: orderedCount > 1,
@@ -38,14 +50,14 @@ function computeAxisTerms(grid: Grid): AxisTerms {
 }
 
 export function describeResult(
-  terms: AxisTerms,
+  grid: Grid,
+  _terms: AxisTerms,
   assigns: { value: string; position: number }[],
   elims: { value: string; position: number }[],
 ): string {
-  const { noun, posLabel } = terms;
   const parts: string[] = [];
   for (const a of assigns) {
-    parts.push(`${a.value} must be in the ${posLabel(a.position)} ${noun}`);
+    parts.push(formatAtSingle(a.value, a.position, grid, false));
   }
   // Group eliminations by value
   const byValue = new Map<string, number[]>();
@@ -56,8 +68,11 @@ export function describeResult(
     byValue.get(e.value)!.push(e.position);
   }
   for (const [value, positions] of byValue) {
-    const posStr = positions.map((p) => posLabel(p)).join(" or ");
-    parts.push(`${value} can't be in the ${posStr} ${noun}`);
+    if (positions.length === 1) {
+      parts.push(formatAtSingle(value, positions[0], grid, true));
+    } else {
+      parts.push(formatAtMulti(value, positions, grid, true));
+    }
   }
   return parts.join("; ");
 }
@@ -68,13 +83,13 @@ export function clueRef(ci: number): string {
 
 /** Describe what we know about a value's position — used for "because" context. */
 export function describeKnown(state: DeduceState, value: string): string {
-  const { noun, posLabel } = state.terms;
+  const { posLabel } = state.terms;
   const pos = getAssigned(state, value);
   if (pos !== null) {
     // Display-axis values are pinned to their own index — "first is in the
     // first house" is tautological and shadows more informative operands.
     if (posLabel(pos) === value) return "";
-    return `${value} is in the ${posLabel(pos)} ${noun}`;
+    return formatAtSingle(value, pos, state.grid, false);
   }
   const possible = getPossible(state, value);
   // Only useful when the domain is both small enough to enumerate AND
@@ -82,8 +97,7 @@ export function describeKnown(state: DeduceState, value: string): string {
   // in the first or second or third house" is true but useless and would
   // shadow more informative operands in callers like trySamePosition.
   if (possible.size <= 3 && possible.size < state.n) {
-    const posStr = [...possible].map((p) => posLabel(p)).join(" or ");
-    return `${value} can only be in the ${posStr} ${noun}`;
+    return formatAtMulti(value, [...possible], state.grid, false);
   }
   return "";
 }
