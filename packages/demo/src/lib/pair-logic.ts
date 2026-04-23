@@ -57,6 +57,12 @@ export const subgridUniquenessRule: PropagationRule = {
  *  - If a[i] and b[j] are both confirmed at the same pinned position → confirmed pair.
  *  - If every pinned position has at least one of them eliminated → eliminated pair.
  * Only returns writes for currently-empty cells so existing user/auto state isn't clobbered.
+ *
+ * NB: this reads ONLY pinned-axis cells. Transitive derivations that would go
+ * purely through non-pinned sub-grids (e.g. a user who manually confirms
+ * (A,B) and (B,C) in cross sub-grids, expecting (A,C) to follow) are not
+ * covered here. Clicks on pinned sub-grids propagate everywhere via this
+ * pass; clicks that avoid the pinned axis stay local to their sub-grid.
  */
 export function deriveCrossSubgrids(
   pair: PairState,
@@ -165,6 +171,15 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
  * Two passes:
  *   1. Sub-grid uniqueness from each user-confirmed cell (pinned AND cross).
  *   2. Cross-sub-grid derivation from pinned-axis knowledge.
+ *
+ * Sub-grid uniqueness does NOT re-run over the cross confirms produced by
+ * pass 2. This is safe because `deriveCrossSubgrids` reads the pinned state
+ * directly: whenever it confirms (a,i,b,j), the same scan also emits the
+ * eliminations subgrid uniqueness would derive from that confirm (every
+ * other (a,i,b,j') has some pinned position where one of the two is
+ * eliminated). If a future rule produces cross confirms not backed by
+ * pinned-axis state (e.g. a generic triangle rule), feed its output back
+ * through `applyRulesFrom` or wrap this in a fixpoint loop.
  */
 export function recomputeAuto(
   pair: PairState,

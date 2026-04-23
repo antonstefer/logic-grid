@@ -11,7 +11,7 @@ import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 import {
   recomputeAuto as recomputeAutoPure,
-  setPair as setPairPure,
+  setPair,
   type CellCoord,
   type CellState,
   type PairState,
@@ -165,6 +165,14 @@ export function createPuzzleState() {
    * Translate a library-produced positional fact {value, position} to a pairwise coord.
    * Position p means "index p on the pinned axis" — so the cell is (catOfValue, pinnedAxis).
    * Returns null if the value belongs to the pinned axis itself (tautological by identity).
+   *
+   * The library's positions are always relative to `pinnedAxis`, so hints land
+   * in the pinned sub-grids. PuzzleGrid renders the staircase anchored on
+   * `displayAxisCategory` instead. In the default config these coincide; when
+   * `grid.displayAxis` is explicitly set to a non-pinned axis, the horizontal
+   * anchor in the UI and the sub-grids hints write into diverge — deduce()
+   * output will still render correctly, just not along the user's chosen
+   * visual anchor.
    */
   function libEffToPair(e: {
     value: string;
@@ -186,17 +194,6 @@ export function createPuzzleState() {
     return aPos === bPos ? "confirmed" : "eliminated";
   }
 
-  /** Thin wrapper over the pure setPair so call sites stay short. */
-  function writePair(
-    a: number,
-    i: number,
-    b: number,
-    j: number,
-    state: CellState,
-  ) {
-    setPairPure(pair, a, i, b, j, state, "user");
-  }
-
   function recomputeAuto() {
     if (!puzzle) throw new Error("No active puzzle");
     const sizes = puzzle.grid.categories.map((c) => c.values.length);
@@ -206,7 +203,29 @@ export function createPuzzleState() {
   function toggleConfirm(a: number, i: number, b: number, j: number) {
     if (a === b) return;
     const cur = pair[a][i][b][j];
-    writePair(a, i, b, j, cur.state === "confirmed" ? "empty" : "confirmed");
+    if (cur.state === "confirmed") {
+      setPair(pair, a, i, b, j, "empty", "user");
+    } else {
+      // Classic logic-grid UX: confirming a new cell auto-clears any existing
+      // user confirm in the same sub-row/sub-col of this sub-grid. Without
+      // this, two user confirms can coexist and each blocks the other's
+      // sub-grid-uniqueness elimination, leaving a silent contradiction.
+      const aSize = pair[a].length;
+      const bSize = pair[a][i][b].length;
+      for (let jp = 0; jp < bSize; jp++) {
+        const c = pair[a][i][b][jp];
+        if (jp !== j && c.state === "confirmed" && c.source === "user") {
+          setPair(pair, a, i, b, jp, "empty", "user");
+        }
+      }
+      for (let ip = 0; ip < aSize; ip++) {
+        const c = pair[a][ip][b][j];
+        if (ip !== i && c.state === "confirmed" && c.source === "user") {
+          setPair(pair, a, ip, b, j, "empty", "user");
+        }
+      }
+      setPair(pair, a, i, b, j, "confirmed", "user");
+    }
     recomputeAuto();
     message = null;
   }
@@ -214,7 +233,15 @@ export function createPuzzleState() {
   function toggleEliminate(a: number, i: number, b: number, j: number) {
     if (a === b) return;
     const cur = pair[a][i][b][j];
-    writePair(a, i, b, j, cur.state === "eliminated" ? "empty" : "eliminated");
+    setPair(
+      pair,
+      a,
+      i,
+      b,
+      j,
+      cur.state === "eliminated" ? "empty" : "eliminated",
+      "user",
+    );
     recomputeAuto();
     message = null;
   }
@@ -278,7 +305,7 @@ export function createPuzzleState() {
 
   function showSolution() {
     forEachPair((a, i, b, j) => {
-      writePair(a, i, b, j, solutionPair(a, i, b, j));
+      setPair(pair, a, i, b, j, solutionPair(a, i, b, j), "user");
     });
     message = { text: "Solution revealed.", type: "info" };
   }
@@ -308,7 +335,7 @@ export function createPuzzleState() {
       }
     });
     for (const w of wrongs) {
-      writePair(w.a, w.i, w.b, w.j, "empty");
+      setPair(pair, w.a, w.i, w.b, w.j, "empty", "user");
     }
     if (wrongs.length > 0) recomputeAuto();
     return wrongs.length > 0;
@@ -368,14 +395,14 @@ export function createPuzzleState() {
       const coord = libEffToPair(e);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
-        writePair(coord.a, coord.i, coord.b, coord.j, "eliminated");
+        setPair(pair, coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
       }
     }
     for (const a of step.assignments) {
       const coord = libEffToPair(a);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
-        writePair(coord.a, coord.i, coord.b, coord.j, "confirmed");
+        setPair(pair, coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
       }
     }
     recomputeAuto();
@@ -395,7 +422,7 @@ export function createPuzzleState() {
       return;
     }
     const c = candidates[Math.floor(Math.random() * candidates.length)];
-    writePair(c.a, c.i, c.b, c.j, "confirmed");
+    setPair(pair, c.a, c.i, c.b, c.j, "confirmed", "user");
     recomputeAuto();
     message = { text: "One cell revealed.", type: "info" };
   }
