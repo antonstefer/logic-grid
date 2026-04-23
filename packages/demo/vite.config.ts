@@ -5,7 +5,9 @@ import fs from "fs";
 
 // Walk up from this config until we find a `node_modules/@sveltejs/kit` —
 // handles both the main repo and git worktrees (which share the main repo's
-// node_modules) without hard-coding any paths.
+// node_modules) without hard-coding any paths. Throws if none is found
+// rather than silently falling back to `start`, since the downstream
+// Vite fs-access error would be cryptic.
 function findDepsRoot(start: string): string {
   let dir = start;
   for (let i = 0; i < 20; i++) {
@@ -15,7 +17,10 @@ function findDepsRoot(start: string): string {
     if (parent === dir) break;
     dir = parent;
   }
-  return start;
+  throw new Error(
+    `Could not locate node_modules/@sveltejs/kit starting from ${start}. ` +
+      `Run 'npm install' at the repo root or ensure the worktree can reach the main repo.`,
+  );
 }
 
 export default defineConfig({
