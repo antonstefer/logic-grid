@@ -10,18 +10,14 @@ import {
 import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 import {
-  deriveCrossSubgrids,
-  subgridUniquenessRule,
+  recomputeAuto as recomputeAutoPure,
+  setPair as setPairPure,
   type CellCoord,
-  type CellSource,
   type CellState,
   type PairState,
-  type PropagationRule,
 } from "./pair-logic";
 
 export type { Cell, CellState, PairState } from "./pair-logic";
-
-const rules: PropagationRule[] = [subgridUniquenessRule];
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
@@ -190,97 +186,27 @@ export function createPuzzleState() {
     return aPos === bPos ? "confirmed" : "eliminated";
   }
 
-  /** Single writer: always mirrors to preserve pair[a][i][b][j] === pair[b][j][a][i]. */
-  function setPair(
+  /** Thin wrapper over the pure setPair so call sites stay short. */
+  function writePair(
     a: number,
     i: number,
     b: number,
     j: number,
     state: CellState,
-    source: CellSource,
   ) {
-    if (a === b) return;
-    pair[a][i][b][j] = { state, source };
-    pair[b][j][a][i] = { state, source };
+    setPairPure(pair, a, i, b, j, state, "user");
   }
 
-  /** Fixed-point runner. New rules plug in via `rules[]` without touching call sites. */
-  function applyRules(start: CellCoord) {
-    const queue: CellCoord[] = [start];
-    const seen = new Set<string>();
-    while (queue.length > 0) {
-      const c = queue.shift()!;
-      const key = `${c.a}:${c.i}:${c.b}:${c.j}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      for (const rule of rules) {
-        for (const w of rule.derive(pair, c)) {
-          const cur = pair[w.a][w.i][w.b][w.j];
-          if (cur.state === w.state) continue;
-          // Don't clobber user-set non-empty cells; allow overwriting other auto writes.
-          if (cur.state !== "empty" && cur.source === "user") continue;
-          setPair(w.a, w.i, w.b, w.j, w.state, "auto");
-          queue.push({ a: w.a, i: w.i, b: w.b, j: w.j });
-        }
-      }
-    }
-  }
-
-  /**
-   * Derive cross-sub-grid pair state from pinned-axis knowledge. Translates
-   * library positional facts (which only touch pinned sub-grids) into their
-   * implications for non-pinned sub-grids:
-   *  - If a[i] and b[j] are both confirmed at the same pinned position → confirmed pair.
-   *  - If every pinned position has at least one of them eliminated → eliminated pair.
-   */
-  function syncCrossSubgrids() {
+  function recomputeAuto() {
     if (!puzzle) throw new Error("No active puzzle");
     const sizes = puzzle.grid.categories.map((c) => c.values.length);
-    for (const w of deriveCrossSubgrids(pair, pinIdx(), sizes)) {
-      setPair(w.a, w.i, w.b, w.j, w.state, "auto");
-    }
-  }
-
-  /** Reset every auto-derived cell to empty so rules can re-run cleanly. */
-  function clearAutoCells() {
-    if (!puzzle) throw new Error("No active puzzle");
-    const N = puzzle.grid.categories.length;
-    for (let a = 0; a < N; a++) {
-      for (let i = 0; i < pair[a].length; i++) {
-        for (let b = 0; b < N; b++) {
-          for (let j = 0; j < pair[a][i][b].length; j++) {
-            if (pair[a][i][b][j].source === "auto") {
-              pair[a][i][b][j] = { state: "empty", source: "user" };
-            }
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Re-derive every auto cell from scratch based on current user cells. Called
-   * after any user modification so un-confirms cleanly retract all dependent
-   * auto propagation without per-rule undo bookkeeping.
-   */
-  function recomputeAuto() {
-    clearAutoCells();
-    forEachPair((a, i, b, j) => {
-      if (pair[a][i][b][j].state === "confirmed") {
-        applyRules({ a, i, b, j });
-      }
-    });
-    syncCrossSubgrids();
+    recomputeAutoPure(pair, pinIdx(), sizes);
   }
 
   function toggleConfirm(a: number, i: number, b: number, j: number) {
     if (a === b) return;
     const cur = pair[a][i][b][j];
-    if (cur.state === "confirmed") {
-      setPair(a, i, b, j, "empty", "user");
-    } else {
-      setPair(a, i, b, j, "confirmed", "user");
-    }
+    writePair(a, i, b, j, cur.state === "confirmed" ? "empty" : "confirmed");
     recomputeAuto();
     message = null;
   }
@@ -288,14 +214,7 @@ export function createPuzzleState() {
   function toggleEliminate(a: number, i: number, b: number, j: number) {
     if (a === b) return;
     const cur = pair[a][i][b][j];
-    if (cur.state === "eliminated") {
-      setPair(a, i, b, j, "empty", "user");
-    } else {
-      if (cur.state === "confirmed") {
-        setPair(a, i, b, j, "empty", "user");
-      }
-      setPair(a, i, b, j, "eliminated", "user");
-    }
+    writePair(a, i, b, j, cur.state === "eliminated" ? "empty" : "eliminated");
     recomputeAuto();
     message = null;
   }
@@ -359,7 +278,7 @@ export function createPuzzleState() {
 
   function showSolution() {
     forEachPair((a, i, b, j) => {
-      setPair(a, i, b, j, solutionPair(a, i, b, j), "user");
+      writePair(a, i, b, j, solutionPair(a, i, b, j));
     });
     message = { text: "Solution revealed.", type: "info" };
   }
@@ -389,7 +308,7 @@ export function createPuzzleState() {
       }
     });
     for (const w of wrongs) {
-      setPair(w.a, w.i, w.b, w.j, "empty", "user");
+      writePair(w.a, w.i, w.b, w.j, "empty");
     }
     if (wrongs.length > 0) recomputeAuto();
     return wrongs.length > 0;
@@ -449,14 +368,14 @@ export function createPuzzleState() {
       const coord = libEffToPair(e);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
-        setPair(coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
+        writePair(coord.a, coord.i, coord.b, coord.j, "eliminated");
       }
     }
     for (const a of step.assignments) {
       const coord = libEffToPair(a);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
-        setPair(coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
+        writePair(coord.a, coord.i, coord.b, coord.j, "confirmed");
       }
     }
     recomputeAuto();
@@ -476,7 +395,7 @@ export function createPuzzleState() {
       return;
     }
     const c = candidates[Math.floor(Math.random() * candidates.length)];
-    setPair(c.a, c.i, c.b, c.j, "confirmed", "user");
+    writePair(c.a, c.i, c.b, c.j, "confirmed");
     recomputeAuto();
     message = { text: "One cell revealed.", type: "info" };
   }

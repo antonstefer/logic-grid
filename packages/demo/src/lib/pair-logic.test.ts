@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   deriveCrossSubgrids,
+  recomputeAuto,
   subgridUniquenessRule,
   type Cell,
   type CellState,
@@ -180,5 +181,66 @@ describe("deriveCrossSubgrids", () => {
       (w) => w.a === 1 && w.i === 0 && w.b === 2 && w.j === 2,
     );
     expect(forCrossPair).toHaveLength(0);
+  });
+});
+
+describe("recomputeAuto", () => {
+  const sizes = [4, 4, 4]; // pinCat=0, catA=1, catB=2
+
+  it("runs sub-grid uniqueness AND cross-sub-grid derivation in one pass", () => {
+    const pair = emptyPair(sizes);
+    // User confirms catA=0 at pin 1, catB=2 at pin 1.
+    set(pair, 1, 0, 0, 1, "confirmed");
+    set(pair, 2, 2, 0, 1, "confirmed");
+
+    recomputeAuto(pair, 0, sizes);
+
+    // Sub-grid uniqueness in the (pin, catA) sub-grid:
+    // other pinned positions for catA=0 are eliminated
+    for (let p = 0; p < 4; p++) {
+      if (p !== 1) expect(pair[1][0][0][p].state).toBe("eliminated");
+    }
+    // and other catA values at pin=1 are eliminated
+    for (let v = 1; v < 4; v++) {
+      expect(pair[1][v][0][1].state).toBe("eliminated");
+    }
+
+    // Cross sub-grid (catA, catB): catA=0 and catB=2 both at pin=1 → confirmed pair
+    expect(pair[1][0][2][2].state).toBe("confirmed");
+    expect(pair[1][0][2][2].source).toBe("auto");
+    // ...which in turn should eliminate the rest of that sub-row/sub-col
+    // (these are auto-confirm propagations — still valid after this single recompute)
+    for (let v = 0; v < 4; v++) {
+      if (v !== 2) expect(pair[1][0][2][v].state).toBe("eliminated");
+    }
+  });
+
+  it("retracts every dependent auto cell when a user confirm is removed", () => {
+    const pair = emptyPair(sizes);
+    set(pair, 1, 0, 0, 1, "confirmed");
+    set(pair, 2, 2, 0, 1, "confirmed");
+    recomputeAuto(pair, 0, sizes);
+    expect(pair[1][0][2][2].state).toBe("confirmed"); // sanity
+
+    // User un-confirms catA=0 at pin 1.
+    set(pair, 1, 0, 0, 1, "empty");
+    recomputeAuto(pair, 0, sizes);
+
+    // catA has no user confirms left — its pinned sub-grid should be all empty,
+    // and the cross pair it supported should be back to empty.
+    expect(pair[1][0][2][2].state).toBe("empty");
+    for (let p = 0; p < 4; p++) expect(pair[1][0][0][p].state).toBe("empty");
+    // catB's confirm is untouched; its pinned sub-grid still has its forced eliminations.
+    expect(pair[2][2][0][1].state).toBe("confirmed");
+    expect(pair[2][2][0][0].state).toBe("eliminated");
+  });
+
+  it("never clobbers a user-set eliminate even if a rule would derive the same cell", () => {
+    const pair = emptyPair(sizes);
+    set(pair, 1, 0, 0, 1, "confirmed"); // user confirm
+    set(pair, 1, 0, 0, 2, "eliminated"); // user elim (sub-grid uniqueness would derive this)
+    recomputeAuto(pair, 0, sizes);
+    // The cell stays user-sourced, not overwritten to auto.
+    expect(pair[1][0][0][2]).toEqual({ state: "eliminated", source: "user" });
   });
 });
