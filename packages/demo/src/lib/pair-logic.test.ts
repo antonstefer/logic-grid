@@ -245,6 +245,21 @@ describe("recomputeAuto", () => {
     expect(pair[1][0][0][2]).toEqual({ state: "eliminated", source: "user" });
   });
 
+  it("never clobbers a user-set eliminate when a rule would derive CONFIRMED on the same cell", () => {
+    // Mirror of the eliminate-vs-eliminate test: a user eliminate must also
+    // block a rule's would-be confirmed write. Matches classic logic-grid UX
+    // (Check catches the contradiction at verify time rather than silently
+    // overwriting the user's guess).
+    const pair = emptyPair(sizes);
+    // Pinned facts that would force cross pair (catA=0, catB=0) = confirmed.
+    set(pair, 1, 0, 0, 0, "confirmed"); // catA=0 at pin 0
+    set(pair, 2, 0, 0, 0, "confirmed"); // catB=0 at pin 0
+    // But the user asserts the opposite cross pair.
+    set(pair, 1, 0, 2, 0, "eliminated");
+    recomputeAuto(pair, 0, sizes);
+    expect(pair[1][0][2][0]).toEqual({ state: "eliminated", source: "user" });
+  });
+
   it("cross-only user confirms stay local — no derivation without pinned-axis support", () => {
     // Mirror Issue 2 from code review: user manually confirms (catA=0, catB=0)
     // and (catB=0, catC=0) entirely in cross sub-grids, never touching the

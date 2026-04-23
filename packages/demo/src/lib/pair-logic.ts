@@ -143,7 +143,20 @@ export function clearAutoCells(pair: PairState): void {
 
 const rules: PropagationRule[] = [subgridUniquenessRule];
 
-/** Run the rules engine starting from a changed cell, in-place, fixpoint. */
+/**
+ * Run the rules engine starting from a changed cell, in-place, fixpoint.
+ *
+ * Multi-rule caveat for future work: `seen` prevents re-processing the same
+ * cell coord, so if rule A confirms (a,i,b,j) and a later rule B overwrites
+ * it with a different state, B's write succeeds silently (auto→auto is
+ * allowed) but B's state does NOT re-run A's derivations because the coord
+ * is already in `seen`. Benign with one rule (subgridUniqueness only fires
+ * on `confirmed` cells and only produces `eliminated` writes, so no two
+ * rules ever disagree). When a second rule lands, decide the policy:
+ * (a) detect the conflict and throw, or
+ * (b) drop `seen` and guard against cycles by not re-queueing on no-op
+ *     writes (state already equal, which is skipped just above).
+ */
 function applyRulesFrom(pair: PairState, start: CellCoord): void {
   // Head-index queue instead of Array.shift() so dequeue is O(1). At current
   // grid sizes this barely matters; it keeps scaling honest as more rules land.
