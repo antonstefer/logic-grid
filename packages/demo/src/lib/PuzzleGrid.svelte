@@ -97,11 +97,10 @@
   }
 </script>
 
-<div
-  class="grid-wrapper"
+<table
+  class="puzzle-grid"
   style:--cell-size="clamp(1.4rem, calc(92vw / (2 + {S} * ({N} - 1))), 2.5rem)"
 >
-  <table class="puzzle-grid">
     <thead>
       <tr>
         <th class="corner"></th>
@@ -182,13 +181,8 @@
       {/each}
     </tbody>
   </table>
-</div>
 
 <style>
-  .grid-wrapper {
-    /* No internal scroll — let the page scroll horizontally when needed. */
-  }
-
   .puzzle-grid {
     border-collapse: collapse;
     font-size: 0.875rem;
