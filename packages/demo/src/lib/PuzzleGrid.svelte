@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Grid } from "logic-grid";
+  import { displayAxisCategory, type Grid } from "logic-grid";
   import type { PairState, CellState } from "./puzzle-state.svelte";
 
   let {
@@ -18,15 +18,25 @@
   const cats = $derived(puzzleGrid.categories);
   const N = $derived(cats.length);
 
-  // Classic "staircase from upper-left" with the first category (typically the
-  // ordered/pinned axis like House 1..N) on the TOP — its values read left-to-
-  // right matching "right of" / "left of" clue phrasing. Row axis holds the
-  // remaining categories reversed so sub-grid (p, q) renders a unique pair
-  // whenever p + q <= N - 2. For N=4 (A,B,C,D): top = [A,B,C]; rowCats = [D,C,B].
+  // Classic "staircase from upper-left". The display-axis category is the
+  // horizontal anchor: its values read left-to-right, matching "right of" /
+  // "left of" phrasing in clues anchored on that axis (e.g. House 1..N).
+  // `layoutCats[p]` is the category at layout position p, starting from the
+  // display axis and wrapping around `cats`. Top axis = positions 0..N-2,
+  // row axis = positions N-1..1 reversed; a sub-grid is rendered at
+  // (rowPos, topPos) whenever rowPos + topPos ≤ N − 2.
+  const displayIdx = $derived(cats.indexOf(displayAxisCategory(puzzleGrid)));
+  const layoutCats = $derived(
+    Array.from({ length: cats.length }, (_, p) => {
+      const idx = (p + displayIdx) % cats.length;
+      return { cat: cats[idx], idx };
+    }),
+  );
+  const topCats = $derived(layoutCats.slice(0, -1));
   const rowCats = $derived.by(() => {
     const list: { cat: (typeof cats)[number]; idx: number }[] = [];
-    for (let i = cats.length - 1; i >= 1; i--) {
-      list.push({ cat: cats[i], idx: i });
+    for (let p = layoutCats.length - 1; p >= 1; p--) {
+      list.push(layoutCats[p]);
     }
     return list;
   });
@@ -103,23 +113,23 @@
 >
     <thead>
       <tr>
-        <th class="corner"></th>
-        <th class="corner"></th>
-        {#each cats.slice(0, -1) as topCat}
+        <th class="corner" role="presentation"></th>
+        <th class="corner" role="presentation"></th>
+        {#each topCats as { cat: topCat }}
           <th class="top-cat-label" colspan={S}>{topCat.name}</th>
         {/each}
       </tr>
       <tr>
-        <th class="corner"></th>
-        <th class="corner"></th>
-        {#each cats.slice(0, -1) as topCat, q}
-          {#each topCat.values as _, tvi}
+        <th class="corner" role="presentation"></th>
+        <th class="corner" role="presentation"></th>
+        {#each topCats as { idx: topCatIdx }}
+          {#each cats[topCatIdx].values as _, tvi}
             <th
               class="top-value"
               class:sub-start={tvi === 0}
               class:sub-end={tvi === S - 1}
             >
-              <span>{valueLabel(q, tvi)}</span>
+              <span>{valueLabel(topCatIdx, tvi)}</span>
             </th>
           {/each}
         {/each}
@@ -139,10 +149,10 @@
             >
               {valueLabel(rowCatIdx, rvi)}
             </th>
-            {#each cats.slice(0, -1) as topCat, q}
+            {#each topCats as { idx: topCatIdx }, q}
               {#if p + q <= N - 2}
-                {#each topCat.values as _, tvi}
-                  {@const cell = pair[rowCatIdx][rvi][q][tvi]}
+                {#each cats[topCatIdx].values as _, tvi}
+                  {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
                   <td
                     class="cell"
                     class:eliminated={cell.state === "eliminated"}
@@ -151,22 +161,28 @@
                     class:sub-end-col={tvi === S - 1}
                     class:sub-start-row={rvi === 0}
                     class:sub-end-row={rvi === S - 1}
-                    onclick={() => handleClick(rowCatIdx, rvi, q, tvi)}
+                    onclick={() =>
+                      handleClick(rowCatIdx, rvi, topCatIdx, tvi)}
                     ontouchstart={(e) =>
-                      handleTouchStart(e, rowCatIdx, rvi, q, tvi)}
+                      handleTouchStart(e, rowCatIdx, rvi, topCatIdx, tvi)}
                     ontouchmove={handleTouchMove}
                     ontouchend={handleTouchEnd}
                     oncontextmenu={(e) => e.preventDefault()}
                     onmouseup={(e) => {
-                      if (e.button === 2) onEliminate(rowCatIdx, rvi, q, tvi);
+                      if (e.button === 2)
+                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
                     }}
                     role="button"
                     tabindex="0"
                     onkeydown={(e) => {
-                      if (e.key === "Enter" || e.key === " ")
-                        onConfirm(rowCatIdx, rvi, q, tvi);
-                      if (e.key === "Delete" || e.key === "Backspace")
-                        onEliminate(rowCatIdx, rvi, q, tvi);
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onConfirm(rowCatIdx, rvi, topCatIdx, tvi);
+                      }
+                      if (e.key === "Delete" || e.key === "Backspace") {
+                        e.preventDefault();
+                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
+                      }
                     }}
                   >
                     {cellSymbol(cell.state)}
