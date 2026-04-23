@@ -210,6 +210,14 @@ export function createPuzzleState() {
       // user confirm in the same sub-row/sub-col of this sub-grid. Without
       // this, two user confirms can coexist and each blocks the other's
       // sub-grid-uniqueness elimination, leaving a silent contradiction.
+      //
+      // Scope: we only clear user confirms. Auto confirms from pinned-axis
+      // derivation will be wiped by recomputeAuto below anyway. This does
+      // NOT catch the general case of a user cross-sub-grid confirm that
+      // contradicts pinned-axis state elsewhere (e.g. clicking Alice-Dog
+      // when pinned state already implies Alice-Cat) — matches Puzzle
+      // Baron / Brainzilla behavior where Check catches inconsistencies
+      // at verify time.
       const aSize = pair[a].length;
       const bSize = pair[a][i][b].length;
       for (let jp = 0; jp < bSize; jp++) {
