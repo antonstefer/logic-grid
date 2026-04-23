@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   deriveCrossSubgrids,
   recomputeAuto,
+  replaceConfirm,
   subgridUniquenessRule,
   type Cell,
   type CellState,
@@ -242,5 +243,58 @@ describe("recomputeAuto", () => {
     recomputeAuto(pair, 0, sizes);
     // The cell stays user-sourced, not overwritten to auto.
     expect(pair[1][0][0][2]).toEqual({ state: "eliminated", source: "user" });
+  });
+
+  it("cross-only user confirms stay local — no derivation without pinned-axis support", () => {
+    // Mirror Issue 2 from code review: user manually confirms (catA=0, catB=0)
+    // and (catB=0, catC=0) entirely in cross sub-grids, never touching the
+    // pinned axis. The transitive (catA=0, catC=0) must NOT be derived, since
+    // deriveCrossSubgrids only reads pinned-axis state.
+    const pair = emptyPair(sizes);
+    // catA × catB cross-confirm (no pinned facts involved)
+    set(pair, 1, 0, 2, 0, "confirmed");
+    recomputeAuto(pair, 0, sizes);
+    // Cross-sub-grid effects stay within (catA, catB); pinned sub-grids untouched.
+    expect(pair[1][0][0][0].state).toBe("empty"); // catA=0 pinned state unknown
+    expect(pair[2][0][0][0].state).toBe("empty"); // catB=0 pinned state unknown
+    // Sub-grid uniqueness inside (catA, catB) still applies.
+    expect(pair[1][0][2][1].state).toBe("eliminated");
+    expect(pair[1][1][2][0].state).toBe("eliminated");
+  });
+});
+
+describe("replaceConfirm", () => {
+  const sizes = [4, 4, 4];
+
+  it("wipes user confirms in the same sub-row before asserting the new one", () => {
+    const pair = emptyPair(sizes);
+    set(pair, 1, 0, 0, 0, "confirmed"); // user confirm: catA=0 at pin 0
+    replaceConfirm(pair, 1, 0, 0, 1); // user now asserts catA=0 at pin 1
+    expect(pair[1][0][0][0]).toEqual({ state: "empty", source: "user" });
+    expect(pair[1][0][0][1]).toEqual({ state: "confirmed", source: "user" });
+  });
+
+  it("wipes user confirms in the same sub-col before asserting the new one", () => {
+    const pair = emptyPair(sizes);
+    set(pair, 1, 0, 0, 1, "confirmed"); // user confirm: catA=0 at pin 1
+    replaceConfirm(pair, 1, 2, 0, 1); // user now asserts catA=2 at pin 1
+    expect(pair[1][0][0][1]).toEqual({ state: "empty", source: "user" });
+    expect(pair[1][2][0][1]).toEqual({ state: "confirmed", source: "user" });
+  });
+
+  it("leaves auto-sourced confirms alone in the same sub-row", () => {
+    const pair = emptyPair(sizes);
+    // Prime the pinned state so (catA=0, catB=0) gets auto-confirmed by
+    // deriveCrossSubgrids, then simulate replacing it with a user click on
+    // (catA=0, catB=1). The auto cell shouldn't be touched by replaceConfirm
+    // itself — recomputeAuto will sort it out afterward.
+    set(pair, 1, 0, 0, 1, "confirmed");
+    set(pair, 2, 0, 0, 1, "confirmed");
+    recomputeAuto(pair, 0, sizes);
+    expect(pair[1][0][2][0].state).toBe("confirmed"); // auto
+    expect(pair[1][0][2][0].source).toBe("auto");
+    replaceConfirm(pair, 1, 0, 2, 1);
+    expect(pair[1][0][2][0]).toEqual({ state: "confirmed", source: "auto" });
+    expect(pair[1][0][2][1]).toEqual({ state: "confirmed", source: "user" });
   });
 });

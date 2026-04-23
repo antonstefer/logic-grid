@@ -11,6 +11,7 @@ import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 import {
   recomputeAuto as recomputeAutoPure,
+  replaceConfirm,
   setPair,
   type CellCoord,
   type CellState,
@@ -174,12 +175,11 @@ export function createPuzzleState() {
    * output will still render correctly, just not along the user's chosen
    * visual anchor.
    */
-  function libEffToPair(e: {
-    value: string;
-    position: number;
-  }): CellCoord | null {
+  function libEffToPair(
+    e: { value: string; position: number },
+    pi: number,
+  ): CellCoord | null {
     const [catV, viOfV] = findCatValOf(e.value);
-    const pi = pinIdx();
     if (catV === pi) return null;
     return { a: catV, i: viOfV, b: pi, j: e.position };
   }
@@ -206,33 +206,12 @@ export function createPuzzleState() {
     if (cur.state === "confirmed") {
       setPair(pair, a, i, b, j, "empty", "user");
     } else {
-      // Classic logic-grid UX: confirming a new cell auto-clears any existing
-      // user confirm in the same sub-row/sub-col of this sub-grid. Without
-      // this, two user confirms can coexist and each blocks the other's
-      // sub-grid-uniqueness elimination, leaving a silent contradiction.
-      //
-      // Scope: we only clear user confirms. Auto confirms from pinned-axis
-      // derivation will be wiped by recomputeAuto below anyway. This does
-      // NOT catch the general case of a user cross-sub-grid confirm that
-      // contradicts pinned-axis state elsewhere (e.g. clicking Alice-Dog
-      // when pinned state already implies Alice-Cat) — matches Puzzle
-      // Baron / Brainzilla behavior where Check catches inconsistencies
-      // at verify time.
-      const aSize = pair[a].length;
-      const bSize = pair[a][i][b].length;
-      for (let jp = 0; jp < bSize; jp++) {
-        const c = pair[a][i][b][jp];
-        if (jp !== j && c.state === "confirmed" && c.source === "user") {
-          setPair(pair, a, i, b, jp, "empty", "user");
-        }
-      }
-      for (let ip = 0; ip < aSize; ip++) {
-        const c = pair[a][ip][b][j];
-        if (ip !== i && c.state === "confirmed" && c.source === "user") {
-          setPair(pair, a, ip, b, j, "empty", "user");
-        }
-      }
-      setPair(pair, a, i, b, j, "confirmed", "user");
+      // replaceConfirm handles the "clicking a new cell replaces the old
+      // guess on the same line" classic UX. Scope is this sub-grid's
+      // sub-row/sub-col only — a cross-confirm that contradicts pinned-axis
+      // state elsewhere is still allowed (matches Puzzle Baron / Brainzilla;
+      // Check catches it at verify time).
+      replaceConfirm(pair, a, i, b, j);
     }
     recomputeAuto();
     message = null;
@@ -354,14 +333,15 @@ export function createPuzzleState() {
     if (hintSteps.length === 0) {
       hintSteps = deduce(puzzle.constraints, puzzle.grid).steps;
     }
+    const pi = pinIdx();
     for (const candidate of hintSteps) {
       const newElims = candidate.eliminations.filter((e) => {
-        const coord = libEffToPair(e);
+        const coord = libEffToPair(e, pi);
         if (!coord) return false;
         return pair[coord.a][coord.i][coord.b][coord.j].state === "empty";
       });
       const newAssigns = candidate.assignments.filter((a) => {
-        const coord = libEffToPair(a);
+        const coord = libEffToPair(a, pi);
         if (!coord) return false;
         return pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed";
       });
@@ -399,15 +379,16 @@ export function createPuzzleState() {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
+    const pi = pinIdx();
     for (const e of step.eliminations) {
-      const coord = libEffToPair(e);
+      const coord = libEffToPair(e, pi);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
         setPair(pair, coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
       }
     }
     for (const a of step.assignments) {
-      const coord = libEffToPair(a);
+      const coord = libEffToPair(a, pi);
       if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
         setPair(pair, coord.a, coord.i, coord.b, coord.j, "confirmed", "user");

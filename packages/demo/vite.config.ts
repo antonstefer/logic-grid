@@ -8,9 +8,10 @@ import fs from "fs";
 // node_modules) without hard-coding any paths. Throws if none is found
 // rather than silently falling back to `start`, since the downstream
 // Vite fs-access error would be cryptic.
+const MAX_WALK_DEPTH = 20; // deep enough for nested worktrees; bounded so we hit the filesystem root rather than loop.
 function findDepsRoot(start: string): string {
   let dir = start;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < MAX_WALK_DEPTH; i++) {
     if (fs.existsSync(path.join(dir, "node_modules", "@sveltejs", "kit")))
       return dir;
     const parent = path.dirname(dir);

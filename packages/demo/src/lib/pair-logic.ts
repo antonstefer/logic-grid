@@ -58,11 +58,13 @@ export const subgridUniquenessRule: PropagationRule = {
  *  - If every pinned position has at least one of them eliminated → eliminated pair.
  * Only returns writes for currently-empty cells so existing user/auto state isn't clobbered.
  *
- * NB: this reads ONLY pinned-axis cells. Transitive derivations that would go
- * purely through non-pinned sub-grids (e.g. a user who manually confirms
- * (A,B) and (B,C) in cross sub-grids, expecting (A,C) to follow) are not
- * covered here. Clicks on pinned sub-grids propagate everywhere via this
- * pass; clicks that avoid the pinned axis stay local to their sub-grid.
+ * NB: derivation is pinned→cross only. Two gaps follow:
+ *   1. Cross-only transitives: user confirming (A,B) and (B,C) in cross
+ *      sub-grids does NOT imply (A,C) — we never look at cross cells.
+ *   2. Cross→pinned inference: user confirming (A,B) cross and (A,pin=p)
+ *      does NOT imply (B,pin=p) — we only write to non-pinned cells.
+ * Clicks made purely in pinned sub-grids propagate everywhere via this pass;
+ * anything else stays local to the sub-grids it touches.
  */
 export function deriveCrossSubgrids(
   pair: PairState,
@@ -143,10 +145,13 @@ const rules: PropagationRule[] = [subgridUniquenessRule];
 
 /** Run the rules engine starting from a changed cell, in-place, fixpoint. */
 function applyRulesFrom(pair: PairState, start: CellCoord): void {
+  // Head-index queue instead of Array.shift() so dequeue is O(1). At current
+  // grid sizes this barely matters; it keeps scaling honest as more rules land.
   const queue: CellCoord[] = [start];
+  let head = 0;
   const seen = new Set<string>();
-  while (queue.length > 0) {
-    const c = queue.shift()!;
+  while (head < queue.length) {
+    const c = queue[head++];
     const key = `${c.a}:${c.i}:${c.b}:${c.j}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -161,6 +166,38 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
       }
     }
   }
+}
+
+/**
+ * Assert a user confirm at (a, i, b, j), auto-clearing any existing user
+ * confirm in the same sub-row/sub-col of this sub-grid. Classic logic-grid
+ * UX: clicking a new cell replaces the prior guess on that line so the user
+ * can freely move their guess without first clearing the old one. Does NOT
+ * run recomputeAuto — callers are responsible for that afterwards.
+ */
+export function replaceConfirm(
+  pair: PairState,
+  a: number,
+  i: number,
+  b: number,
+  j: number,
+): void {
+  if (a === b) return;
+  const aSize = pair[a].length;
+  const bSize = pair[a][i][b].length;
+  for (let jp = 0; jp < bSize; jp++) {
+    const c = pair[a][i][b][jp];
+    if (jp !== j && c.state === "confirmed" && c.source === "user") {
+      setPair(pair, a, i, b, jp, "empty", "user");
+    }
+  }
+  for (let ip = 0; ip < aSize; ip++) {
+    const c = pair[a][ip][b][j];
+    if (ip !== i && c.state === "confirmed" && c.source === "user") {
+      setPair(pair, a, ip, b, j, "empty", "user");
+    }
+  }
+  setPair(pair, a, i, b, j, "confirmed", "user");
 }
 
 /**
