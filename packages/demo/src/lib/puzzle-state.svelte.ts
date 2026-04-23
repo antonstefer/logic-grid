@@ -9,58 +9,17 @@ import {
 } from "logic-grid";
 import type { ThemeResult } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
+import {
+  deriveCrossSubgrids,
+  subgridUniquenessRule,
+  type CellCoord,
+  type CellSource,
+  type CellState,
+  type PairState,
+  type PropagationRule,
+} from "./pair-logic";
 
-export type CellState = "empty" | "eliminated" | "confirmed";
-export type CellSource = "user" | "auto";
-export interface Cell {
-  state: CellState;
-  source: CellSource;
-}
-/** pair[catA][valA][catB][valB] — symmetric: pair[a][i][b][j] mirrors pair[b][j][a][i] */
-export type PairState = Cell[][][][];
-
-interface CellCoord {
-  a: number;
-  i: number;
-  b: number;
-  j: number;
-}
-
-interface DerivedWrite extends CellCoord {
-  state: CellState;
-}
-
-/**
- * Observes a just-changed cell and returns implied writes. Pure — must not
- * mutate state. New rules (triangle, last-cell, etc.) plug into `rules[]`
- * without touching call sites.
- */
-interface PropagationRule {
-  name: string;
-  derive(pair: PairState, changed: CellCoord): DerivedWrite[];
-}
-
-/** When (a,i,b,j) is confirmed, eliminate the rest of that sub-row/sub-col in sub-grid (a,b). */
-const subgridUniquenessRule: PropagationRule = {
-  name: "subgridUniqueness",
-  derive(pair, { a, i, b, j }) {
-    const writes: DerivedWrite[] = [];
-    if (pair[a][i][b][j].state !== "confirmed") return writes;
-    const aSize = pair[a].length;
-    const bSize = pair[a][i][b].length;
-    for (let jp = 0; jp < bSize; jp++) {
-      if (jp !== j && pair[a][i][b][jp].state === "empty") {
-        writes.push({ a, i, b, j: jp, state: "eliminated" });
-      }
-    }
-    for (let ip = 0; ip < aSize; ip++) {
-      if (ip !== i && pair[a][ip][b][j].state === "empty") {
-        writes.push({ a, i: ip, b, j, state: "eliminated" });
-      }
-    }
-    return writes;
-  },
-};
+export type { Cell, CellState, PairState } from "./pair-logic";
 
 const rules: PropagationRule[] = [subgridUniquenessRule];
 
@@ -276,39 +235,9 @@ export function createPuzzleState() {
    */
   function syncCrossSubgrids() {
     if (!puzzle) throw new Error("No active puzzle");
-    const pin = pinIdx();
-    const N = puzzle.grid.categories.length;
-    const S = puzzle.grid.size;
-    for (let a = 0; a < N; a++) {
-      if (a === pin) continue;
-      for (let b = a + 1; b < N; b++) {
-        if (b === pin) continue;
-        const aSize = puzzle.grid.categories[a].values.length;
-        const bSize = puzzle.grid.categories[b].values.length;
-        for (let i = 0; i < aSize; i++) {
-          for (let j = 0; j < bSize; j++) {
-            if (pair[a][i][b][j].state !== "empty") continue;
-            let bothConfirmed = false;
-            let anyBothPossible = false;
-            for (let p = 0; p < S; p++) {
-              const aState = pair[a][i][pin][p].state;
-              const bState = pair[b][j][pin][p].state;
-              if (aState === "confirmed" && bState === "confirmed") {
-                bothConfirmed = true;
-                break;
-              }
-              if (aState !== "eliminated" && bState !== "eliminated") {
-                anyBothPossible = true;
-              }
-            }
-            if (bothConfirmed) {
-              setPair(a, i, b, j, "confirmed", "auto");
-            } else if (!anyBothPossible) {
-              setPair(a, i, b, j, "eliminated", "auto");
-            }
-          }
-        }
-      }
+    const sizes = puzzle.grid.categories.map((c) => c.values.length);
+    for (const w of deriveCrossSubgrids(pair, pinIdx(), sizes)) {
+      setPair(w.a, w.i, w.b, w.j, w.state, "auto");
     }
   }
 
