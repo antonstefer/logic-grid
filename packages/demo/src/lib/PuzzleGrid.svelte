@@ -186,8 +186,7 @@
 
 <style>
   .grid-wrapper {
-    overflow-x: auto;
-    max-width: 100%;
+    /* No internal scroll — let the page scroll horizontally when needed. */
   }
 
   .puzzle-grid {
