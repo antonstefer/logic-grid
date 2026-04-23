@@ -165,7 +165,6 @@ export function createPuzzleState() {
   /**
    * Translate a library-produced positional fact {value, position} to a pairwise coord.
    * Position p means "index p on the pinned axis" — so the cell is (catOfValue, pinnedAxis).
-   * Returns null if the value belongs to the pinned axis itself (tautological by identity).
    *
    * The library's positions are always relative to `pinnedAxis`, so hints land
    * in the pinned sub-grids. PuzzleGrid renders the staircase anchored on
@@ -174,13 +173,23 @@ export function createPuzzleState() {
    * anchor in the UI and the sub-grids hints write into diverge — deduce()
    * output will still render correctly, just not along the user's chosen
    * visual anchor.
+   *
+   * Throws if the library emits a fact about the pinned axis itself (should
+   * be impossible given identity pinning — if we see one, it's a library
+   * regression worth surfacing loudly rather than silently skipping).
    */
   function libEffToPair(
     e: { value: string; position: number },
     pi: number,
-  ): CellCoord | null {
+  ): CellCoord {
     const [catV, viOfV] = findCatValOf(e.value);
-    if (catV === pi) return null;
+    if (catV === pi) {
+      throw new Error(
+        `Library emitted a positional fact about the pinned axis itself ` +
+          `(value="${e.value}", position=${e.position}). This should be ` +
+          `tautological under identity pinning — library regression.`,
+      );
+    }
     return { a: catV, i: viOfV, b: pi, j: e.position };
   }
 
@@ -337,12 +346,10 @@ export function createPuzzleState() {
     for (const candidate of hintSteps) {
       const newElims = candidate.eliminations.filter((e) => {
         const coord = libEffToPair(e, pi);
-        if (!coord) return false;
         return pair[coord.a][coord.i][coord.b][coord.j].state === "empty";
       });
       const newAssigns = candidate.assignments.filter((a) => {
         const coord = libEffToPair(a, pi);
-        if (!coord) return false;
         return pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed";
       });
       if (newElims.length > 0 || newAssigns.length > 0) {
@@ -382,14 +389,12 @@ export function createPuzzleState() {
     const pi = pinIdx();
     for (const e of step.eliminations) {
       const coord = libEffToPair(e, pi);
-      if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
         setPair(pair, coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
       }
     }
     for (const a of step.assignments) {
       const coord = libEffToPair(a, pi);
-      if (!coord) continue;
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
         setPair(pair, coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
       }
