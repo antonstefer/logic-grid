@@ -155,6 +155,12 @@
             {#if p + q <= N - 2}
               {#each cats[topCatIdx].values as _, tvi}
                 {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
+                {@const coord = {
+                  a: rowCatIdx,
+                  i: rvi,
+                  b: topCatIdx,
+                  j: tvi,
+                }}
                 <td
                   class="cell"
                   class:eliminated={cell.state === "eliminated"}
@@ -163,52 +169,24 @@
                   class:sub-end-col={tvi === S - 1}
                   class:sub-start-row={rvi === 0}
                   class:sub-end-row={rvi === S - 1}
-                  onclick={() =>
-                    handleClick({
-                      a: rowCatIdx,
-                      i: rvi,
-                      b: topCatIdx,
-                      j: tvi,
-                    })}
-                  ontouchstart={(e) =>
-                    handleTouchStart(e, {
-                      a: rowCatIdx,
-                      i: rvi,
-                      b: topCatIdx,
-                      j: tvi,
-                    })}
+                  onclick={() => handleClick(coord)}
+                  ontouchstart={(e) => handleTouchStart(e, coord)}
                   ontouchmove={handleTouchMove}
                   ontouchend={handleTouchEnd}
                   oncontextmenu={(e) => e.preventDefault()}
                   onmouseup={(e) => {
-                    if (e.button === 2)
-                      onEliminate({
-                        a: rowCatIdx,
-                        i: rvi,
-                        b: topCatIdx,
-                        j: tvi,
-                      });
+                    if (e.button === 2) onEliminate(coord);
                   }}
                   role="button"
                   tabindex="0"
                   onkeydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      onConfirm({
-                        a: rowCatIdx,
-                        i: rvi,
-                        b: topCatIdx,
-                        j: tvi,
-                      });
+                      onConfirm(coord);
                     }
                     if (e.key === "Delete" || e.key === "Backspace") {
                       e.preventDefault();
-                      onEliminate({
-                        a: rowCatIdx,
-                        i: rvi,
-                        b: topCatIdx,
-                        j: tvi,
-                      });
+                      onEliminate(coord);
                     }
                   }}
                 >
