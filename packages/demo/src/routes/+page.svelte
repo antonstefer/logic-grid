@@ -242,8 +242,8 @@
         <PuzzleGrid
           puzzleGrid={puzzleState.puzzle.grid}
           pair={puzzleState.pair}
-          onConfirm={(a, i, b, j) => puzzleState.toggleConfirm(a, i, b, j)}
-          onEliminate={(a, i, b, j) => puzzleState.toggleEliminate(a, i, b, j)}
+          onConfirm={(coord) => puzzleState.toggleConfirm(coord)}
+          onEliminate={(coord) => puzzleState.toggleEliminate(coord)}
         />
 
         <div class="actions">

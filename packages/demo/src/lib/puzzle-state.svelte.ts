@@ -18,7 +18,7 @@ import {
   type PairState,
 } from "./pair-logic";
 
-export type { Cell, CellState, PairState } from "./pair-logic";
+export type { Cell, CellCoord, CellState, PairState } from "./pair-logic";
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
@@ -205,36 +205,32 @@ export function createPuzzleState() {
 
   function recomputeAuto() {
     if (!puzzle) throw new Error("No active puzzle");
-    const sizes = puzzle.grid.categories.map((c) => c.values.length);
-    recomputeAutoPure(pair, pinIdx(), sizes);
+    recomputeAutoPure(pair, pinIdx());
   }
 
-  function toggleConfirm(a: number, i: number, b: number, j: number) {
-    if (a === b) return;
-    const cur = pair[a][i][b][j];
+  function toggleConfirm(coord: CellCoord) {
+    if (coord.a === coord.b) return;
+    const cur = pair[coord.a][coord.i][coord.b][coord.j];
     if (cur.state === "confirmed") {
-      setPair(pair, a, i, b, j, "empty", "user");
+      setPair(pair, coord, "empty", "user");
     } else {
       // replaceConfirm handles the "clicking a new cell replaces the old
       // guess on the same line" classic UX. Scope is this sub-grid's
       // sub-row/sub-col only — a cross-confirm that contradicts pinned-axis
       // state elsewhere is still allowed (matches Puzzle Baron / Brainzilla;
       // Check catches it at verify time).
-      replaceConfirm(pair, a, i, b, j);
+      replaceConfirm(pair, coord);
     }
     recomputeAuto();
     message = null;
   }
 
-  function toggleEliminate(a: number, i: number, b: number, j: number) {
-    if (a === b) return;
-    const cur = pair[a][i][b][j];
+  function toggleEliminate(coord: CellCoord) {
+    if (coord.a === coord.b) return;
+    const cur = pair[coord.a][coord.i][coord.b][coord.j];
     setPair(
       pair,
-      a,
-      i,
-      b,
-      j,
+      coord,
       cur.state === "eliminated" ? "empty" : "eliminated",
       "user",
     );
@@ -243,9 +239,7 @@ export function createPuzzleState() {
   }
 
   /** Iterate each unique (catA < catB) sub-grid and every cell inside it. */
-  function forEachPair(
-    fn: (a: number, i: number, b: number, j: number) => void,
-  ) {
+  function forEachPair(fn: (coord: CellCoord) => void) {
     if (!puzzle) throw new Error("No active puzzle");
     const N = puzzle.grid.categories.length;
     for (let a = 0; a < N; a++) {
@@ -254,7 +248,7 @@ export function createPuzzleState() {
         const bSize = puzzle.grid.categories[b].values.length;
         for (let i = 0; i < aSize; i++) {
           for (let j = 0; j < bSize; j++) {
-            fn(a, i, b, j);
+            fn({ a, i, b, j });
           }
         }
       }
@@ -265,7 +259,7 @@ export function createPuzzleState() {
     if (!puzzle) throw new Error("No active puzzle");
     let correct = 0;
     let wrong = 0;
-    forEachPair((a, i, b, j) => {
+    forEachPair(({ a, i, b, j }) => {
       if (pair[a][i][b][j].state !== "confirmed") return;
       if (solutionPair(a, i, b, j) === "confirmed") correct++;
       else wrong++;
@@ -300,15 +294,16 @@ export function createPuzzleState() {
   }
 
   function showSolution() {
-    forEachPair((a, i, b, j) => {
-      setPair(pair, a, i, b, j, solutionPair(a, i, b, j), "user");
+    forEachPair((coord) => {
+      const { a, i, b, j } = coord;
+      setPair(pair, coord, solutionPair(a, i, b, j), "user");
     });
     message = { text: "Solution revealed.", type: "info" };
   }
 
   function hasWrongMoves(): boolean {
     let wrong = false;
-    forEachPair((a, i, b, j) => {
+    forEachPair(({ a, i, b, j }) => {
       if (wrong) return;
       const cur = pair[a][i][b][j].state;
       const sol = solutionPair(a, i, b, j);
@@ -320,18 +315,19 @@ export function createPuzzleState() {
 
   function clearWrongMoves(): boolean {
     const wrongs: CellCoord[] = [];
-    forEachPair((a, i, b, j) => {
+    forEachPair((coord) => {
+      const { a, i, b, j } = coord;
       const cur = pair[a][i][b][j];
       if (cur.source !== "user") return;
       const sol = solutionPair(a, i, b, j);
       if (cur.state === "confirmed" && sol !== "confirmed") {
-        wrongs.push({ a, i, b, j });
+        wrongs.push(coord);
       } else if (cur.state === "eliminated" && sol === "confirmed") {
-        wrongs.push({ a, i, b, j });
+        wrongs.push(coord);
       }
     });
     for (const w of wrongs) {
-      setPair(pair, w.a, w.i, w.b, w.j, "empty", "user");
+      setPair(pair, w, "empty", "user");
     }
     if (wrongs.length > 0) recomputeAuto();
     return wrongs.length > 0;
@@ -395,13 +391,13 @@ export function createPuzzleState() {
     for (const e of step.eliminations) {
       const coord = libEffToPair(e, pi);
       if (pair[coord.a][coord.i][coord.b][coord.j].state === "empty") {
-        setPair(pair, coord.a, coord.i, coord.b, coord.j, "eliminated", "user");
+        setPair(pair, coord, "eliminated", "user");
       }
     }
     for (const a of step.assignments) {
       const coord = libEffToPair(a, pi);
       if (pair[coord.a][coord.i][coord.b][coord.j].state !== "confirmed") {
-        setPair(pair, coord.a, coord.i, coord.b, coord.j, "confirmed", "user");
+        setPair(pair, coord, "confirmed", "user");
       }
     }
     recomputeAuto();
@@ -411,17 +407,17 @@ export function createPuzzleState() {
 
   function revealCell() {
     const candidates: CellCoord[] = [];
-    forEachPair((a, i, b, j) => {
+    forEachPair((coord) => {
+      const { a, i, b, j } = coord;
       if (solutionPair(a, i, b, j) !== "confirmed") return;
-      if (pair[a][i][b][j].state !== "confirmed")
-        candidates.push({ a, i, b, j });
+      if (pair[a][i][b][j].state !== "confirmed") candidates.push(coord);
     });
     if (candidates.length === 0) {
       message = { text: "All pairs are already confirmed!", type: "info" };
       return;
     }
     const c = candidates[Math.floor(Math.random() * candidates.length)];
-    setPair(pair, c.a, c.i, c.b, c.j, "confirmed", "user");
+    setPair(pair, c, "confirmed", "user");
     recomputeAuto();
     message = { text: "One cell revealed.", type: "info" };
   }

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { displayAxisCategory, type Grid } from "logic-grid";
-  import type { PairState, CellState } from "./puzzle-state.svelte";
+  import type {
+    CellCoord,
+    PairState,
+    CellState,
+  } from "./puzzle-state.svelte";
 
   let {
     puzzleGrid,
@@ -10,8 +14,8 @@
   }: {
     puzzleGrid: Grid;
     pair: PairState;
-    onConfirm: (a: number, i: number, b: number, j: number) => void;
-    onEliminate: (a: number, i: number, b: number, j: number) => void;
+    onConfirm: (coord: CellCoord) => void;
+    onEliminate: (coord: CellCoord) => void;
   } = $props();
 
   const S = $derived(puzzleGrid.size);
@@ -62,13 +66,7 @@
   let startY = 0;
   const MOVE_THRESHOLD = 10;
 
-  function handleTouchStart(
-    e: TouchEvent,
-    a: number,
-    i: number,
-    b: number,
-    j: number,
-  ) {
+  function handleTouchStart(e: TouchEvent, coord: CellCoord) {
     longPressed = false;
     touchMoved = false;
     const touch = e.touches[0];
@@ -77,7 +75,7 @@
     pressTimer = setTimeout(() => {
       if (!touchMoved) {
         longPressed = true;
-        onEliminate(a, i, b, j);
+        onEliminate(coord);
       }
     }, 400);
   }
@@ -97,13 +95,13 @@
     if (pressTimer) clearTimeout(pressTimer);
   }
 
-  function handleClick(a: number, i: number, b: number, j: number) {
+  function handleClick(coord: CellCoord) {
     if (longPressed) {
       longPressed = false;
       return;
     }
     if (touchMoved) return;
-    onConfirm(a, i, b, j);
+    onConfirm(coord);
   }
 </script>
 
@@ -111,96 +109,121 @@
   class="puzzle-grid"
   style:--cell-size="clamp(1.4rem, calc(92vw / (2 + {S} * ({N} - 1))), 2.5rem)"
 >
-    <thead>
-      <tr>
-        <th class="corner" role="presentation"></th>
-        <th class="corner" role="presentation"></th>
-        {#each topCats as { cat: topCat }}
-          <th class="top-cat-label" colspan={S}>{topCat.name}</th>
-        {/each}
-      </tr>
-      <tr>
-        <th class="corner" role="presentation"></th>
-        <th class="corner" role="presentation"></th>
-        {#each topCats as { idx: topCatIdx }}
-          {#each cats[topCatIdx].values as _, tvi}
-            <th
-              class="top-value"
-              class:sub-start={tvi === 0}
-              class:sub-end={tvi === S - 1}
-            >
-              <span>{valueLabel(topCatIdx, tvi)}</span>
-            </th>
-          {/each}
-        {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each rowCats as { cat: rowCat, idx: rowCatIdx }, p}
-        {#each rowCat.values as _, rvi}
-          <tr>
-            {#if rvi === 0}
-              <th class="left-cat-label" rowspan={S}>{rowCat.name}</th>
-            {/if}
-            <th
-              class="left-value"
-              class:sub-start={rvi === 0}
-              class:sub-end={rvi === S - 1}
-            >
-              {valueLabel(rowCatIdx, rvi)}
-            </th>
-            {#each topCats as { idx: topCatIdx }, q}
-              <!-- Staircase: render a sub-grid at (rowPos=p, topPos=q) iff
-                   p + q ≤ N − 2. Below the diagonal, emit one big blank
-                   spanning S×S cells (only on the first sub-row of each
-                   row category to avoid over-generating <td>s). -->
-              {#if p + q <= N - 2}
-                {#each cats[topCatIdx].values as _, tvi}
-                  {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
-                  <td
-                    class="cell"
-                    class:eliminated={cell.state === "eliminated"}
-                    class:confirmed={cell.state === "confirmed"}
-                    class:sub-start-col={tvi === 0}
-                    class:sub-end-col={tvi === S - 1}
-                    class:sub-start-row={rvi === 0}
-                    class:sub-end-row={rvi === S - 1}
-                    onclick={() =>
-                      handleClick(rowCatIdx, rvi, topCatIdx, tvi)}
-                    ontouchstart={(e) =>
-                      handleTouchStart(e, rowCatIdx, rvi, topCatIdx, tvi)}
-                    ontouchmove={handleTouchMove}
-                    ontouchend={handleTouchEnd}
-                    oncontextmenu={(e) => e.preventDefault()}
-                    onmouseup={(e) => {
-                      if (e.button === 2)
-                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
-                    }}
-                    role="button"
-                    tabindex="0"
-                    onkeydown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onConfirm(rowCatIdx, rvi, topCatIdx, tvi);
-                      }
-                      if (e.key === "Delete" || e.key === "Backspace") {
-                        e.preventDefault();
-                        onEliminate(rowCatIdx, rvi, topCatIdx, tvi);
-                      }
-                    }}
-                  >
-                    {cellSymbol(cell.state)}
-                  </td>
-                {/each}
-              {:else if rvi === 0}
-                <td class="blank" colspan={S} rowspan={S}></td>
-              {/if}
-            {/each}
-          </tr>
+  <thead>
+    <tr>
+      <th class="corner" role="presentation"></th>
+      <th class="corner" role="presentation"></th>
+      {#each topCats as { cat: topCat }}
+        <th class="top-cat-label" colspan={S}>{topCat.name}</th>
+      {/each}
+    </tr>
+    <tr>
+      <th class="corner" role="presentation"></th>
+      <th class="corner" role="presentation"></th>
+      {#each topCats as { idx: topCatIdx }}
+        {#each cats[topCatIdx].values as _, tvi}
+          <th
+            class="top-value"
+            class:sub-start={tvi === 0}
+            class:sub-end={tvi === S - 1}
+          >
+            <span>{valueLabel(topCatIdx, tvi)}</span>
+          </th>
         {/each}
       {/each}
-    </tbody>
-  </table>
+    </tr>
+  </thead>
+  <tbody>
+    {#each rowCats as { cat: rowCat, idx: rowCatIdx }, p}
+      {#each rowCat.values as _, rvi}
+        <tr>
+          {#if rvi === 0}
+            <th class="left-cat-label" rowspan={S}>{rowCat.name}</th>
+          {/if}
+          <th
+            class="left-value"
+            class:sub-start={rvi === 0}
+            class:sub-end={rvi === S - 1}
+          >
+            {valueLabel(rowCatIdx, rvi)}
+          </th>
+          {#each topCats as { idx: topCatIdx }, q}
+            <!-- Staircase: render a sub-grid at (rowPos=p, topPos=q) iff
+                 p + q ≤ N − 2. Below the diagonal, emit one big blank
+                 spanning S×S cells (only on the first sub-row of each
+                 row category to avoid over-generating <td>s). -->
+            {#if p + q <= N - 2}
+              {#each cats[topCatIdx].values as _, tvi}
+                {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
+                <td
+                  class="cell"
+                  class:eliminated={cell.state === "eliminated"}
+                  class:confirmed={cell.state === "confirmed"}
+                  class:sub-start-col={tvi === 0}
+                  class:sub-end-col={tvi === S - 1}
+                  class:sub-start-row={rvi === 0}
+                  class:sub-end-row={rvi === S - 1}
+                  onclick={() =>
+                    handleClick({
+                      a: rowCatIdx,
+                      i: rvi,
+                      b: topCatIdx,
+                      j: tvi,
+                    })}
+                  ontouchstart={(e) =>
+                    handleTouchStart(e, {
+                      a: rowCatIdx,
+                      i: rvi,
+                      b: topCatIdx,
+                      j: tvi,
+                    })}
+                  ontouchmove={handleTouchMove}
+                  ontouchend={handleTouchEnd}
+                  oncontextmenu={(e) => e.preventDefault()}
+                  onmouseup={(e) => {
+                    if (e.button === 2)
+                      onEliminate({
+                        a: rowCatIdx,
+                        i: rvi,
+                        b: topCatIdx,
+                        j: tvi,
+                      });
+                  }}
+                  role="button"
+                  tabindex="0"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onConfirm({
+                        a: rowCatIdx,
+                        i: rvi,
+                        b: topCatIdx,
+                        j: tvi,
+                      });
+                    }
+                    if (e.key === "Delete" || e.key === "Backspace") {
+                      e.preventDefault();
+                      onEliminate({
+                        a: rowCatIdx,
+                        i: rvi,
+                        b: topCatIdx,
+                        j: tvi,
+                      });
+                    }
+                  }}
+                >
+                  {cellSymbol(cell.state)}
+                </td>
+              {/each}
+            {:else if rvi === 0}
+              <td class="blank" colspan={S} rowspan={S}></td>
+            {/if}
+          {/each}
+        </tr>
+      {/each}
+    {/each}
+  </tbody>
+</table>
 
 <style>
   .puzzle-grid {

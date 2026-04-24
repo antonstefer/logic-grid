@@ -69,17 +69,16 @@ export const subgridUniquenessRule: PropagationRule = {
 export function deriveCrossSubgrids(
   pair: PairState,
   pinIdx: number,
-  sizes: number[],
 ): DerivedWrite[] {
   const writes: DerivedWrite[] = [];
-  const N = sizes.length;
-  const S = sizes[pinIdx];
+  const N = pair.length;
+  const S = pair[pinIdx].length;
   for (let a = 0; a < N; a++) {
     if (a === pinIdx) continue;
     for (let b = a + 1; b < N; b++) {
       if (b === pinIdx) continue;
-      const aSize = sizes[a];
-      const bSize = sizes[b];
+      const aSize = pair[a].length;
+      const bSize = pair[b].length;
       for (let i = 0; i < aSize; i++) {
         for (let j = 0; j < bSize; j++) {
           if (pair[a][i][b][j].state !== "empty") continue;
@@ -114,10 +113,7 @@ export function deriveCrossSubgrids(
 /** Symmetric write: always mirrors into pair[b][j][a][i] so the tensor stays consistent. */
 export function setPair(
   pair: PairState,
-  a: number,
-  i: number,
-  b: number,
-  j: number,
+  { a, i, b, j }: CellCoord,
   state: CellState,
   source: CellSource,
 ): void {
@@ -178,7 +174,7 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
         if (cur.state === w.state) continue;
         // Don't clobber user-set non-empty cells; other auto writes are fine to overwrite.
         if (cur.state !== "empty" && cur.source === "user") continue;
-        setPair(pair, w.a, w.i, w.b, w.j, w.state, "auto");
+        setPair(pair, w, w.state, "auto");
         queue.push({ a: w.a, i: w.i, b: w.b, j: w.j });
       }
     }
@@ -194,27 +190,24 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
  */
 export function replaceConfirm(
   pair: PairState,
-  a: number,
-  i: number,
-  b: number,
-  j: number,
+  { a, i, b, j }: CellCoord,
 ): void {
   if (a === b) return;
   const aSize = pair[a].length;
-  const bSize = pair[a][i][b].length;
+  const bSize = pair[b].length;
   for (let jp = 0; jp < bSize; jp++) {
     const c = pair[a][i][b][jp];
     if (jp !== j && c.state === "confirmed" && c.source === "user") {
-      setPair(pair, a, i, b, jp, "empty", "user");
+      setPair(pair, { a, i, b, j: jp }, "empty", "user");
     }
   }
   for (let ip = 0; ip < aSize; ip++) {
     const c = pair[a][ip][b][j];
     if (ip !== i && c.state === "confirmed" && c.source === "user") {
-      setPair(pair, a, ip, b, j, "empty", "user");
+      setPair(pair, { a, i: ip, b, j }, "empty", "user");
     }
   }
-  setPair(pair, a, i, b, j, "confirmed", "user");
+  setPair(pair, { a, i, b, j }, "confirmed", "user");
 }
 
 /**
@@ -235,13 +228,9 @@ export function replaceConfirm(
  * pinned-axis state (e.g. a generic triangle rule), feed its output back
  * through `applyRulesFrom` or wrap this in a fixpoint loop.
  */
-export function recomputeAuto(
-  pair: PairState,
-  pinIdx: number,
-  sizes: number[],
-): void {
+export function recomputeAuto(pair: PairState, pinIdx: number): void {
   clearAutoCells(pair);
-  const N = sizes.length;
+  const N = pair.length;
   // Iterate each unordered (a, b) sub-grid once. `subgridUniquenessRule` is
   // symmetric — running applyRulesFrom from either direction derives the same
   // eliminations inside the (a, b) sub-grid, so visiting the mirror is
@@ -249,9 +238,9 @@ export function recomputeAuto(
   // If an asymmetric rule lands, revisit this alongside the `seen` normalization
   // noted in applyRulesFrom.
   for (let a = 0; a < N; a++) {
-    for (let i = 0; i < sizes[a]; i++) {
+    for (let i = 0; i < pair[a].length; i++) {
       for (let b = a + 1; b < N; b++) {
-        for (let j = 0; j < sizes[b]; j++) {
+        for (let j = 0; j < pair[b].length; j++) {
           if (pair[a][i][b][j].state === "confirmed") {
             applyRulesFrom(pair, { a, i, b, j });
           }
@@ -259,7 +248,7 @@ export function recomputeAuto(
       }
     }
   }
-  for (const w of deriveCrossSubgrids(pair, pinIdx, sizes)) {
-    setPair(pair, w.a, w.i, w.b, w.j, w.state, "auto");
+  for (const w of deriveCrossSubgrids(pair, pinIdx)) {
+    setPair(pair, w, w.state, "auto");
   }
 }
