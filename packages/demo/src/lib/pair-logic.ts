@@ -146,23 +146,15 @@ const rules: PropagationRule[] = [subgridUniquenessRule];
 /**
  * Run the rules engine starting from a changed cell, in-place, fixpoint.
  *
- * Multi-rule caveats for future work:
- *  1. `seen` prevents re-processing the same cell coord, so if rule A
- *     confirms (a,i,b,j) and a later rule B overwrites it with a different
- *     state, B's write succeeds silently (auto→auto is allowed) but B's
- *     state does NOT re-run A's derivations because the coord is already in
- *     `seen`. Benign with one rule (subgridUniqueness only fires on
- *     `confirmed` cells and only produces `eliminated` writes, so no two
- *     rules ever disagree).
- *  2. `seen` only tracks the direction a write was enqueued in, not its
- *     mirror (pair[a][i][b][j] vs pair[b][j][a][i]). Safe today because
- *     subgridUniqueness is symmetric (running it on either direction
- *     touches the same cells), so processing only one direction suffices.
- *     Asymmetric rules would need both keys tracked.
- *
- * When a second rule lands, decide the policy for (1): detect the conflict
- * and throw, or drop `seen` and rely on the "state already equal" skip
- * above to terminate. For (2), normalize keys to min-first form.
+ * Multi-rule caveat for future work: `seen` prevents re-processing the same
+ * cell, so if rule A confirms (a,i,b,j) and a later rule B overwrites it
+ * with a different state, B's write succeeds silently (auto→auto is
+ * allowed) but B's state does NOT re-run A's derivations because the cell
+ * is already in `seen`. Benign with one rule (subgridUniqueness only fires
+ * on `confirmed` cells and only produces `eliminated` writes, so no two
+ * rules ever disagree). When a second rule lands, decide the policy: detect
+ * the conflict and throw, or drop `seen` and rely on the "state already
+ * equal" skip above to terminate.
  */
 function applyRulesFrom(pair: PairState, start: CellCoord): void {
   // Head-index queue instead of Array.shift() so dequeue is O(1). At current
@@ -170,9 +162,14 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
   const queue: CellCoord[] = [start];
   let head = 0;
   const seen = new Set<string>();
+  // Normalize seen keys so mirror coords (a,i,b,j) and (b,j,a,i) dedup — same
+  // logical cell in the symmetric tensor. Keeps asymmetric rules (if they ever
+  // land) from silently bypassing the guard because they wrote the mirror.
+  const keyOf = (c: CellCoord) =>
+    c.a < c.b ? `${c.a}:${c.i}:${c.b}:${c.j}` : `${c.b}:${c.j}:${c.a}:${c.i}`;
   while (head < queue.length) {
     const c = queue[head++];
-    const key = `${c.a}:${c.i}:${c.b}:${c.j}`;
+    const key = keyOf(c);
     if (seen.has(key)) continue;
     seen.add(key);
     for (const rule of rules) {

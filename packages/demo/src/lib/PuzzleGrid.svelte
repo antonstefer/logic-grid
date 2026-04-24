@@ -150,6 +150,10 @@
               {valueLabel(rowCatIdx, rvi)}
             </th>
             {#each topCats as { idx: topCatIdx }, q}
+              <!-- Staircase: render a sub-grid at (rowPos=p, topPos=q) iff
+                   p + q ≤ N − 2. Below the diagonal, emit one big blank
+                   spanning S×S cells (only on the first sub-row of each
+                   row category to avoid over-generating <td>s). -->
               {#if p + q <= N - 2}
                 {#each cats[topCatIdx].values as _, tvi}
                   {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}

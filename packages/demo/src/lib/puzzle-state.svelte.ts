@@ -290,7 +290,7 @@ export function createPuzzleState() {
     }
     if (correct < totalTruePairs) {
       message = {
-        text: `Looking good so far! ${totalTruePairs - correct} pair${totalTruePairs - correct === 1 ? "" : "s"} left.`,
+        text: `Looking good so far! ${totalTruePairs - correct} cell${totalTruePairs - correct === 1 ? "" : "s"} left.`,
         type: "info",
       };
       return false;
@@ -386,6 +386,11 @@ export function createPuzzleState() {
       message = { text: "No more logical deductions available.", type: "info" };
       return;
     }
+    // Library facts write with source: "user" — once the user clicks a hint,
+    // we treat the deduction as committed guesses (same as clicking the cell
+    // themselves). Trade-off: clearWrongMoves can't distinguish hint-applied
+    // cells from user-typed ones, which is fine because they should never be
+    // wrong anyway (the library only produces valid deductions).
     const pi = pinIdx();
     for (const e of step.eliminations) {
       const coord = libEffToPair(e, pi);

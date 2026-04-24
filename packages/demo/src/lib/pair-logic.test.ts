@@ -3,6 +3,7 @@ import {
   deriveCrossSubgrids,
   recomputeAuto,
   replaceConfirm,
+  setPair,
   subgridUniquenessRule,
   type Cell,
   type CellState,
@@ -44,6 +45,22 @@ function set(
   pair[a][i][b][j] = { state, source: "user" };
   pair[b][j][a][i] = { state, source: "user" };
 }
+
+describe("setPair", () => {
+  it("no-ops when a === b (no self sub-grid)", () => {
+    const pair = emptyPair([4, 4]);
+    setPair(pair, 1, 0, 1, 2, "confirmed", "user");
+    expect(pair[1][0][1][2]).toEqual({ state: "empty", source: "user" });
+    expect(pair[1][2][1][0]).toEqual({ state: "empty", source: "user" });
+  });
+
+  it("mirrors writes so pair[a][i][b][j] === pair[b][j][a][i]", () => {
+    const pair = emptyPair([4, 4]);
+    setPair(pair, 0, 1, 1, 2, "confirmed", "auto");
+    expect(pair[0][1][1][2]).toEqual({ state: "confirmed", source: "auto" });
+    expect(pair[1][2][0][1]).toEqual({ state: "confirmed", source: "auto" });
+  });
+});
 
 describe("subgridUniquenessRule", () => {
   it("returns no writes when the changed cell is not confirmed", () => {
@@ -258,6 +275,28 @@ describe("recomputeAuto", () => {
     set(pair, 1, 0, 2, 0, "eliminated");
     recomputeAuto(pair, 0, sizes);
     expect(pair[1][0][2][0]).toEqual({ state: "eliminated", source: "user" });
+  });
+
+  it("cross confirms from pass 2 have their sub-col implications present too", () => {
+    // Exercises the two-pass invariant: after recomputeAuto, an auto cross
+    // confirm produced by deriveCrossSubgrids must have both its sub-row AND
+    // sub-col sub-grid-uniqueness eliminations present. Works today because
+    // deriveCrossSubgrids's scan of pinned state emits them directly.
+    const pair = emptyPair(sizes);
+    set(pair, 1, 0, 0, 1, "confirmed"); // catA=0 at pin 1
+    set(pair, 2, 2, 0, 1, "confirmed"); // catB=2 at pin 1
+    recomputeAuto(pair, 0, sizes);
+
+    // (catA=0, catB=2) is auto-confirmed by cross derivation.
+    expect(pair[1][0][2][2]).toEqual({ state: "confirmed", source: "auto" });
+    // Sub-col: other catA values at (catB=2) should be eliminated.
+    for (let v = 1; v < 4; v++) {
+      expect(pair[1][v][2][2].state).toBe("eliminated");
+    }
+    // Sub-row: other catB values at (catA=0) should be eliminated.
+    for (let v = 0; v < 4; v++) {
+      if (v !== 2) expect(pair[1][0][2][v].state).toBe("eliminated");
+    }
   });
 
   it("cross-only user confirms stay local — no derivation without pinned-axis support", () => {
