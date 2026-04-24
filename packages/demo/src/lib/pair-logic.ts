@@ -242,10 +242,15 @@ export function recomputeAuto(
 ): void {
   clearAutoCells(pair);
   const N = sizes.length;
+  // Iterate each unordered (a, b) sub-grid once. `subgridUniquenessRule` is
+  // symmetric — running applyRulesFrom from either direction derives the same
+  // eliminations inside the (a, b) sub-grid, so visiting the mirror is
+  // redundant work. Mirrors the `b = a + 1` convention in deriveCrossSubgrids.
+  // If an asymmetric rule lands, revisit this alongside the `seen` normalization
+  // noted in applyRulesFrom.
   for (let a = 0; a < N; a++) {
     for (let i = 0; i < sizes[a]; i++) {
-      for (let b = 0; b < N; b++) {
-        if (a === b) continue;
+      for (let b = a + 1; b < N; b++) {
         for (let j = 0; j < sizes[b]; j++) {
           if (pair[a][i][b][j].state === "confirmed") {
             applyRulesFrom(pair, { a, i, b, j });
