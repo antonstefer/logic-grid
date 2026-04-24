@@ -210,6 +210,7 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
+    align-self: flex-start;
   }
 
   /* Upper-left free area: no borders. */
