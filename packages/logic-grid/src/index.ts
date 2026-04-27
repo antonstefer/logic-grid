@@ -22,6 +22,7 @@ export {
   resolveAxis,
   orderedCategories,
   axisRank,
+  pinnedAxis,
   displayAxisCategory,
   validateConstraints,
 } from "./axis";

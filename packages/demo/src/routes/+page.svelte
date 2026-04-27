@@ -240,11 +240,10 @@
 
       <div class="grid-section">
         <PuzzleGrid
-          grid={puzzleState.puzzle.grid}
           puzzleGrid={puzzleState.puzzle.grid}
-          cellStates={puzzleState.grid}
-          onConfirm={(v, p) => puzzleState.toggleConfirm(v, p)}
-          onEliminate={(v, p) => puzzleState.toggleEliminate(v, p)}
+          pair={puzzleState.pair}
+          onConfirm={(coord) => puzzleState.toggleConfirm(coord)}
+          onEliminate={(coord) => puzzleState.toggleEliminate(coord)}
         />
 
         <div class="actions">
@@ -386,6 +385,7 @@
   .actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .message {

@@ -1,39 +1,56 @@
 <script lang="ts">
   import { displayAxisCategory, type Grid } from "logic-grid";
-  import type { CellState } from "./puzzle-state.svelte";
+  import type {
+    CellCoord,
+    PairState,
+    CellState,
+  } from "./puzzle-state.svelte";
 
   let {
-    grid,
     puzzleGrid,
-    cellStates,
+    pair,
     onConfirm,
     onEliminate,
   }: {
-    grid: Grid;
     puzzleGrid: Grid;
-    cellStates: CellState[][];
-    onConfirm: (valueIdx: number, position: number) => void;
-    onEliminate: (valueIdx: number, position: number) => void;
+    pair: PairState;
+    onConfirm: (coord: CellCoord) => void;
+    onEliminate: (coord: CellCoord) => void;
   } = $props();
 
-  // The display-axis category provides column headers. It's identity-pinned,
-  // so its values are excluded from the mystery rows.
-  const posCat = $derived(displayAxisCategory(puzzleGrid));
+  const S = $derived(puzzleGrid.size);
+  const cats = $derived(puzzleGrid.categories);
+  const N = $derived(cats.length);
 
-  /** Categories to display as rows (excludes display-axis category). */
-  const displayCategories = $derived(
-    puzzleGrid.categories
-      .map((cat, idx) => ({ cat, idx }))
-      .filter(({ cat }) => cat !== posCat),
+  // Classic "staircase from upper-left". The display-axis category is the
+  // horizontal anchor: its values read left-to-right, matching "right of" /
+  // "left of" phrasing in clues anchored on that axis (e.g. House 1..N).
+  // `layoutCats[p]` is the category at layout position p, starting from the
+  // display axis and wrapping around `cats`. Top axis = positions 0..N-2,
+  // row axis = positions N-1..1 reversed; a sub-grid is rendered at
+  // (rowPos, topPos) whenever rowPos + topPos ≤ N − 2.
+  const displayIdx = $derived(cats.indexOf(displayAxisCategory(puzzleGrid)));
+  const layoutCats = $derived(
+    Array.from({ length: cats.length }, (_, p) => {
+      const idx = (p + displayIdx) % cats.length;
+      return { cat: cats[idx], idx };
+    }),
   );
-
-  /** Compute the flat value index using the full categories array. */
-  function getValueIndex(catIdx: number, valIdx: number): number {
-    let offset = 0;
-    for (let i = 0; i < catIdx; i++) {
-      offset += puzzleGrid.categories[i].values.length;
+  const topCats = $derived(layoutCats.slice(0, -1));
+  const rowCats = $derived.by(() => {
+    const list: { cat: (typeof cats)[number]; idx: number }[] = [];
+    for (let p = layoutCats.length - 1; p >= 1; p--) {
+      list.push(layoutCats[p]);
     }
-    return offset + valIdx;
+    return list;
+  });
+
+  function valueLabel(catIdx: number, valIdx: number): string {
+    const cat = cats[catIdx];
+    if (cat.ordered === true && cat.displayLabels) {
+      return cat.displayLabels[valIdx] ?? cat.values[valIdx];
+    }
+    return cat.values[valIdx];
   }
 
   function cellSymbol(state: CellState): string {
@@ -42,16 +59,14 @@
     return "";
   }
 
-  // Touch long-press detection: long-press = eliminate, tap = confirm.
-  // Desktop: left-click = confirm, right-click = eliminate.
   let pressTimer: ReturnType<typeof setTimeout> | null = null;
   let longPressed = false;
   let touchMoved = false;
   let startX = 0;
   let startY = 0;
-  const MOVE_THRESHOLD = 10; // px — cancel tap if finger moves further
+  const MOVE_THRESHOLD = 10;
 
-  function handleTouchStart(e: TouchEvent, valueIdx: number, p: number) {
+  function handleTouchStart(e: TouchEvent, coord: CellCoord) {
     longPressed = false;
     touchMoved = false;
     const touch = e.touches[0];
@@ -60,7 +75,7 @@
     pressTimer = setTimeout(() => {
       if (!touchMoved) {
         longPressed = true;
-        onEliminate(valueIdx, p);
+        onEliminate(coord);
       }
     }, 400);
   }
@@ -80,142 +95,229 @@
     if (pressTimer) clearTimeout(pressTimer);
   }
 
-  function handleClick(valueIdx: number, p: number) {
+  function handleClick(coord: CellCoord) {
     if (longPressed) {
       longPressed = false;
-      return; // Already handled by long-press
+      return;
     }
-    if (touchMoved) return; // Was a scroll, not a tap
-    onConfirm(valueIdx, p);
+    if (touchMoved) return;
+    onConfirm(coord);
   }
 </script>
 
-<div class="grid-wrapper">
-  <table class="puzzle-grid">
-    <thead>
-      <tr>
-        <th class="category-header"></th>
-        <th class="value-header"></th>
-        <th class="position-noun-header" colspan={grid.size}>{posCat.name}</th>
-      </tr>
-      <tr>
-        <th class="category-header"></th>
-        <th class="value-header"></th>
-        {#each Array(grid.size) as _, p}
-          <th class="position-number">{posCat.displayLabels?.[p] ?? posCat.values[p]}</th>
-        {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each displayCategories as { cat, idx: catIdx }}
-        {#each cat.values as value, valIdx}
-          {@const valueIdx = getValueIndex(catIdx, valIdx)}
-          <tr class:category-first={valIdx === 0}>
-            {#if valIdx === 0}
-              <td class="category-label" rowspan={cat.values.length}>{cat.name}</td>
-            {/if}
-            <td class="value-label">{value}</td>
-            {#each Array(grid.size) as _, p}
-              {@const state = cellStates[valueIdx]?.[p] ?? "empty"}
-              <td
-                class="cell"
-                class:eliminated={state === "eliminated"}
-                class:confirmed={state === "confirmed"}
-                onclick={() => handleClick(valueIdx, p)}
-                ontouchstart={(e) => handleTouchStart(e, valueIdx, p)}
-                ontouchmove={handleTouchMove}
-                ontouchend={handleTouchEnd}
-                oncontextmenu={(e) => e.preventDefault()}
-                onmouseup={(e) => { if (e.button === 2) onEliminate(valueIdx, p); }}
-                role="button"
-                tabindex="0"
-                onkeydown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') onConfirm(valueIdx, p);
-                  if (e.key === 'Delete' || e.key === 'Backspace') onEliminate(valueIdx, p);
-                }}
-              >
-                {cellSymbol(state)}
-              </td>
-            {/each}
-          </tr>
+<table
+  class="puzzle-grid"
+  style:--cell-size="clamp(1.4rem, calc(92vw / (2 + {S} * ({N} - 1))), 2.5rem)"
+>
+  <thead>
+    <tr>
+      <th class="corner" role="presentation"></th>
+      <th class="corner" role="presentation"></th>
+      {#each topCats as { cat: topCat }}
+        <th class="top-cat-label" colspan={S}>{topCat.name}</th>
+      {/each}
+    </tr>
+    <tr>
+      <th class="corner" role="presentation"></th>
+      <th class="corner" role="presentation"></th>
+      {#each topCats as { idx: topCatIdx }}
+        {#each cats[topCatIdx].values as _, tvi}
+          <th
+            class="top-value"
+            class:sub-start={tvi === 0}
+            class:sub-end={tvi === S - 1}
+          >
+            <span>{valueLabel(topCatIdx, tvi)}</span>
+          </th>
         {/each}
       {/each}
-    </tbody>
-  </table>
-</div>
+    </tr>
+  </thead>
+  <tbody>
+    {#each rowCats as { cat: rowCat, idx: rowCatIdx }, p}
+      {#each rowCat.values as _, rvi}
+        <tr>
+          {#if rvi === 0}
+            <th class="left-cat-label" rowspan={S}>{rowCat.name}</th>
+          {/if}
+          <th
+            class="left-value"
+            class:sub-start={rvi === 0}
+            class:sub-end={rvi === S - 1}
+          >
+            {valueLabel(rowCatIdx, rvi)}
+          </th>
+          {#each topCats as { idx: topCatIdx }, q}
+            <!-- Staircase: render a sub-grid at (rowPos=p, topPos=q) iff
+                 p + q ≤ N − 2. Below the diagonal, emit one big blank
+                 spanning S×S cells (only on the first sub-row of each
+                 row category to avoid over-generating <td>s). -->
+            {#if p + q <= N - 2}
+              {#each cats[topCatIdx].values as _, tvi}
+                {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
+                {@const coord = {
+                  a: rowCatIdx,
+                  i: rvi,
+                  b: topCatIdx,
+                  j: tvi,
+                }}
+                <td
+                  class="cell"
+                  class:eliminated={cell.state === "eliminated"}
+                  class:confirmed={cell.state === "confirmed"}
+                  class:sub-start-col={tvi === 0}
+                  class:sub-end-col={tvi === S - 1}
+                  class:sub-start-row={rvi === 0}
+                  class:sub-end-row={rvi === S - 1}
+                  onclick={() => handleClick(coord)}
+                  ontouchstart={(e) => handleTouchStart(e, coord)}
+                  ontouchmove={handleTouchMove}
+                  ontouchend={handleTouchEnd}
+                  oncontextmenu={(e) => e.preventDefault()}
+                  onmouseup={(e) => {
+                    if (e.button === 2) onEliminate(coord);
+                  }}
+                  role="button"
+                  tabindex="0"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onConfirm(coord);
+                    }
+                    if (e.key === "Delete" || e.key === "Backspace") {
+                      e.preventDefault();
+                      onEliminate(coord);
+                    }
+                  }}
+                >
+                  {cellSymbol(cell.state)}
+                </td>
+              {/each}
+            {:else if rvi === 0}
+              <td class="blank" colspan={S} rowspan={S}></td>
+            {/if}
+          {/each}
+        </tr>
+      {/each}
+    {/each}
+  </tbody>
+</table>
 
 <style>
-  .grid-wrapper {
-    overflow-x: auto;
-  }
-
   .puzzle-grid {
     border-collapse: collapse;
     font-size: 0.875rem;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
+    align-self: flex-start;
   }
 
-  .category-header, .value-header {
-    padding: 0.375rem 0.5rem;
-    text-align: center;
-    font-weight: 600;
-    color: #475569;
+  /* Upper-left free area: no borders. */
+  .corner {
+    background: transparent;
+    border: none;
   }
 
-  .value-header {
-    border-right: 2px solid #94a3b8;
-  }
-
-  .position-noun-header {
+  .top-cat-label {
     padding: 0.375rem 0.5rem;
     text-align: center;
     font-weight: 600;
     color: #475569;
     background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    border: 2px solid #94a3b8;
     text-transform: capitalize;
   }
 
-  .position-number {
-    padding: 0.375rem 0.5rem;
+  .top-value {
+    padding: 0.25rem 0;
     text-align: center;
     font-weight: 600;
     color: #475569;
     background: #f8fafc;
     border: 1px solid #cbd5e1;
     border-bottom: 2px solid #94a3b8;
+    width: var(--cell-size);
+    max-width: var(--cell-size);
+    height: auto;
+    vertical-align: bottom;
   }
 
-  .category-label {
+  .top-value span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 0.25rem 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+  }
+
+  .top-value.sub-start {
+    border-left: 2px solid #94a3b8;
+  }
+
+  .top-value.sub-end {
+    border-right: 2px solid #94a3b8;
+  }
+
+  .left-cat-label {
     padding: 0.375rem 0.75rem;
     font-weight: 600;
     background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    border: 2px solid #94a3b8;
     vertical-align: middle;
     white-space: nowrap;
     text-transform: capitalize;
   }
 
-  .value-label {
-    padding: 0.375rem 0.75rem;
+  .left-value {
+    padding: 0.25rem 0.5rem;
     border: 1px solid #cbd5e1;
-    border-right: 2px solid #94a3b8;
     background: #f8fafc;
+    font-weight: 500;
     white-space: nowrap;
+    text-align: right;
+    font-size: 0.75rem;
+    color: #475569;
+  }
+
+  .left-value.sub-start {
+    border-top: 2px solid #94a3b8;
+  }
+
+  .left-value.sub-end {
+    border-bottom: 2px solid #94a3b8;
   }
 
   .cell {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    min-width: 1.4rem;
+    min-height: 1.4rem;
     text-align: center;
     vertical-align: middle;
     border: 1px solid #cbd5e1;
     cursor: pointer;
     user-select: none;
-    font-size: 1.125rem;
+    font-size: 1rem;
     transition: background-color 0.1s;
+    padding: 0;
+  }
+
+  .cell.sub-start-col {
+    border-left: 2px solid #94a3b8;
+  }
+
+  .cell.sub-end-col {
+    border-right: 2px solid #94a3b8;
+  }
+
+  .cell.sub-start-row {
+    border-top: 2px solid #94a3b8;
+  }
+
+  .cell.sub-end-row {
+    border-bottom: 2px solid #94a3b8;
   }
 
   .cell:hover {
@@ -233,7 +335,12 @@
     font-weight: 700;
   }
 
-  .category-first td {
-    border-top: 2px solid #94a3b8;
+  .blank {
+    background: repeating-linear-gradient(
+      45deg,
+      #f8fafc 0 6px,
+      #eef2f7 6px 12px
+    );
+    border: 2px solid #94a3b8;
   }
 </style>
