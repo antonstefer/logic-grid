@@ -1,10 +1,6 @@
 <script lang="ts">
   import { displayAxisCategory, type Grid } from "logic-grid";
-  import type {
-    CellCoord,
-    PairState,
-    CellState,
-  } from "./puzzle-state.svelte";
+  import type { CellCoord, PairState, CellState } from "./puzzle-state.svelte";
 
   let {
     puzzleGrid,

@@ -17,7 +17,12 @@
       label: "Hedge Fund Returns",
       size: 4,
       categories: [
-        { name: "Manager", values: ["Alice", "Bob", "Carol", "Dan"], noun: "", subjectPriority: 2 },
+        {
+          name: "Manager",
+          values: ["Alice", "Bob", "Carol", "Dan"],
+          noun: "",
+          subjectPriority: 2,
+        },
         {
           name: "YTD Return",
           values: ["3%", "5%", "8%", "12%"],
@@ -42,15 +47,33 @@
             },
           },
         },
-        { name: "Strategy", values: ["Long/Short", "Macro", "Quant", "Event-Driven"], noun: "strategist", subjectPriority: 1, verb: ["uses the", "does not use the"], valueSuffix: "strategy" },
-        { name: "City", values: ["New York", "London", "Tokyo", "Zurich"], noun: "office", subjectPriority: 1, verb: ["is based in", "is not based in"] },
+        {
+          name: "Strategy",
+          values: ["Long/Short", "Macro", "Quant", "Event-Driven"],
+          noun: "strategist",
+          subjectPriority: 1,
+          verb: ["uses the", "does not use the"],
+          valueSuffix: "strategy",
+        },
+        {
+          name: "City",
+          values: ["New York", "London", "Tokyo", "Zurich"],
+          noun: "office",
+          subjectPriority: 1,
+          verb: ["is based in", "is not based in"],
+        },
       ],
     },
     "morning-schedule": {
       label: "Morning Schedule",
       size: 4,
       categories: [
-        { name: "Person", values: ["Emma", "Liam", "Noah", "Olivia"], noun: "", subjectPriority: 2 },
+        {
+          name: "Person",
+          values: ["Emma", "Liam", "Noah", "Olivia"],
+          noun: "",
+          subjectPriority: 2,
+        },
         {
           name: "Time",
           values: ["7am", "8am", "9am", "10am"],
@@ -78,15 +101,32 @@
             },
           },
         },
-        { name: "Activity", values: ["Dentist", "Barber", "Therapist", "Optician"], noun: "attendee", subjectPriority: 1, verb: ["visits the", "does not visit the"] },
-        { name: "Transport", values: ["Bus", "Bike", "Car", "Walk"], noun: "commuter", subjectPriority: 1, verb: ["takes the", "does not take the"] },
+        {
+          name: "Activity",
+          values: ["Dentist", "Barber", "Therapist", "Optician"],
+          noun: "attendee",
+          subjectPriority: 1,
+          verb: ["visits the", "does not visit the"],
+        },
+        {
+          name: "Transport",
+          values: ["Bus", "Bike", "Car", "Walk"],
+          noun: "commuter",
+          subjectPriority: 1,
+          verb: ["takes the", "does not take the"],
+        },
       ],
     },
     "hedge-fund-multi": {
       label: "Hedge Funds (Multi-Axis)",
       size: 4,
       categories: [
-        { name: "Manager", values: ["Nadine", "Sal", "Terry", "Walter"], noun: "", subjectPriority: 2 },
+        {
+          name: "Manager",
+          values: ["Nadine", "Sal", "Terry", "Walter"],
+          noun: "",
+          subjectPriority: 2,
+        },
         {
           name: "Year",
           values: ["1972", "1983", "1997", "2005"],
@@ -119,7 +159,10 @@
             unit: ["percentage point", "percentage points"],
             comparators: {
               before: ["has a lower return than", "has a higher return than"],
-              left_of: ["has the next lower return than", "has the next higher return than"],
+              left_of: [
+                "has the next lower return than",
+                "has the next higher return than",
+              ],
               next_to: "has the return right above or below",
               not_next_to: "does not have the return right above or below",
               between: "has a return between",
@@ -128,7 +171,14 @@
             },
           },
         },
-        { name: "Fund", values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"], noun: "fund", subjectPriority: 1, verb: ["runs the", "does not run the"], valueSuffix: "fund" },
+        {
+          name: "Fund",
+          values: ["Black River", "Citizen Trust", "Pine Bay", "Silver Rock"],
+          noun: "fund",
+          subjectPriority: 1,
+          verb: ["runs the", "does not run the"],
+          valueSuffix: "fund",
+        },
       ],
     },
   };
@@ -171,7 +221,11 @@
   <header>
     <h1>Logic Grid Puzzle</h1>
     <p class="subtitle">
-      Powered by <a href="https://github.com/antonstefer/logic-grid" target="_blank" rel="noopener">logic-grid</a>
+      Powered by <a
+        href="https://github.com/antonstefer/logic-grid"
+        target="_blank"
+        rel="noopener">logic-grid</a
+      >
     </p>
   </header>
 
@@ -220,16 +274,30 @@
     {#if preset === "none"}
       <label>
         Theme
-        <input type="text" bind:value={theme} placeholder="e.g. pirate adventure" maxlength={200} />
+        <input
+          type="text"
+          bind:value={theme}
+          placeholder="e.g. pirate adventure"
+          maxlength={200}
+        />
       </label>
     {/if}
 
     <label>
       Clue style
-      <input type="text" bind:value={clueStyle} placeholder="e.g. formal, casual" maxlength={100} />
+      <input
+        type="text"
+        bind:value={clueStyle}
+        placeholder="e.g. formal, casual"
+        maxlength={100}
+      />
     </label>
 
-    <button class="btn primary" onclick={handleNewPuzzle} disabled={puzzleState.loading}>
+    <button
+      class="btn primary"
+      onclick={handleNewPuzzle}
+      disabled={puzzleState.loading}
+    >
       {puzzleState.loading ? puzzleState.loadingMessage : "New Puzzle"}
     </button>
   </div>
@@ -248,10 +316,18 @@
 
         <div class="actions">
           <button class="btn" onclick={() => puzzleState.nudge()}>Nudge</button>
-          <button class="btn" onclick={() => puzzleState.hint()}>Explain Next Step</button>
-          <button class="btn" onclick={() => puzzleState.revealCell()}>Reveal a Cell</button>
-          <button class="btn" onclick={() => puzzleState.checkSolution()}>Check</button>
-          <button class="btn" onclick={() => puzzleState.showSolution()}>Show Solution</button>
+          <button class="btn" onclick={() => puzzleState.hint()}
+            >Explain Next Step</button
+          >
+          <button class="btn" onclick={() => puzzleState.revealCell()}
+            >Reveal a Cell</button
+          >
+          <button class="btn" onclick={() => puzzleState.checkSolution()}
+            >Check</button
+          >
+          <button class="btn" onclick={() => puzzleState.showSolution()}
+            >Show Solution</button
+          >
           <button class="btn" onclick={() => puzzleState.clear()}>Clear</button>
         </div>
 
@@ -270,7 +346,8 @@
 
     <p class="meta">
       {puzzleState.puzzle.constraints.length} clues &middot;
-      {puzzleState.puzzle.grid.size}&times;{puzzleState.puzzle.grid.categories.length} grid &middot;
+      {puzzleState.puzzle.grid.size}&times;{puzzleState.puzzle.grid.categories
+        .length} grid &middot;
       {puzzleState.puzzle.difficulty} &middot;
       {puzzleState.genTime}ms
     </p>
@@ -279,7 +356,8 @@
 
 <style>
   :global(body) {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     margin: 0;
     padding: 1.5rem;
     background: #f8fafc;
