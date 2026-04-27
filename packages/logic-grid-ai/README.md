@@ -1,6 +1,6 @@
 # logic-grid-ai
 
-AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API to turn a theme description into fully structured puzzle categories.
+AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 4.6 by default) to turn a theme description into fully structured puzzle categories.
 
 ## Install
 
@@ -8,7 +8,7 @@ AI-powered themed category generation for [logic-grid](https://www.npmjs.com/pac
 npm install logic-grid-ai logic-grid
 ```
 
-Requires `logic-grid` as a peer dependency and an [Anthropic API key](https://console.anthropic.com/settings/keys).
+`logic-grid` is a peer dependency. Requires an [Anthropic API key](https://console.anthropic.com/settings/keys) when using the default client.
 
 ## Quick Start
 
@@ -106,6 +106,33 @@ const errors = validateThemeResult(result, 4, 4);
 if (errors.length > 0) {
   console.error("Invalid theme:", errors);
 }
+```
+
+### `rewriteClues(options)`
+
+Rewrite an existing set of puzzle clues in a different voice or style. Constraint semantics are preserved — only the surface phrasing changes. Useful for re-skinning the default clue text after generation.
+
+```typescript
+import { rewriteClues } from "logic-grid-ai";
+
+const rewritten = await rewriteClues({
+  clues: puzzle.clues, // Clue[] from logic-grid
+  style: "pirate storytelling", // optional — describes the desired voice
+  client: myClient, // optional — custom AIClient
+});
+// Returns Clue[] with the same constraints and replaced text fields.
+```
+
+All clues are rewritten in a single batched AI call. Each clue is sent alongside its constraint JSON so the AI has ground-truth semantics. Output is validated against duplicate / empty / overlong text rules; retries up to 3 times before throwing.
+
+### `validateRewrittenClues(result, expectedCount)`
+
+Validate raw AI output for `rewriteClues`. Returns an array of error messages (empty = valid).
+
+```typescript
+import { validateRewrittenClues } from "logic-grid-ai";
+
+const errors = validateRewrittenClues({ clues: ["..."] }, puzzle.clues.length);
 ```
 
 ## How It Works

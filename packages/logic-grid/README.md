@@ -1,6 +1,10 @@
 # logic-grid
 
-Generate and solve logic grid puzzles (zebra puzzles / Einstein's riddles). Zero dependencies. TypeScript-first.
+Generate and solve logic grid puzzles (zebra puzzles / Einstein's riddles). Zero dependencies. TypeScript-first. Runs in Node and the browser.
+
+[![npm](https://img.shields.io/npm/v/logic-grid)](https://www.npmjs.com/package/logic-grid)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/logic-grid)](https://bundlephobia.com/package/logic-grid)
+[![license](https://img.shields.io/npm/l/logic-grid)](../../LICENSE)
 
 ## Install
 
@@ -17,7 +21,7 @@ import { generate, solve } from "logic-grid";
 const puzzle = generate({ size: 4, categories: 4, difficulty: "medium" });
 
 console.log(puzzle.clues.map((c) => c.text));
-// ["Alice owns the dog.", "The red house has a cat.", ...]
+// ["Alice owns the dog.", "The fish owner lives in the red house.", ...]
 
 // Solve it
 const solution = solve(puzzle.constraints, puzzle.grid);
@@ -35,6 +39,7 @@ const puzzle = generate({
   categories: 4, // 3-8 (default: 4)
   difficulty: "hard", // "easy" | "medium" | "hard" | "expert" (optional)
   seed: 42, // random seed for reproducibility (optional)
+  displayAxis: "Year", // optional — name of an ordered category to use as the display anchor
 });
 ```
 
@@ -56,19 +61,28 @@ Custom categories:
 const puzzle = generate({
   size: 3,
   categoryNames: [
-    { name: "Name", values: ["Alice", "Bob", "Carol"] },
+    {
+      name: "Name",
+      values: ["Alice", "Bob", "Carol"],
+      verb: ["is", "is not"],
+    },
     {
       name: "Vehicle",
       values: ["Toyota", "BMW", "Honda"],
-      noun: "driver", // → "the toyota driver"
-      verb: ["drives the", "does not drive the"], // → "Alice drives the toyota."
+      noun: "driver", // → "the Toyota driver"
+      verb: ["drives the", "does not drive the"], // → "Alice drives the Toyota."
     },
-    { name: "Pet", values: ["Cat", "Dog", "Fish"] },
+    {
+      name: "Pet",
+      values: ["Cat", "Dog", "Fish"],
+      noun: "owner",
+      verb: ["owns the", "does not own the"],
+    },
   ],
 });
 ```
 
-The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-position phrasing as `[positive, negative]`. Both are optional — built-in defaults exist for Name, Color, Pet, Drink, Food, Hobby, Music, and Sport.
+The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-position phrasing as `[positive, negative]` and is required when the value participates in a same-position clue. Set `lowercase: true` for adjective-like categories where values should render in lowercase (e.g. Color → "the red house" rather than "the Red house"). The classic Einstein-style preset (Name, Color, Pet, Drink, Food, Hobby, Music, Sport) is exported as `DEFAULT_CATEGORIES` and used automatically when `categoryNames` is omitted.
 
 ### Ordered categories and multi-axis puzzles
 
@@ -78,7 +92,11 @@ Categories with `ordered: true` define a canonical ordering on their values. Com
 const puzzle = generate({
   size: 4,
   categoryNames: [
-    { name: "Manager", values: ["Nadine", "Sal", "Terry", "Walter"] },
+    {
+      name: "Manager",
+      values: ["Nadine", "Sal", "Terry", "Walter"],
+      verb: ["is", "is not"],
+    },
     {
       name: "Year",
       values: ["1972", "1983", "1997", "2005"],
@@ -89,7 +107,14 @@ const puzzle = generate({
       orderingPhrases: {
         unit: ["year", "years"],
         comparators: {
+          // All 7 are required on every ordered category.
           before: ["started earlier than", "started later than"],
+          left_of: ["started right before", "started right after"],
+          next_to: "started right next to",
+          not_next_to: "did not start right next to",
+          between: "started somewhere between",
+          not_between: "did not start somewhere between",
+          exact_distance: "started exactly",
         },
       },
     },
@@ -103,6 +128,12 @@ const puzzle = generate({
         unit: ["percentage point", "percentage points"],
         comparators: {
           before: ["has a lower return than", "has a higher return than"],
+          left_of: ["scored right below", "scored right above"],
+          next_to: "scored right next to",
+          not_next_to: "did not score right next to",
+          between: "scored somewhere between",
+          not_between: "did not score somewhere between",
+          exact_distance: "scored exactly",
         },
       },
     },
@@ -117,7 +148,7 @@ const puzzle = generate({
 });
 ```
 
-When no category has `ordered: true`, a default "House" category is auto-added. `numericValues` enables value-based distance for `exact_distance` ("exactly 25 years from"). `orderingPhrases.comparators` provides per-axis clue phrasing.
+Every ordered category requires all 7 entries in `orderingPhrases.comparators` (`before`, `left_of`, `next_to`, `not_next_to`, `between`, `not_between`, `exact_distance`). When no category has `ordered: true`, a default "House" category is auto-added. `numericValues` enables value-based distance for `exact_distance` ("exactly 25 years from"). For AI-generated themed categories that satisfy this contract automatically, see [`logic-grid-ai`](../logic-grid-ai#readme).
 
 ### `solve(constraints, grid)`
 
@@ -160,8 +191,6 @@ import {
   notBetween,
   before,
   exactDistance,
-  atPosition,
-  notAtPosition,
 } from "logic-grid";
 
 const constraints = [
@@ -170,7 +199,7 @@ const constraints = [
   leftOf("Blue", "Green", "House"), // Blue is directly left of Green
   between("Alice", "Bob", "Carol", "House"), // Bob is between Alice and Carol
   before("Alice", "Bob", "Year"), // Alice's Year rank < Bob's Year rank
-  atPosition("Red", 0), // Red is at row 0
+  exactDistance("1972", "2005", 33, "Year"), // Exactly 33 years apart on Year
 ];
 ```
 
@@ -189,8 +218,9 @@ const result = deduce(puzzle.constraints, puzzle.grid);
 
 for (const step of result.steps) {
   console.log(step.explanation);
-  // "Red is in the first house."
-  // "Red and Cat are in the same house: the first house."
+  // "Clue 2: Dave lives in the first house."
+  // "Clue 3: The fish owner lives in the third house."
+  // "Carol lives in the fourth house (no other house possible)."
 }
 ```
 
@@ -206,8 +236,6 @@ Techniques:
 
 | Technique           | Description                                                    |
 | ------------------- | -------------------------------------------------------------- |
-| `direct`            | Value forced to a specific position by `at_position`           |
-| `elimination`       | Position ruled out by `not_at_position`                        |
 | `same_position`     | Two values share possible positions — intersect them           |
 | `not_same_position` | Pinned value excludes its position from the other              |
 | `next_to`           | Positions incompatible with adjacency are removed              |
@@ -249,8 +277,6 @@ const clue = renderClue(samePosition("Red", "Cat"), grid);
 | `not_between`       | Middle value's rank is not between two outers          |
 | `before`            | First value's rank is strictly less than second's      |
 | `exact_distance`    | Two values are exactly N apart (rank steps or numeric) |
-| `at_position`       | Value is at a specific row (0-indexed)                 |
-| `not_at_position`   | Value is not at a specific row                         |
 
 ## Types
 
@@ -269,9 +295,10 @@ type Category = CategoryCore & OrderednessFields & ValueSuffixFields;
 interface CategoryCore {
   name: string;
   values: string[];
-  noun?: string;
-  verb?: [string, string];
-  subjectPriority?: number;
+  noun?: string; // "owner" → "the cat owner"; "" = bare value
+  verb?: [string, string]; // [positive, negative] for same-position clues
+  subjectPriority?: number; // higher → preferred as sentence subject in same-position clues
+  lowercase?: boolean; // lowercase values in clues (e.g. Color → "the red house")
 }
 // ordered: true requires orderingPhrases with all 7 comparators.
 // valueSuffix enables positionAdjective.
@@ -302,10 +329,11 @@ Generation time by grid size (Node 24, Apple Silicon):
 | Size | Time  |
 | ---- | ----- |
 | 3×3  | <1ms  |
-| 4×4  | ~5ms  |
-| 5×5  | ~10ms |
-| 6×6  | ~15ms |
-| 8×8  | ~80ms |
+| 4×4  | ~1ms  |
+| 5×5  | ~2ms  |
+| 6×6  | ~5ms  |
+| 7×7  | ~11ms |
+| 8×8  | ~18ms |
 
 Supported sizes: 3-8 entities, 3-8 categories.
 
