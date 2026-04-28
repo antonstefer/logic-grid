@@ -1,23 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
-import type { RequestHandler } from "./$types";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
-const { envProxy } = vi.hoisted(() => ({
+const { envProxy, completeJSON } = vi.hoisted(() => ({
   envProxy: {} as { ANTHROPIC_API_KEY?: string },
+  completeJSON: vi.fn(),
 }));
 
 vi.mock("$env/dynamic/private", () => ({
   env: envProxy,
 }));
 
+vi.mock("logic-grid-ai", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("logic-grid-ai")>();
+  return {
+    ...orig,
+    createAnthropicClient: vi.fn(() => ({ completeJSON })),
+  };
+});
+
 type Handler = (event: { request: Request }) => Promise<Response>;
 const post = POST as unknown as Handler;
 
 beforeEach(() => {
   delete envProxy.ANTHROPIC_API_KEY;
+  completeJSON.mockReset();
   _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function postBody(body: unknown): Request {
@@ -39,6 +52,59 @@ describe("POST /api/theme", () => {
     expect(body.code).toBe("missing_api_key");
     expect(body.error).not.toContain("ANTHROPIC_API_KEY");
     expect(body.error.toLowerCase()).toContain("unavailable");
+  });
+
+  it("returns 200 with the generated theme on success", async () => {
+    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    completeJSON.mockResolvedValueOnce({
+      categories: [
+        { name: "Pirate", values: ["A", "B", "C", "D"], noun: "" },
+        {
+          name: "Ship",
+          values: ["W", "X", "Y", "Z"],
+          noun: "captain",
+          verb: ["sails the", "does not sail the"],
+          ordered: true,
+          orderingPhrases: {
+            comparators: {
+              before: "is before",
+              left_of: "is right before",
+              next_to: "is right next to",
+              not_next_to: "is not right next to",
+              between: "is between",
+              not_between: "is not between",
+              exact_distance: "is exactly",
+            },
+          },
+        },
+        {
+          name: "Treasure",
+          values: ["P", "Q", "R", "S"],
+          noun: "finder",
+          verb: ["found the", "did not find the"],
+        },
+        {
+          name: "Port",
+          values: ["E", "F", "G", "H"],
+          noun: "docker",
+          verb: ["docked at", "did not dock at"],
+        },
+      ],
+    });
+
+    const res = await post({
+      request: postBody({ theme: "pirates", size: 4, categories: 4 }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { categories: { name: string }[] };
+    expect(body.categories).toHaveLength(4);
+    expect(body.categories.map((c) => c.name)).toEqual([
+      "Pirate",
+      "Ship",
+      "Treasure",
+      "Port",
+    ]);
   });
 
   it("returns 400 on invalid JSON body", async () => {
@@ -63,7 +129,3 @@ describe("POST /api/theme", () => {
     expect(res.status).toBe(400);
   });
 });
-
-// Type-only assert that POST matches the SvelteKit RequestHandler shape.
-const _typeCheck: RequestHandler = POST;
-void _typeCheck;

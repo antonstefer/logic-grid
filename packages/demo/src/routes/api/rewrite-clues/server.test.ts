@@ -1,23 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
-import type { RequestHandler } from "./$types";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
-const { envProxy } = vi.hoisted(() => ({
+const { envProxy, completeJSON } = vi.hoisted(() => ({
   envProxy: {} as { ANTHROPIC_API_KEY?: string },
+  completeJSON: vi.fn(),
 }));
 
 vi.mock("$env/dynamic/private", () => ({
   env: envProxy,
 }));
 
+vi.mock("logic-grid-ai", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("logic-grid-ai")>();
+  return {
+    ...orig,
+    createAnthropicClient: vi.fn(() => ({ completeJSON })),
+  };
+});
+
 type Handler = (event: { request: Request }) => Promise<Response>;
 const post = POST as unknown as Handler;
 
 beforeEach(() => {
   delete envProxy.ANTHROPIC_API_KEY;
+  completeJSON.mockReset();
   _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function postBody(body: unknown): Request {
@@ -33,6 +46,10 @@ const SAMPLE_CLUES = [
     constraint: { type: "same_position", a: "Alice", b: "Cat" },
     text: "Alice owns the cat.",
   },
+  {
+    constraint: { type: "next_to", a: "Bob", b: "Dog", axis: "House" },
+    text: "Bob lives next to the dog owner.",
+  },
 ];
 
 describe("POST /api/rewrite-clues", () => {
@@ -46,6 +63,23 @@ describe("POST /api/rewrite-clues", () => {
     expect(body.code).toBe("missing_api_key");
     expect(body.error).not.toContain("ANTHROPIC_API_KEY");
     expect(body.error.toLowerCase()).toContain("unavailable");
+  });
+
+  it("returns 200 with rewritten clues on success", async () => {
+    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    completeJSON.mockResolvedValueOnce({
+      clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
+    });
+
+    const res = await post({
+      request: postBody({ clues: SAMPLE_CLUES, style: "pirate" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { clues: { text: string }[] };
+    expect(body.clues).toHaveLength(2);
+    expect(body.clues[0].text).toBe("Alice keeps the cat.");
+    expect(body.clues[1].text).toBe("Bob is next to the dog owner.");
   });
 
   it("returns 400 on invalid JSON", async () => {
@@ -68,6 +102,3 @@ describe("POST /api/rewrite-clues", () => {
     expect(res.status).toBe(400);
   });
 });
-
-const _typeCheck: RequestHandler = POST;
-void _typeCheck;
