@@ -67,14 +67,34 @@ interface ThemeResult {
 
 At least one category must have `ordered: true` with `orderingPhrases.comparators` defining all 7 comparator phrases. The result is validated against structural and semantic rules (value uniqueness, noun consistency, category count, ordered category presence, etc.). If validation fails, the AI is retried with error feedback up to 3 times.
 
-### `createAnthropicClient(apiKey?)`
+If all retries fail, `generateTheme` throws a `ThemeGenerationError`. The error carries an `errors` array of structured `ThemeValidationError` objects (each with a stable `code` like `"no_ordered_category"` or `"duplicate_value"` and a human-readable `message`), so callers can branch on the failure mode:
 
-Create the default AI client backed by the Anthropic SDK. If no key is provided, reads from `ANTHROPIC_API_KEY`.
+```typescript
+import { generateTheme, ThemeGenerationError } from "logic-grid-ai";
+
+try {
+  const theme = await generateTheme({ theme: "...", size: 4, categories: 4 });
+} catch (err) {
+  if (err instanceof ThemeGenerationError) {
+    if (err.errors.some((e) => e.code === "no_ordered_category")) {
+      // Show a hint about ordered categories
+    }
+  }
+  throw err;
+}
+```
+
+> Transport-level retries (429s, 5xx, network errors) are already handled inside the Anthropic SDK with exponential backoff — they don't consume one of the 3 semantic-retry attempts.
+
+### `createAnthropicClient(apiKey?, options?)`
+
+Create the default AI client backed by the Anthropic SDK. If no key is provided, reads from `ANTHROPIC_API_KEY`. Pass `{ model }` to override the default model (`claude-sonnet-4-6`):
 
 ```typescript
 import { createAnthropicClient } from "logic-grid-ai";
 
-const client = createAnthropicClient("sk-ant-...");
+const fast = createAnthropicClient(undefined, { model: "claude-haiku-4-5" });
+const explicit = createAnthropicClient("sk-ant-...");
 ```
 
 ### Custom AI Client
@@ -100,14 +120,14 @@ const theme = await generateTheme({
 
 ### `validateThemeResult(result, size, categories)`
 
-Validate AI output against structural and semantic rules. Returns an array of error messages (empty = valid). Used internally by `generateTheme`, but exported for custom pipelines.
+Validate AI output against structural and semantic rules. Returns `ThemeValidationError[]` (empty = valid). Each error has a stable `code`, a human-readable `message`, and an optional `category` field naming the offending category. Used internally by `generateTheme`, but exported for custom pipelines.
 
 ```typescript
 import { validateThemeResult } from "logic-grid-ai";
 
 const errors = validateThemeResult(result, 4, 4);
 if (errors.length > 0) {
-  console.error("Invalid theme:", errors);
+  for (const e of errors) console.error(`[${e.code}] ${e.message}`);
 }
 ```
 
@@ -126,11 +146,11 @@ const rewritten = await rewriteClues({
 // Returns Clue[] with the same constraints and replaced text fields.
 ```
 
-All clues are rewritten in a single batched AI call. Each clue is sent alongside its constraint JSON so the AI has ground-truth semantics. Output is validated against duplicate / empty / overlong text rules; retries up to 3 times before throwing.
+All clues are rewritten in a single batched AI call. Each clue is sent alongside its constraint JSON so the AI has ground-truth semantics. Output is validated against duplicate / empty / overlong text rules; retries up to 3 times before throwing a `RewriteCluesError` (parallel to `ThemeGenerationError` — carries `errors: RewriteCluesValidationError[]` with codes like `"empty_clue"`, `"long_clue"`, `"duplicate_clue"`).
 
 ### `validateRewrittenClues(result, expectedCount)`
 
-Validate raw AI output for `rewriteClues`. Returns an array of error messages (empty = valid).
+Validate raw AI output for `rewriteClues`. Returns `RewriteCluesValidationError[]` (empty = valid). Each error has a `code`, a `message`, and an optional 1-indexed `clueIndex`.
 
 ```typescript
 import { validateRewrittenClues } from "logic-grid-ai";

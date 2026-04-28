@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { generate, deduce } from "logic-grid";
-import { rewriteClues } from "./rewrite";
+import { rewriteClues, RewriteCluesError } from "./rewrite";
 import type { AIClient, RewriteCluesResult } from "./types";
 import type { Clue } from "logic-grid";
 import * as clientModule from "./client";
@@ -123,17 +123,25 @@ describe("rewriteClues", () => {
     expect(result[0].text).toBe(VALID_RESULT.clues[0]);
   });
 
-  it("throws after max retries", async () => {
+  it("throws RewriteCluesError with structured errors after max retries", async () => {
     const badResult: RewriteCluesResult = {
       clues: ["Only one clue."],
     };
 
-    await expect(
-      rewriteClues({
+    let caught: unknown;
+    try {
+      await rewriteClues({
         clues: SAMPLE_CLUES,
         client: mockClient(badResult),
-      }),
-    ).rejects.toThrow("Clue rewriting failed after 3 attempts");
+      });
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toBeInstanceOf(RewriteCluesError);
+    const err = caught as RewriteCluesError;
+    expect(err.message).toContain("Clue rewriting failed after 3 attempts");
+    expect(err.errors.some((e) => e.code === "wrong_clue_count")).toBe(true);
   });
 
   it("propagates client errors", async () => {

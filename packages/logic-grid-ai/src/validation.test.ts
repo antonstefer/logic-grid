@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateThemeResult } from "./validation";
+import type { ThemeValidationCode } from "./types";
 
 function validResult() {
   return {
@@ -37,6 +38,13 @@ function validResult() {
   };
 }
 
+function hasCode(
+  errors: { code: string }[],
+  code: ThemeValidationCode,
+): boolean {
+  return errors.some((e) => e.code === code);
+}
+
 describe("validateThemeResult", () => {
   it("accepts a valid result", () => {
     expect(validateThemeResult(validResult(), 3, 3)).toEqual([]);
@@ -46,17 +54,19 @@ describe("validateThemeResult", () => {
     const r = validResult();
     r.categories.pop();
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("Expected 3 categories, got 2"),
-    );
+    expect(hasCode(errors, "wrong_category_count")).toBe(true);
+    expect(
+      errors.find((e) => e.code === "wrong_category_count")?.message,
+    ).toContain("Expected 3 categories, got 2");
   });
 
   it("rejects wrong value count", () => {
     const r = validResult();
     r.categories[1].values.push("Extra");
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining('Category "Dish" has 4 values'),
+    expect(hasCode(errors, "wrong_value_count")).toBe(true);
+    expect(errors.find((e) => e.code === "wrong_value_count")?.category).toBe(
+      "Dish",
     );
   });
 
@@ -64,112 +74,112 @@ describe("validateThemeResult", () => {
     const r = validResult();
     r.categories[2].values[0] = "gordon";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining('Duplicate value "gordon"'),
-    );
+    expect(hasCode(errors, "duplicate_value")).toBe(true);
   });
 
   it("rejects missing person category", () => {
     const r = validResult();
     r.categories[0].noun = "chef";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("No person category found"),
-    );
+    expect(hasCode(errors, "no_person_category")).toBe(true);
   });
 
   it("rejects multiple person categories", () => {
     const r = validResult();
     r.categories[1].noun = "";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("Multiple person categories"),
-    );
+    expect(hasCode(errors, "multiple_person_categories")).toBe(true);
   });
 
   it("rejects invalid verb type", () => {
     const r = validResult();
     r.categories[1].verb = ["only one"] as unknown as [string, string];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("invalid verb"));
+    expect(hasCode(errors, "invalid_verb")).toBe(true);
   });
 
   it("rejects empty category name", () => {
     const r = validResult();
     (r.categories[0] as Record<string, unknown>).name = null;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("A category has an empty name"),
-    );
+    expect(hasCode(errors, "empty_category_name")).toBe(true);
+  });
+
+  it("rejects whitespace-only category name", () => {
+    const r = validResult();
+    (r.categories[0] as Record<string, unknown>).name = "   ";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(hasCode(errors, "empty_category_name")).toBe(true);
   });
 
   it("rejects duplicate category names", () => {
     const r = validResult();
     r.categories[2].name = "Dish";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("Duplicate category name"),
-    );
+    expect(hasCode(errors, "duplicate_category_name")).toBe(true);
   });
 
   it("rejects category with no values", () => {
     const r = validResult();
     delete (r.categories[0] as Record<string, unknown>).values;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("has 0 values"));
+    expect(hasCode(errors, "wrong_value_count")).toBe(true);
   });
 
   it("rejects long category name", () => {
     const r = validResult();
     r.categories[0].name = "A".repeat(31);
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("too long"));
+    expect(hasCode(errors, "long_category_name")).toBe(true);
   });
 
   it("rejects long value", () => {
     const r = validResult();
     r.categories[0].values[0] = "X".repeat(31);
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("too long"));
+    expect(hasCode(errors, "long_value")).toBe(true);
+  });
+
+  it("rejects empty value", () => {
+    const r = validResult();
+    r.categories[0].values[0] = "";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(hasCode(errors, "empty_value")).toBe(true);
   });
 
   it("rejects empty verb strings", () => {
     const r = validResult();
     r.categories[1].verb = ["", "does not"] as [string, string];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("empty verb"));
+    expect(hasCode(errors, "empty_verb")).toBe(true);
   });
 
   it("rejects whitespace-only noun", () => {
     const r = validResult();
     r.categories[1].noun = "  ";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("whitespace-only noun"),
-    );
+    expect(hasCode(errors, "whitespace_noun")).toBe(true);
   });
 
   it("rejects duplicate noun", () => {
     const r = validResult();
     r.categories[2].noun = "chef";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("Duplicate noun"));
+    expect(hasCode(errors, "duplicate_noun")).toBe(true);
   });
 
   it("rejects values that collide with positional words", () => {
     const r = validResult();
     r.categories[0].values[0] = "First";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("collides with a positional word"),
-    );
+    expect(hasCode(errors, "positional_word_value")).toBe(true);
   });
 
   it("rejects non-person category without verb", () => {
     const r = validResult();
     delete r.categories[1].verb;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(expect.stringContaining("requires a verb"));
+    expect(hasCode(errors, "missing_verb")).toBe(true);
   });
 
   it("reports multiple errors at once", () => {
@@ -194,9 +204,7 @@ describe("validateThemeResult", () => {
     const r = validResult();
     delete (r.categories[1] as Record<string, unknown>).ordered;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("No ordered category found"),
-    );
+    expect(hasCode(errors, "no_ordered_category")).toBe(true);
   });
 
   it("accepts multiple ordered categories", () => {
@@ -209,18 +217,27 @@ describe("validateThemeResult", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).numericValues = [1, 2];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("numericValues must have exactly 3 numbers"),
-    );
+    expect(hasCode(errors, "invalid_numeric_values")).toBe(true);
+    expect(
+      errors.find((e) => e.code === "invalid_numeric_values")?.message,
+    ).toContain("must have exactly 3 numbers");
   });
 
   it("rejects non-numeric numericValues", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).numericValues = [1, "two", 3];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("numericValues must all be numbers"),
-    );
+    expect(hasCode(errors, "invalid_numeric_values")).toBe(true);
+    expect(
+      errors.find((e) => e.code === "invalid_numeric_values")?.message,
+    ).toContain("must all be numbers");
+  });
+
+  it("rejects numericValues that are not an array", () => {
+    const r = validResult();
+    (r.categories[1] as Record<string, unknown>).numericValues = "not an array";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(hasCode(errors, "invalid_numeric_values")).toBe(true);
   });
 
   it("accepts orderingPhrases with unit on ordered category", () => {
@@ -235,18 +252,22 @@ describe("validateThemeResult", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).orderingPhrases = null;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("orderingPhrases must be an object"),
-    );
+    expect(hasCode(errors, "invalid_ordering_phrases")).toBe(true);
+  });
+
+  it("rejects non-object orderingPhrases", () => {
+    const r = validResult();
+    (r.categories[1] as Record<string, unknown>).orderingPhrases =
+      "not an object";
+    const errors = validateThemeResult(r, 3, 3);
+    expect(hasCode(errors, "invalid_ordering_phrases")).toBe(true);
   });
 
   it("rejects non-string valueSuffix", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).valueSuffix = 42;
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("valueSuffix must be a string"),
-    );
+    expect(hasCode(errors, "invalid_value_suffix")).toBe(true);
   });
 
   it("rejects positionAdjective without valueSuffix", () => {
@@ -256,9 +277,7 @@ describe("validateThemeResult", () => {
       "is not",
     ];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("has positionAdjective but no valueSuffix"),
-    );
+    expect(hasCode(errors, "missing_value_suffix")).toBe(true);
   });
 
   it("rejects invalid positionAdjective type", () => {
@@ -268,29 +287,21 @@ describe("validateThemeResult", () => {
       "only one",
     ];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining(
-        "positionAdjective must be a [positive, negative]",
-      ),
-    );
+    expect(hasCode(errors, "invalid_position_adjective")).toBe(true);
   });
 
   it("rejects non-ascending numericValues", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).numericValues = [3, 1, 2];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("strictly ascending"),
-    );
+    expect(hasCode(errors, "non_ascending_numeric_values")).toBe(true);
   });
 
   it("rejects equal adjacent numericValues", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).numericValues = [1, 1, 2];
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("strictly ascending"),
-    );
+    expect(hasCode(errors, "non_ascending_numeric_values")).toBe(true);
   });
 
   it("rejects symmetric comparator as tuple", () => {
@@ -299,9 +310,7 @@ describe("validateThemeResult", () => {
       comparators: { next_to: ["fwd", "rev"] },
     };
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining('comparator "next_to" is symmetric'),
-    );
+    expect(hasCode(errors, "symmetric_comparator_tuple")).toBe(true);
   });
 
   it("accepts directional comparator as tuple", () => {
@@ -316,8 +325,23 @@ describe("validateThemeResult", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).subjectPriority = "high";
     const errors = validateThemeResult(r, 3, 3);
-    expect(errors).toContainEqual(
-      expect.stringContaining("subjectPriority must be a number"),
-    );
+    expect(hasCode(errors, "invalid_subject_priority")).toBe(true);
+  });
+
+  it("attaches the offending category name to scoped errors", () => {
+    const r = validResult();
+    r.categories[1].values.push("Extra");
+    const errors = validateThemeResult(r, 3, 3);
+    const e = errors.find((x) => x.code === "wrong_value_count");
+    expect(e?.category).toBe("Dish");
+  });
+
+  it("omits category on errors that aren't scoped to one", () => {
+    const r = validResult();
+    r.categories.pop();
+    const errors = validateThemeResult(r, 3, 3);
+    const e = errors.find((x) => x.code === "wrong_category_count");
+    expect(e).toBeDefined();
+    expect("category" in (e as object)).toBe(false);
   });
 });

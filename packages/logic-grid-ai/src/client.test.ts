@@ -68,4 +68,19 @@ describe("createAnthropicClient", () => {
 
     expect(mockCreate).toHaveBeenCalled();
   });
+
+  it("uses overridden model when passed via options", async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: "tool_use", id: "call_3", name: "respond", input: {} }],
+    });
+
+    const client = createAnthropicClient(undefined, {
+      model: "claude-haiku-4-5",
+    });
+    await client.completeJSON("test", { type: "object" });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "claude-haiku-4-5" }),
+    );
+  });
 });
