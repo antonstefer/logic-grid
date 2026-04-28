@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
-import * as ai from "logic-grid-ai";
-import { validateThemeResult } from "logic-grid-ai";
+import { createAnthropicClient, validateThemeResult } from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -113,7 +112,7 @@ describe("POST /api/theme", () => {
     ]);
     // The env key actually flowed through to the Anthropic client factory —
     // not just covered transitively by the unit test.
-    expect(vi.mocked(ai.createAnthropicClient)).toHaveBeenCalledWith("sk-test");
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
   });
 
   it("returns 400 on invalid JSON body", async () => {

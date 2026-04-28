@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
-import * as ai from "logic-grid-ai";
-import { validateRewrittenClues } from "logic-grid-ai";
+import { createAnthropicClient, validateRewrittenClues } from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -87,7 +86,7 @@ describe("POST /api/rewrite-clues", () => {
     expect(body.clues[0].text).toBe("Alice keeps the cat.");
     expect(body.clues[1].text).toBe("Bob is next to the dog owner.");
     // The env key actually flowed through to the Anthropic client factory.
-    expect(vi.mocked(ai.createAnthropicClient)).toHaveBeenCalledWith("sk-test");
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
   });
 
   it("returns 400 on invalid JSON", async () => {
