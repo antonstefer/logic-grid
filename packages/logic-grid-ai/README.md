@@ -2,6 +2,9 @@
 
 AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 4.6 by default) to turn a theme description into fully structured puzzle categories.
 
+[![npm](https://img.shields.io/npm/v/logic-grid-ai)](https://www.npmjs.com/package/logic-grid-ai)
+[![license](https://img.shields.io/npm/l/logic-grid-ai)](../../LICENSE)
+
 ## Install
 
 ```bash

@@ -40,7 +40,7 @@ See the [`logic-grid` README](packages/logic-grid#readme) for the full API.
 ## Packages
 
 - [`logic-grid`](packages/logic-grid#readme) — Core library ([npm](https://www.npmjs.com/package/logic-grid))
-- [`logic-grid-ai`](packages/logic-grid-ai#readme) — AI-powered themed category generation
+- [`logic-grid-ai`](packages/logic-grid-ai#readme) — AI-powered themed category generation ([npm](https://www.npmjs.com/package/logic-grid-ai))
 - [`logic-grid-demo`](packages/demo#readme) — SvelteKit browser demo (deployed at the [live demo](https://logic-grid.stefer-anton.workers.dev))
 
 ## Development
