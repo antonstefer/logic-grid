@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
 import * as ai from "logic-grid-ai";
+import { validateRewrittenClues } from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -68,11 +69,13 @@ describe("POST /api/rewrite-clues", () => {
 
   it("returns 200 with rewritten clues on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
-    // Fixture must satisfy validateRewrittenClues in
-    // packages/logic-grid-ai/src/clue-validation.ts. Update if rules change.
-    completeJSON.mockResolvedValue({
+    const cluesFixture = {
       clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
-    });
+    };
+    // Validate the fixture against the real schema so a future schema change
+    // breaks here loudly instead of leaking through to an opaque 500.
+    expect(validateRewrittenClues(cluesFixture, 2)).toEqual([]);
+    completeJSON.mockResolvedValue(cluesFixture);
 
     const res = await post({
       request: postBody({ clues: SAMPLE_CLUES, style: "pirate" }),

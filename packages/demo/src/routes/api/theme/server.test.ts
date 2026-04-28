@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
 import * as ai from "logic-grid-ai";
+import { validateThemeResult } from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -57,9 +58,7 @@ describe("POST /api/theme", () => {
 
   it("returns 200 with the generated theme on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
-    // Fixture must satisfy validateThemeResult in
-    // packages/logic-grid-ai/src/validation.ts. Update if rules change there.
-    completeJSON.mockResolvedValue({
+    const themeFixture = {
       categories: [
         { name: "Pirate", values: ["A", "B", "C", "D"], noun: "" },
         {
@@ -93,7 +92,11 @@ describe("POST /api/theme", () => {
           verb: ["docked at", "did not dock at"],
         },
       ],
-    });
+    };
+    // Validate the fixture against the real schema so a future schema change
+    // breaks here loudly instead of leaking through to an opaque 500.
+    expect(validateThemeResult(themeFixture, 4, 4)).toEqual([]);
+    completeJSON.mockResolvedValue(themeFixture);
 
     const res = await post({
       request: postBody({ theme: "pirates", size: 4, categories: 4 }),
