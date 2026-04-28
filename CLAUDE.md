@@ -27,9 +27,9 @@ Monorepo for logic grid puzzle generation and solving.
 
 ## Commit conventions
 
-Releases are driven by release-please from Conventional Commits.
+Releases are driven by release-please from Conventional Commits, strictly: only types that ship to users trigger releases or appear in CHANGELOG.
 
-- Bumps the version: `feat:` (minor), `fix:` / `perf:` (patch). Major requires `!` after the type or a `BREAKING CHANGE:` footer.
-- Visible in CHANGELOG: `feat`, `fix`, `perf`, `refactor`, `docs`, `deps`, `revert`. Hidden but allowed: `chore`, `test`, `ci`, `build`, `style`.
+- Triggers a release (and shows in CHANGELOG): `feat:` (minor), `fix:` / `perf:` / `revert:` (patch). Major requires `!` after the type or a `BREAKING CHANGE:` footer.
+- Internal hygiene (no release, no CHANGELOG entry): `refactor`, `docs`, `deps`, `chore`, `test`, `ci`, `build`, `style`. Use these freely; they don't propose Release PRs.
 - Path-scoped: a commit only triggers a Release PR for the package whose files it touches (e.g. `packages/logic-grid/**` → `logic-grid` PR). Commits touching both packages trigger both.
 - After a `logic-grid` major release, bump `logic-grid-ai`'s peerDep with a follow-up commit that includes `BREAKING CHANGE:` so a corresponding `logic-grid-ai` major is cut.
