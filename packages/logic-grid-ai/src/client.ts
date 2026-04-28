@@ -1,19 +1,38 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIClient, JSONSchema } from "./types";
 
+/** Default model used when no `model` option is provided. */
+export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
+
+/** Optional knobs for the default Anthropic-backed client. */
+export interface AnthropicClientOptions {
+  /** Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. */
+  model?: string;
+}
+
 /**
  * Create an AIClient backed by the Anthropic SDK.
  *
- * Uses Claude's tool_use feature for structured JSON output.
- * If no apiKey is provided, the SDK reads from ANTHROPIC_API_KEY.
+ * Uses Claude's tool_use feature for structured JSON output. The Anthropic SDK
+ * already retries transport-level errors (429s, 5xx, network) with exponential
+ * backoff internally — `generateTheme`'s and `rewriteClues`' own retries only
+ * cover semantic validation failures.
+ *
+ * If no apiKey is provided, the SDK reads from `ANTHROPIC_API_KEY`. Pass a
+ * `model` option to swap the underlying Claude model (e.g. `claude-haiku-4-5`
+ * for cheaper/faster generation).
  */
-export function createAnthropicClient(apiKey?: string): AIClient {
+export function createAnthropicClient(
+  apiKey?: string,
+  options: AnthropicClientOptions = {},
+): AIClient {
   const client = new Anthropic({ apiKey });
+  const model = options.model ?? DEFAULT_ANTHROPIC_MODEL;
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
       const response = await client.messages.create({
-        model: "claude-sonnet-4-6",
+        model,
         max_tokens: 4096,
         temperature: 0.8,
         messages: [{ role: "user", content: prompt }],

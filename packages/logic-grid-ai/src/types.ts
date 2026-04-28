@@ -52,3 +52,58 @@ export interface JSONSchema {
   enum?: string[];
   description?: string;
 }
+
+/**
+ * Structured validation error for AI-generated theme output.
+ * `code` is stable and machine-readable; `message` is human-readable.
+ * `category` is the asserted category name when the error is scoped to one,
+ * regardless of whether that name is itself valid (e.g. for `long_category_name`,
+ * `category` echoes the over-long name so callers can group errors by it).
+ */
+export type ThemeValidationCode =
+  | "wrong_category_count"
+  | "empty_category_name"
+  | "long_category_name"
+  | "duplicate_category_name"
+  | "wrong_value_count"
+  | "empty_value"
+  | "long_value"
+  | "duplicate_value"
+  | "positional_word_value"
+  | "whitespace_noun"
+  | "duplicate_noun"
+  | "invalid_verb"
+  | "empty_verb"
+  | "missing_verb"
+  | "invalid_numeric_values"
+  | "non_ascending_numeric_values"
+  | "invalid_ordering_phrases"
+  | "symmetric_comparator_tuple"
+  | "invalid_value_suffix"
+  | "invalid_position_adjective"
+  | "missing_value_suffix"
+  | "invalid_subject_priority"
+  | "no_person_category"
+  | "multiple_person_categories"
+  | "no_ordered_category";
+
+export interface ThemeValidationError {
+  code: ThemeValidationCode;
+  message: string;
+  category?: string;
+}
+
+/** Structured validation error for AI-rewritten clues. */
+export type RewriteCluesValidationCode =
+  | "wrong_clue_count"
+  | "non_string_clue"
+  | "empty_clue"
+  | "long_clue"
+  | "duplicate_clue";
+
+export interface RewriteCluesValidationError {
+  code: RewriteCluesValidationCode;
+  message: string;
+  /** 1-indexed clue position when the error is scoped to a single clue. */
+  clueIndex?: number;
+}

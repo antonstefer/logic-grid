@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { generate } from "logic-grid";
-import { generateTheme } from "./theme";
+import { generateTheme, ThemeGenerationError } from "./theme";
 import type { AIClient, ThemeResult } from "./types";
 import * as clientModule from "./client";
 
@@ -132,8 +132,8 @@ describe("generateTheme", () => {
     expect(result.categories).toHaveLength(4);
   });
 
-  it("throws after max retries", async () => {
-    // No ordered category → validation fails
+  it("throws ThemeGenerationError with structured errors after max retries", async () => {
+    // No ordered category → validation fails with code "no_ordered_category"
     const badResult: ThemeResult = {
       categories: VALID_THEME.categories.map((c) => ({
         name: c.name,
@@ -143,14 +143,22 @@ describe("generateTheme", () => {
       })),
     };
 
-    await expect(
-      generateTheme({
+    let caught: unknown;
+    try {
+      await generateTheme({
         theme: "pirate adventure",
         size: 4,
         categories: 4,
         client: mockClient(badResult),
-      }),
-    ).rejects.toThrow("Theme generation failed after 3 attempts");
+      });
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toBeInstanceOf(ThemeGenerationError);
+    const err = caught as ThemeGenerationError;
+    expect(err.message).toContain("Theme generation failed after 3 attempts");
+    expect(err.errors.some((e) => e.code === "no_ordered_category")).toBe(true);
   });
 
   it("throws on invalid size", async () => {

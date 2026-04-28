@@ -3,12 +3,27 @@ import type {
   RewriteCluesResult,
   AIClient,
   JSONSchema,
+  RewriteCluesValidationError,
 } from "./types";
 import type { Clue } from "logic-grid";
 import { createAnthropicClient } from "./client";
 import { validateRewrittenClues } from "./clue-validation";
 
 const MAX_RETRIES = 3;
+
+/**
+ * Thrown by {@link rewriteClues} when AI output fails validation on every retry.
+ * `errors` contains the structured validation errors from the final attempt.
+ */
+export class RewriteCluesError extends Error {
+  readonly errors: RewriteCluesValidationError[];
+
+  constructor(message: string, errors: RewriteCluesValidationError[]) {
+    super(message);
+    this.name = "RewriteCluesError";
+    this.errors = errors;
+  }
+}
 
 function buildSchema(clueCount: number): JSONSchema {
   return {
@@ -66,7 +81,13 @@ function buildPrompt(
  * Sends all clues in a single batched AI call. Each clue is accompanied
  * by its constraint JSON so the AI has ground truth semantics.
  *
- * @throws {Error} If rewriting fails after all retry attempts.
+ * Note: this retries on *semantic* failures (the AI returned invalid output).
+ * Transport-level retries (429s, 5xx, network errors) are already handled
+ * inside the Anthropic SDK with built-in exponential backoff — they do not
+ * consume one of our 3 attempts.
+ *
+ * @throws {RewriteCluesError} If rewriting fails after all retry attempts.
+ *   Inspect `error.errors` for the structured validation failures.
  */
 export async function rewriteClues(
   options: RewriteCluesOptions,
@@ -78,10 +99,13 @@ export async function rewriteClues(
   const client: AIClient = options.client ?? createAnthropicClient();
   const schema = buildSchema(clues.length);
 
-  let lastErrors: string[] | undefined;
+  let lastErrors: RewriteCluesValidationError[] | undefined;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const prompt = buildPrompt(options, lastErrors);
+    const prompt = buildPrompt(
+      options,
+      lastErrors?.map((e) => e.message),
+    );
     const result = await client.completeJSON<RewriteCluesResult>(
       prompt,
       schema,
@@ -98,7 +122,10 @@ export async function rewriteClues(
     lastErrors = errors;
   }
 
-  throw new Error(
-    `Clue rewriting failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!.join("\n")}`,
+  throw new RewriteCluesError(
+    `Clue rewriting failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!
+      .map((e) => e.message)
+      .join("\n")}`,
+    lastErrors!,
   );
 }

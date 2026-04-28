@@ -1,3 +1,5 @@
+import type { ThemeValidationCode, ThemeValidationError } from "./types";
+
 /** Loose shape for untrusted AI category output. All fields optional. */
 interface RawCategory {
   name?: string;
@@ -26,27 +28,49 @@ const POSITIONAL_WORDS = new Set([
   "eighth",
 ]);
 
+const SYMMETRIC_COMPARATORS = new Set([
+  "next_to",
+  "not_next_to",
+  "between",
+  "not_between",
+  "exact_distance",
+]);
+
+function err(
+  code: ThemeValidationCode,
+  message: string,
+  category?: string,
+): ThemeValidationError {
+  return category !== undefined
+    ? { code, message, category }
+    : { code, message };
+}
+
 /**
  * Validate AI-generated theme output against structural and semantic rules.
  *
- * Returns an array of error messages. Empty array means the result is valid.
- * Used internally by generateTheme to decide whether to retry.
- */
-/**
- * The input shape is intentionally loose (`categories: Record<string, unknown>[]`)
- * because this function validates untrusted AI JSON output. The caller
- * (generateTheme) casts to ThemeResult only after validation passes.
+ * Returns an array of structured errors. Empty array means the result is valid.
+ * Each error has a stable `code` (machine-readable) and `message` (human-readable).
+ * Used internally by generateTheme to decide whether to retry; exported for
+ * custom pipelines that bring their own client.
+ *
+ * The input shape is intentionally loose because this function validates
+ * untrusted AI JSON output. The caller (generateTheme) casts to ThemeResult
+ * only after validation passes.
  */
 export function validateThemeResult(
   result: { categories: readonly unknown[] },
   expectedSize: number,
   expectedCategories: number,
-): string[] {
-  const errors: string[] = [];
+): ThemeValidationError[] {
+  const errors: ThemeValidationError[] = [];
 
   if (result.categories.length !== expectedCategories) {
     errors.push(
-      `Expected ${expectedCategories} categories, got ${result.categories.length}.`,
+      err(
+        "wrong_category_count",
+        `Expected ${expectedCategories} categories, got ${result.categories.length}.`,
+      ),
     );
   }
 
@@ -62,15 +86,28 @@ export function validateThemeResult(
 
     // Category name checks
     if (!name || name.trim() === "") {
-      errors.push("A category has an empty name.");
+      errors.push(err("empty_category_name", "A category has an empty name."));
     } else if (name.length > 30) {
       errors.push(
-        `Category name "${name}" is too long (${name.length} chars, max 30).`,
+        err(
+          "long_category_name",
+          `Category name "${name}" is too long (${name.length} chars, max 30).`,
+          name,
+        ),
       );
     }
     const nameLower = name.toLowerCase();
-    if (seenNames.has(nameLower)) {
-      errors.push(`Duplicate category name "${name}".`);
+    // Skip the duplicate check when the name is empty/missing — the empty name
+    // itself is the problem; reporting it as a duplicate of another empty name
+    // is noise.
+    if (nameLower !== "" && seenNames.has(nameLower)) {
+      errors.push(
+        err(
+          "duplicate_category_name",
+          `Duplicate category name "${name}".`,
+          name,
+        ),
+      );
     }
     seenNames.add(nameLower);
 
@@ -78,31 +115,49 @@ export function validateThemeResult(
     const values = cat.values ?? [];
     if (values.length !== expectedSize) {
       errors.push(
-        `Category "${name}" has ${values.length} values, expected ${expectedSize}.`,
+        err(
+          "wrong_value_count",
+          `Category "${name}" has ${values.length} values, expected ${expectedSize}.`,
+          name,
+        ),
       );
     }
 
     // Value checks
     for (const val of values) {
       if (val.trim() === "") {
-        errors.push(`Category "${name}" has an empty value.`);
+        errors.push(
+          err("empty_value", `Category "${name}" has an empty value.`, name),
+        );
       } else if (val.length > 30) {
         errors.push(
-          `Category "${name}" value "${val}" is too long (${val.length} chars, max 30).`,
+          err(
+            "long_value",
+            `Category "${name}" value "${val}" is too long (${val.length} chars, max 30).`,
+            name,
+          ),
         );
       }
       const valLower = val.toLowerCase();
       const existing = seenValues.get(valLower);
       if (existing !== undefined) {
         errors.push(
-          `Duplicate value "${val}" (also in category with value "${existing}").`,
+          err(
+            "duplicate_value",
+            `Duplicate value "${val}" (also in category with value "${existing}").`,
+            name,
+          ),
         );
       } else {
         seenValues.set(valLower, val);
       }
       if (POSITIONAL_WORDS.has(valLower)) {
         errors.push(
-          `Category "${name}" value "${val}" collides with a positional word.`,
+          err(
+            "positional_word_value",
+            `Category "${name}" value "${val}" collides with a positional word.`,
+            name,
+          ),
         );
       }
     }
@@ -112,12 +167,22 @@ export function validateThemeResult(
       personCount++;
     } else if (cat.noun.trim() === "") {
       errors.push(
-        `Category "${name}" has a whitespace-only noun. Use a meaningful noun or "" for person categories.`,
+        err(
+          "whitespace_noun",
+          `Category "${name}" has a whitespace-only noun. Use a meaningful noun or "" for person categories.`,
+          name,
+        ),
       );
     } else {
       const nounLower = cat.noun.toLowerCase();
       if (seenNouns.has(nounLower)) {
-        errors.push(`Duplicate noun "${cat.noun}" in category "${name}".`);
+        errors.push(
+          err(
+            "duplicate_noun",
+            `Duplicate noun "${cat.noun}" in category "${name}".`,
+            name,
+          ),
+        );
       }
       seenNouns.add(nounLower);
     }
@@ -131,15 +196,25 @@ export function validateThemeResult(
         typeof cat.verb[1] !== "string"
       ) {
         errors.push(
-          `Category "${cat.name}" has invalid verb. Must be [positive, negative] string pair.`,
+          err(
+            "invalid_verb",
+            `Category "${name}" has invalid verb. Must be [positive, negative] string pair.`,
+            name,
+          ),
         );
       } else if (cat.verb[0].trim() === "" || cat.verb[1].trim() === "") {
-        errors.push(`Category "${cat.name}" has empty verb strings.`);
+        errors.push(
+          err("empty_verb", `Category "${name}" has empty verb strings.`, name),
+        );
       }
     } else if (cat.noun !== "" && cat.noun !== undefined) {
       // Every non-person category must have a verb so same_position renders cleanly.
       errors.push(
-        `Category "${cat.name}" requires a verb. Only the person category (noun: "") may omit it.`,
+        err(
+          "missing_verb",
+          `Category "${name}" requires a verb. Only the person category (noun: "") may omit it.`,
+          name,
+        ),
       );
     }
 
@@ -155,15 +230,29 @@ export function validateThemeResult(
         cat.numericValues.length !== expectedSize
       ) {
         errors.push(
-          `Category "${name}" numericValues must have exactly ${expectedSize} numbers.`,
+          err(
+            "invalid_numeric_values",
+            `Category "${name}" numericValues must have exactly ${expectedSize} numbers.`,
+            name,
+          ),
         );
       } else if (
         cat.numericValues.some((v: unknown) => typeof v !== "number")
       ) {
-        errors.push(`Category "${name}" numericValues must all be numbers.`);
+        errors.push(
+          err(
+            "invalid_numeric_values",
+            `Category "${name}" numericValues must all be numbers.`,
+            name,
+          ),
+        );
       } else if (cat.numericValues.some((v, i, a) => i > 0 && v <= a[i - 1])) {
         errors.push(
-          `Category "${name}" numericValues must be in strictly ascending order.`,
+          err(
+            "non_ascending_numeric_values",
+            `Category "${name}" numericValues must be in strictly ascending order.`,
+            name,
+          ),
         );
       }
     }
@@ -171,25 +260,28 @@ export function validateThemeResult(
       cat.orderingPhrases !== undefined &&
       (cat.orderingPhrases === null || typeof cat.orderingPhrases !== "object")
     ) {
-      errors.push(`Category "${name}" orderingPhrases must be an object.`);
+      errors.push(
+        err(
+          "invalid_ordering_phrases",
+          `Category "${name}" orderingPhrases must be an object.`,
+          name,
+        ),
+      );
     }
     // Symmetric comparators must be single strings, not [forward, reverse].
     // NOTE: duplicated in logic-grid/src/generator.ts (validateGrid). The AI
     // package can't depend on the core package, so we keep a parallel copy.
     // Keep both lists in sync.
-    const symmetric = new Set([
-      "next_to",
-      "not_next_to",
-      "between",
-      "not_between",
-      "exact_distance",
-    ]);
     const comps = cat.orderingPhrases?.comparators;
     if (comps && typeof comps === "object") {
       for (const [type, value] of Object.entries(comps)) {
-        if (Array.isArray(value) && symmetric.has(type)) {
+        if (Array.isArray(value) && SYMMETRIC_COMPARATORS.has(type)) {
           errors.push(
-            `Category "${name}" comparator "${type}" is symmetric and must be a single string, not [forward, reverse].`,
+            err(
+              "symmetric_comparator_tuple",
+              `Category "${name}" comparator "${type}" is symmetric and must be a single string, not [forward, reverse].`,
+              name,
+            ),
           );
         }
       }
@@ -197,7 +289,13 @@ export function validateThemeResult(
 
     // valueSuffix / positionAdjective
     if (cat.valueSuffix !== undefined && typeof cat.valueSuffix !== "string") {
-      errors.push(`Category "${name}" valueSuffix must be a string.`);
+      errors.push(
+        err(
+          "invalid_value_suffix",
+          `Category "${name}" valueSuffix must be a string.`,
+          name,
+        ),
+      );
     }
     if (cat.positionAdjective !== undefined) {
       if (
@@ -207,12 +305,20 @@ export function validateThemeResult(
         typeof cat.positionAdjective[1] !== "string"
       ) {
         errors.push(
-          `Category "${name}" positionAdjective must be a [positive, negative] string pair.`,
+          err(
+            "invalid_position_adjective",
+            `Category "${name}" positionAdjective must be a [positive, negative] string pair.`,
+            name,
+          ),
         );
       }
       if (cat.valueSuffix === undefined) {
         errors.push(
-          `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
+          err(
+            "missing_value_suffix",
+            `Category "${name}" has positionAdjective but no valueSuffix. They must be set together.`,
+            name,
+          ),
         );
       }
     }
@@ -222,23 +328,38 @@ export function validateThemeResult(
       cat.subjectPriority !== undefined &&
       typeof cat.subjectPriority !== "number"
     ) {
-      errors.push(`Category "${name}" subjectPriority must be a number.`);
+      errors.push(
+        err(
+          "invalid_subject_priority",
+          `Category "${name}" subjectPriority must be a number.`,
+          name,
+        ),
+      );
     }
   }
 
   if (personCount === 0) {
     errors.push(
-      'No person category found. Exactly one category must have noun: "".',
+      err(
+        "no_person_category",
+        'No person category found. Exactly one category must have noun: "".',
+      ),
     );
   } else if (personCount > 1) {
     errors.push(
-      'Multiple person categories found. Exactly one must have noun: "".',
+      err(
+        "multiple_person_categories",
+        'Multiple person categories found. Exactly one must have noun: "".',
+      ),
     );
   }
 
   if (orderedCount === 0) {
     errors.push(
-      "No ordered category found. At least one category must have ordered: true.",
+      err(
+        "no_ordered_category",
+        "No ordered category found. At least one category must have ordered: true.",
+      ),
     );
   }
 

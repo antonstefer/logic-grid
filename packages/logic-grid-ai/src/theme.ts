@@ -1,8 +1,29 @@
-import type { ThemeOptions, ThemeResult, AIClient, JSONSchema } from "./types";
+import type {
+  ThemeOptions,
+  ThemeResult,
+  AIClient,
+  JSONSchema,
+  ThemeValidationError,
+} from "./types";
 import { createAnthropicClient } from "./client";
 import { validateThemeResult } from "./validation";
 
 const MAX_RETRIES = 3;
+
+/**
+ * Thrown by {@link generateTheme} when AI output fails validation on every retry.
+ * `errors` contains the structured validation errors from the final attempt
+ * so callers can branch on the failure mode (e.g. show a specific UI hint).
+ */
+export class ThemeGenerationError extends Error {
+  readonly errors: ThemeValidationError[];
+
+  constructor(message: string, errors: ThemeValidationError[]) {
+    super(message);
+    this.name = "ThemeGenerationError";
+    this.errors = errors;
+  }
+}
 
 function buildSchema(size: number, categories: number): JSONSchema {
   const categorySchema: JSONSchema = {
@@ -228,12 +249,19 @@ Generate themed categories for: "${theme}"
 /**
  * Generate themed categories for a logic grid puzzle using AI.
  *
- * Calls the AI client to produce categories with ordering phrases
- * that fit the given theme. Validates the result and retries up to 3 times
- * if the AI output fails validation, feeding errors back into the prompt.
+ * Calls the AI client to produce categories with ordering phrases that fit
+ * the given theme. Validates the result and retries up to 3 times if the AI
+ * output fails validation, feeding the previous errors back into the prompt
+ * so the model can self-correct.
+ *
+ * Note: this retries on *semantic* failures (the AI returned invalid JSON
+ * shape). Transport-level retries (429s, 5xx, network errors) are already
+ * handled inside the Anthropic SDK with built-in exponential backoff — they
+ * do not consume one of our 3 attempts.
  *
  * @throws {RangeError} If size or categories is outside 3-8.
- * @throws {Error} If generation fails after all retry attempts.
+ * @throws {ThemeGenerationError} If generation fails after all retry attempts.
+ *   Inspect `error.errors` for the structured validation failures.
  */
 export async function generateTheme(
   options: ThemeOptions,
@@ -250,10 +278,13 @@ export async function generateTheme(
   const client: AIClient = options.client ?? createAnthropicClient();
   const schema = buildSchema(size, categories);
 
-  let lastErrors: string[] | undefined;
+  let lastErrors: ThemeValidationError[] | undefined;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const prompt = buildPrompt(options, lastErrors);
+    const prompt = buildPrompt(
+      options,
+      lastErrors?.map((e) => e.message),
+    );
     const result = await client.completeJSON<ThemeResult>(prompt, schema);
 
     // Normalize: treat undefined noun as "" (person category)
@@ -271,7 +302,10 @@ export async function generateTheme(
     lastErrors = errors;
   }
 
-  throw new Error(
-    `Theme generation failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!.join("\n")}`,
+  throw new ThemeGenerationError(
+    `Theme generation failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!
+      .map((e) => e.message)
+      .join("\n")}`,
+    lastErrors!,
   );
 }
