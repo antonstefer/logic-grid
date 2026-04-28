@@ -24,7 +24,6 @@ describe("requireEnv", () => {
     expect(caught).toBeInstanceOf(MissingEnvError);
     const err = caught as MissingEnvError;
     expect(err.variable).toBe("ANTHROPIC_API_KEY");
-    expect(err.code).toBe("missing_env");
     expect(err.message).toContain("ANTHROPIC_API_KEY");
   });
 });

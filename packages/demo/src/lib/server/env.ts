@@ -4,7 +4,6 @@
  * pointing operators at the missing variable.
  */
 export class MissingEnvError extends Error {
-  readonly code = "missing_env" as const;
   readonly variable: string;
 
   constructor(variable: string) {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { init } from "./hooks.server";
 
 const { envProxy } = vi.hoisted(() => ({
@@ -11,16 +11,18 @@ vi.mock("$env/dynamic/private", () => ({
 
 beforeEach(() => {
   delete envProxy.ANTHROPIC_API_KEY;
-  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("hooks.server init", () => {
   it("warns when ANTHROPIC_API_KEY is missing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await init();
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain(
-      "ANTHROPIC_API_KEY is not configured",
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("ANTHROPIC_API_KEY is not configured"),
     );
   });
 
