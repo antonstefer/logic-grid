@@ -18,7 +18,7 @@ jobs:
       logic_grid_released: ${{ steps.release.outputs['packages/logic-grid--release_created'] }}
       logic_grid_ai_released: ${{ steps.release.outputs['packages/logic-grid-ai--release_created'] }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -33,8 +33,8 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
