@@ -58,6 +58,6 @@
     "@anthropic-ai/sdk": "^0.39.0"
   },
   "peerDependencies": {
-    "logic-grid": "^2.0.0"
+    "logic-grid": "^1.0.0"
   }
 }
