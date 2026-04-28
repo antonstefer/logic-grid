@@ -172,11 +172,6 @@ function buildGrid(
       }
     }
     categories = categoryNames.map((c) => sliceCategory(c, size));
-    // Ensure at least one ordered category; auto-prepend House if the user's
-    // categories include none.
-    if (!categories.some((c) => c.ordered === true)) {
-      categories = [defaultHouseCategory(size), ...categories];
-    }
   } else {
     // Default pool has no ordered category; House is always prepended as the
     // first ordered slot. Total category count is preserved.
@@ -189,6 +184,14 @@ function buildGrid(
   }
 
   validateCategories(categories);
+
+  if (categoryNames && !categories.some((c) => c.ordered === true)) {
+    throw new Error(
+      "categoryNames must include at least one category with `ordered: true`. " +
+        "Comparator constraints (before, next_to, between, …) require an ordered axis. " +
+        "Use defaultHouseCategory(size) for a generic positional axis if the theme has none.",
+    );
+  }
 
   const grid: Grid = {
     size,

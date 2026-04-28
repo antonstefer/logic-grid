@@ -58,9 +58,12 @@ interface Puzzle {
 Custom categories:
 
 ```typescript
+import { generate, defaultHouseCategory } from "logic-grid";
+
 const puzzle = generate({
   size: 3,
   categoryNames: [
+    defaultHouseCategory(3), // ordered positional axis (required)
     {
       name: "Name",
       values: ["Alice", "Bob", "Carol"],
@@ -82,7 +85,7 @@ const puzzle = generate({
 });
 ```
 
-The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-position phrasing as `[positive, negative]` and is required when the value participates in a same-position clue. Set `lowercase: true` for adjective-like categories where values should render in lowercase (e.g. Color → "the red house" rather than "the Red house"). The classic Einstein-style preset (Name, Color, Pet, Drink, Food, Hobby, Music, Sport) is exported as `DEFAULT_CATEGORIES` and used automatically when `categoryNames` is omitted.
+`categoryNames` must include at least one category with `ordered: true` so comparator constraints (`before`, `next_to`, `between`, …) can reference an axis. Use `defaultHouseCategory(size)` for a generic positional axis when the theme has no natural ordering, or mark a domain-relevant category as `ordered: true` (see below). The `noun` controls how values appear in clue phrases (`"owner"` → "the cat owner", `""` → bare value like "Alice"). The `verb` controls same-position phrasing as `[positive, negative]` and is required when the value participates in a same-position clue. Set `lowercase: true` for adjective-like categories where values should render in lowercase (e.g. Color → "the red house" rather than "the Red house"). The classic Einstein-style preset (Name, Color, Pet, Drink, Food, Hobby, Music, Sport) is exported as `DEFAULT_CATEGORIES` and used automatically when `categoryNames` is omitted.
 
 ### Ordered categories and multi-axis puzzles
 
@@ -148,7 +151,7 @@ const puzzle = generate({
 });
 ```
 
-Every ordered category requires all 7 entries in `orderingPhrases.comparators` (`before`, `left_of`, `next_to`, `not_next_to`, `between`, `not_between`, `exact_distance`). When no category has `ordered: true`, a default "House" category is auto-added. `numericValues` enables value-based distance for `exact_distance` ("exactly 25 years from"). For AI-generated themed categories that satisfy this contract automatically, see [`logic-grid-ai`](../logic-grid-ai#readme).
+Every ordered category requires all 7 entries in `orderingPhrases.comparators` (`before`, `left_of`, `next_to`, `not_next_to`, `between`, `not_between`, `exact_distance`). `numericValues` enables value-based distance for `exact_distance` ("exactly 25 years from"). When `categoryNames` is omitted, the built-in default pool prepends a House category automatically; when it's provided, you must include at least one ordered category yourself (use `defaultHouseCategory(size)` for a generic one). For AI-generated themed categories that satisfy this contract automatically, see [`logic-grid-ai`](../logic-grid-ai#readme).
 
 ### `solve(constraints, grid)`
 
