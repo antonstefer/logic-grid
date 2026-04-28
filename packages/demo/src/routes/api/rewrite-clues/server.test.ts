@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
+import * as ai from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -67,6 +68,8 @@ describe("POST /api/rewrite-clues", () => {
 
   it("returns 200 with rewritten clues on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
+    // Fixture must satisfy validateRewrittenClues in
+    // packages/logic-grid-ai/src/clue-validation.ts. Update if rules change.
     completeJSON.mockResolvedValue({
       clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
     });
@@ -80,6 +83,8 @@ describe("POST /api/rewrite-clues", () => {
     expect(body.clues).toHaveLength(2);
     expect(body.clues[0].text).toBe("Alice keeps the cat.");
     expect(body.clues[1].text).toBe("Bob is next to the dog owner.");
+    // The env key actually flowed through to the Anthropic client factory.
+    expect(vi.mocked(ai.createAnthropicClient)).toHaveBeenCalledWith("sk-test");
   });
 
   it("returns 400 on invalid JSON", async () => {
