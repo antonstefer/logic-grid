@@ -1,7 +1,8 @@
 import { json } from "@sveltejs/kit";
-import { env } from "$env/dynamic/private";
 import type { RequestHandler } from "./$types";
-import { generateTheme, createAnthropicClient } from "logic-grid-ai";
+import { generateTheme } from "logic-grid-ai";
+import { MissingEnvError } from "$lib/server/env";
+import { getAnthropicClient } from "$lib/server/anthropic";
 
 export const POST: RequestHandler = async ({ request }) => {
   let theme: unknown, size: unknown, categories: unknown;
@@ -19,15 +20,21 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   try {
-    const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
-    if (!ANTHROPIC_API_KEY) {
-      console.error("ANTHROPIC_API_KEY not configured");
-      return json({ error: "Theme generation failed" }, { status: 500 });
-    }
-    const client = createAnthropicClient(ANTHROPIC_API_KEY);
+    const client = getAnthropicClient();
     const result = await generateTheme({ theme, size, categories, client });
     return json(result);
   } catch (e) {
+    if (e instanceof MissingEnvError) {
+      console.error(`${e.variable} is not configured`);
+      return json(
+        {
+          error:
+            "AI theme generation is unavailable: the server is missing required configuration.",
+          code: "missing_api_key",
+        },
+        { status: 503 },
+      );
+    }
     console.error("Theme generation failed:", e);
     return json({ error: "Theme generation failed" }, { status: 500 });
   }
