@@ -6,6 +6,7 @@ import {
   classify,
   samePosition,
   leftOf,
+  defaultHouseCategory,
 } from "./index";
 import { makeGrid } from "./test-helpers";
 
@@ -68,6 +69,7 @@ describe("public API integration", () => {
       size: 4,
       seed: 42,
       categoryNames: [
+        defaultHouseCategory(4),
         { name: "Name", values: ["Luna", "Kai", "Nora", "Theo"] },
         {
           name: "Instrument",
