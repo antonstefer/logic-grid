@@ -67,7 +67,7 @@ describe("POST /api/rewrite-clues", () => {
 
   it("returns 200 with rewritten clues on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
-    completeJSON.mockResolvedValueOnce({
+    completeJSON.mockResolvedValue({
       clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
     });
 

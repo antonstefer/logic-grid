@@ -56,7 +56,7 @@ describe("POST /api/theme", () => {
 
   it("returns 200 with the generated theme on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
-    completeJSON.mockResolvedValueOnce({
+    completeJSON.mockResolvedValue({
       categories: [
         { name: "Pirate", values: ["A", "B", "C", "D"], noun: "" },
         {
