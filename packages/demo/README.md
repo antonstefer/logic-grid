@@ -1,6 +1,6 @@
 # logic-grid-demo
 
-SvelteKit browser demo for [`logic-grid`](../logic-grid#readme). Live at <https://logic-grid.stefer-anton.workers.dev>.
+SvelteKit browser demo for [`logic-grid`](../logic-grid#readme) and [`logic-grid-ai`](../logic-grid-ai#readme). Live at <https://logic-grid.stefer-anton.workers.dev>.
 
 ## Local dev
 
