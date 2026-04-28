@@ -26,7 +26,11 @@ export function getAnthropicClient(): AIClient {
   return cached.client;
 }
 
-/** Test-only: clear the cached client so tests can re-exercise the env check. */
+/**
+ * @internal Test-only. Clears the cached client so tests can re-exercise the
+ * env check or simulate key rotation. Not part of the public surface — do not
+ * call from production code.
+ */
 export function _resetAnthropicClientCache(): void {
   cached = undefined;
 }

@@ -28,7 +28,8 @@ export const POST: RequestHandler = async ({ request }) => {
       console.error(`${e.variable} is not configured`);
       return json(
         {
-          error: `${e.variable} is not configured on the server. AI theme generation is unavailable.`,
+          error:
+            "AI theme generation is unavailable: the server is missing required configuration.",
           code: "missing_api_key",
         },
         { status: 503 },
