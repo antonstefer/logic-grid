@@ -527,6 +527,29 @@ describe("generate", () => {
     ).toThrow("requires a verb");
   });
 
+  it("throws when custom categoryNames has no ordered category", () => {
+    expect(() =>
+      generate({
+        size: 3,
+        categoryNames: [
+          { name: "Name", values: ["Alice", "Bob", "Carol"], noun: "" },
+          {
+            name: "Color",
+            values: ["Red", "Blue", "Green"],
+            noun: "house",
+            verb: ["lives in the", "does not live in the"],
+          },
+          {
+            name: "Pet",
+            values: ["Cat", "Dog", "Fish"],
+            noun: "owner",
+            verb: ["owns the", "does not own the"],
+          },
+        ],
+      }),
+    ).toThrow("must include at least one category with `ordered: true`");
+  });
+
   // "symmetric comparator as tuple" is now a compile-time error:
   // ComparatorMap requires next_to/not_next_to/between/not_between/exact_distance
   // to be plain strings, not [forward, reverse] tuples.
