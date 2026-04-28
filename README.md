@@ -43,7 +43,6 @@ const theme = await generateTheme({
 
 const puzzle = generate({
   size: 4,
-  categories: 4,
   categoryNames: theme.categories,
 });
 // Clues like: "Blackbeard commands the Revenge."
