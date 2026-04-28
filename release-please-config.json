@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "separate-pull-requests": true,
+  "pull-request-title-pattern": "chore: release ${component} ${version}",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "refactor", "section": "Refactors" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "deps", "section": "Dependencies" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "ci", "hidden": true },
+    { "type": "build", "hidden": true },
+    { "type": "style", "hidden": true }
+  ],
+  "packages": {
+    "packages/logic-grid": {
+      "package-name": "logic-grid",
+      "changelog-path": "CHANGELOG.md",
+      "bootstrap-sha": "61fe3d6579223115ab7f2e05a6bce0a49f27ee18"
+    },
+    "packages/logic-grid-ai": {
+      "package-name": "logic-grid-ai",
+      "changelog-path": "CHANGELOG.md",
+      "bootstrap-sha": "bb1939984716fbfb1947e2af86885303c08bd5b4"
+    }
+  }
+}
