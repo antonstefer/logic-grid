@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateRewrittenClues } from "./clue-validation";
-import type { RewriteCluesResult, RewriteCluesValidationCode } from "./types";
+import { hasCode } from "./test-utils";
+import type { RewriteCluesResult } from "./types";
 
 function validResult(count: number = 3): RewriteCluesResult {
   return {
@@ -9,13 +10,6 @@ function validResult(count: number = 3): RewriteCluesResult {
       (_, i) => `Rewritten clue number ${i + 1}.`,
     ),
   };
-}
-
-function hasCode(
-  errors: { code: string }[],
-  code: RewriteCluesValidationCode,
-): boolean {
-  return errors.some((e) => e.code === code);
 }
 
 describe("validateRewrittenClues", () => {

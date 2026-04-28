@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateThemeResult } from "./validation";
-import type { ThemeValidationCode } from "./types";
+import { hasCode } from "./test-utils";
 
 function validResult() {
   return {
@@ -36,13 +36,6 @@ function validResult() {
       },
     ],
   };
-}
-
-function hasCode(
-  errors: { code: string }[],
-  code: ThemeValidationCode,
-): boolean {
-  return errors.some((e) => e.code === code);
 }
 
 describe("validateThemeResult", () => {
@@ -117,6 +110,20 @@ describe("validateThemeResult", () => {
     r.categories[2].name = "Dish";
     const errors = validateThemeResult(r, 3, 3);
     expect(hasCode(errors, "duplicate_category_name")).toBe(true);
+  });
+
+  it("does not double-report two empty names as duplicates", () => {
+    const r = validResult();
+    (r.categories[0] as Record<string, unknown>).name = "";
+    (r.categories[1] as Record<string, unknown>).name = "";
+    const errors = validateThemeResult(r, 3, 3);
+    // Both empty names should each trigger empty_category_name; the second
+    // should NOT also trigger duplicate_category_name (the empty name is the
+    // problem, not its duplication of another empty name).
+    expect(errors.filter((e) => e.code === "empty_category_name")).toHaveLength(
+      2,
+    );
+    expect(hasCode(errors, "duplicate_category_name")).toBe(false);
   });
 
   it("rejects category with no values", () => {

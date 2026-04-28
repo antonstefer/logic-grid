@@ -97,7 +97,10 @@ export function validateThemeResult(
       );
     }
     const nameLower = name.toLowerCase();
-    if (seenNames.has(nameLower)) {
+    // Skip the duplicate check when the name is empty/missing — the empty name
+    // itself is the problem; reporting it as a duplicate of another empty name
+    // is noise.
+    if (nameLower !== "" && seenNames.has(nameLower)) {
       errors.push(
         err(
           "duplicate_category_name",

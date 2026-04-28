@@ -56,7 +56,9 @@ export interface JSONSchema {
 /**
  * Structured validation error for AI-generated theme output.
  * `code` is stable and machine-readable; `message` is human-readable.
- * `category` is the offending category name when the error is scoped to one.
+ * `category` is the asserted category name when the error is scoped to one,
+ * regardless of whether that name is itself valid (e.g. for `long_category_name`,
+ * `category` echoes the over-long name so callers can group errors by it).
  */
 export type ThemeValidationCode =
   | "wrong_category_count"
