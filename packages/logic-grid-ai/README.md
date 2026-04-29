@@ -158,6 +158,69 @@ import { validateRewrittenClues } from "logic-grid-ai";
 const errors = validateRewrittenClues({ clues: ["..."] }, puzzle.clues.length);
 ```
 
+### `translate(options)`
+
+Translate puzzle clues to a target locale using AI. Intended for **ahead-of-time (AOT)** puzzle pipelines that produce localized corpora once and serve them statically — quality is the constraint, not latency. The package engine stays English-only; this is a post-processing layer.
+
+```typescript
+import { translate } from "logic-grid-ai";
+import { generate } from "logic-grid";
+
+const puzzle = generate({ size: 4, categories: 4, seed: 42 });
+const localized = await translate({
+  clues: puzzle.clues,
+  locale: "German", // also accepts BCP-47 like "de-DE"
+});
+// Returns Clue[] with the original constraints preserved and `text`
+// rendered in German.
+```
+
+The function runs a two-stage AI flow:
+
+1. **Translator** produces one localized clue per source clue in a single batched call. The constraint JSON is shown alongside each English clue as ground truth — if the source `text` is ambiguous or has drifted (e.g. via `rewriteClues`), the constraint defines the meaning.
+2. **Validator** round-trips each translation back to a constraint type and checks polarity, direction, numeric/unit preservation, and proper-noun preservation. Failures are fed back to the translator on retry (up to 3 attempts).
+
+```typescript
+const localized = await translate({
+  clues: puzzle.clues,
+  locale: "ja-JP",
+  client: createAnthropicClient(undefined, { model: "claude-sonnet-4-6" }),
+  validator: createAnthropicClient(undefined, {
+    model: "claude-opus-4-5",
+    temperature: 0,
+  }),
+});
+```
+
+> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for deterministic verdicts.
+
+If validation fails on every attempt, `translate` throws a `TranslationError` carrying structured `errors` with stable codes (`constraint_type_mismatch`, `direction_flip`, `numeric_changed`, `proper_noun_dropped`, plus the structural codes `wrong_clue_count`, `non_string_clue`, `empty_translation`, `long_translation`, `duplicate_translation`):
+
+```typescript
+import { translate, TranslationError } from "logic-grid-ai";
+
+try {
+  const localized = await translate({ clues, locale: "German" });
+} catch (err) {
+  if (err instanceof TranslationError) {
+    if (err.errors.some((e) => e.code === "direction_flip")) {
+      // Translator flipped the subject/object on a `before` or `left_of` clue.
+    }
+  }
+  throw err;
+}
+```
+
+Constraints are passed through verbatim — translation only changes the `text` field, so the puzzle remains solvable from the original constraints regardless of how the localized text reads.
+
+### `createAnthropicClient(apiKey?, options?)` temperature option
+
+`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for deterministic responses — typically the right default for validator clients in `translate()`:
+
+```typescript
+const validator = createAnthropicClient(undefined, { temperature: 0 });
+```
+
 ## How It Works
 
 1. A detailed prompt describes the puzzle structure, category contract, and ordering semantics

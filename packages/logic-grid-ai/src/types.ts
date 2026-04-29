@@ -107,3 +107,55 @@ export interface RewriteCluesValidationError {
   /** 1-indexed clue position when the error is scoped to a single clue. */
   clueIndex?: number;
 }
+
+/** Options for AI-powered clue translation. */
+export interface TranslateOptions {
+  /**
+   * Source clues. The `constraint` field is the ground truth that the
+   * validator compares against; `text` is shown to the translator as a
+   * stylistic hint but may have already drifted (e.g. via {@link rewriteClues}).
+   */
+  clues: Clue[];
+  /**
+   * Target locale. Free-form string passed verbatim into the prompt — both
+   * BCP-47 codes ("de-DE", "ja-JP") and plain language names ("German",
+   * "Japanese") work. Empty string is rejected.
+   */
+  locale: string;
+  /** Translator client. Defaults to Anthropic SDK using ANTHROPIC_API_KEY. */
+  client?: AIClient;
+  /**
+   * Validator client. Strongly recommended to pass a client backed by a
+   * different model than the translator — single-model validation has
+   * correlated blind spots. Defaults to `client` if omitted; if both are
+   * omitted, a separate Anthropic client with `temperature: 0` is created
+   * for deterministic verdicts.
+   */
+  validator?: AIClient;
+}
+
+/**
+ * Structured validation error for AI-translated clues.
+ *
+ * Codes split into two tiers:
+ * - Structural (cheap, deterministic): wrong count, non-string, empty, too long, duplicate.
+ * - Semantic (AI-driven): constraint type drift incl. polarity, direction flip on
+ *   asymmetric comparators, numeric / unit drift, proper-noun drop.
+ */
+export type TranslationValidationCode =
+  | "wrong_clue_count"
+  | "non_string_clue"
+  | "empty_translation"
+  | "long_translation"
+  | "duplicate_translation"
+  | "constraint_type_mismatch"
+  | "direction_flip"
+  | "numeric_changed"
+  | "proper_noun_dropped";
+
+export interface TranslationValidationError {
+  code: TranslationValidationCode;
+  message: string;
+  /** 1-indexed clue position when the error is scoped to a single clue. */
+  clueIndex?: number;
+}

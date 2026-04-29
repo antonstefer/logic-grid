@@ -83,4 +83,30 @@ describe("createAnthropicClient", () => {
       expect.objectContaining({ model: "claude-haiku-4-5" }),
     );
   });
+
+  it("uses default temperature 0.8 when none provided", async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: "tool_use", id: "call_4", name: "respond", input: {} }],
+    });
+
+    const client = createAnthropicClient();
+    await client.completeJSON("test", { type: "object" });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ temperature: 0.8 }),
+    );
+  });
+
+  it("uses overridden temperature when passed via options", async () => {
+    mockCreate.mockResolvedValueOnce({
+      content: [{ type: "tool_use", id: "call_5", name: "respond", input: {} }],
+    });
+
+    const client = createAnthropicClient(undefined, { temperature: 0 });
+    await client.completeJSON("test", { type: "object" });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ temperature: 0 }),
+    );
+  });
 });

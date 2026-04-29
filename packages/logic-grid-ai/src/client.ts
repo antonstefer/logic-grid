@@ -4,10 +4,19 @@ import type { AIClient, JSONSchema } from "./types";
 /** Default model used when no `model` option is provided. */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
+/** Default sampling temperature used when no `temperature` option is provided. */
+export const DEFAULT_ANTHROPIC_TEMPERATURE = 0.8;
+
 /** Optional knobs for the default Anthropic-backed client. */
 export interface AnthropicClientOptions {
   /** Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. */
   model?: string;
+  /**
+   * Override the sampling temperature. Defaults to
+   * {@link DEFAULT_ANTHROPIC_TEMPERATURE}. Use 0 for deterministic verdicts
+   * (e.g. validator clients in `translate`).
+   */
+  temperature?: number;
 }
 
 /**
@@ -28,13 +37,14 @@ export function createAnthropicClient(
 ): AIClient {
   const client = new Anthropic({ apiKey });
   const model = options.model ?? DEFAULT_ANTHROPIC_MODEL;
+  const temperature = options.temperature ?? DEFAULT_ANTHROPIC_TEMPERATURE;
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
       const response = await client.messages.create({
         model,
         max_tokens: 4096,
-        temperature: 0.8,
+        temperature,
         messages: [{ role: "user", content: prompt }],
         tools: [
           {
