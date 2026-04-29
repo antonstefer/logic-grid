@@ -4,10 +4,9 @@
  * per (size, difficulty) is too slow for the standard `check` loop.
  *
  * Three layers:
- *   1. Difficulty contract — directly mirrors EASY_TYPES / MEDIUM_TYPES from
- *      difficulty.ts and the deduce-based expert promotion. Guarantees the
- *      generator never silently leaks a higher-tier constraint into a lower
- *      tier (or vice versa).
+ *   1. Difficulty contract — uses typesUpToTier / typesAtTier from difficulty.ts
+ *      and the deduce-based expert promotion. Guarantees the generator never
+ *      silently leaks a higher-tier constraint into a lower tier (or vice versa).
  *   2. Diversity sanity — catches degenerate generation (a single type
  *      dominating, or a documented type silently dropped).
  *   3. Perf budgets — ~50-100× current real values; calibrated to absorb
@@ -20,9 +19,13 @@ import { deduce } from "../src/deduce";
 import { typesAtTier, typesUpToTier } from "../src/difficulty";
 import type { ConstraintType, Difficulty } from "../src/types";
 
-const EASY_TYPES = typesUpToTier("easy");
-const MEDIUM_TYPES = typesUpToTier("medium");
-const HARD_ONLY_TYPES = typesAtTier("hard");
+// File-local aliases — they shadow nothing in the package; the helper calls
+// happen once at module load. Names deliberately avoid the legacy
+// EASY_TYPES / MEDIUM_TYPES / HARD_ONLY_TYPES exports (which no longer exist)
+// so a future grep lands on these helper calls rather than a stale reference.
+const allowedAtEasy = typesUpToTier("easy");
+const allowedAtMedium = typesUpToTier("medium");
+const hardOnly = typesAtTier("hard");
 
 /** True when the deduction trace requires backtracking via contradiction
  *  (or never completes). Mirrors classify()'s expert-promotion rule. */
@@ -58,12 +61,12 @@ function generateMany(
 }
 
 describe("difficulty contract", () => {
-  it("easy puzzles use only EASY_TYPES and don't quietly need expert deduction", () => {
+  it("easy puzzles only use types allowed at easy and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "easy", SAMPLES)) {
       for (const c of puzzle.constraints) {
         expect(
-          EASY_TYPES.has(c.type),
-          `seed=${seed}: ${c.type} not in EASY_TYPES`,
+          allowedAtEasy.has(c.type),
+          `seed=${seed}: ${c.type} not allowed at easy`,
         ).toBe(true);
       }
       expect(
@@ -73,19 +76,19 @@ describe("difficulty contract", () => {
     }
   });
 
-  it("medium puzzles use only MEDIUM_TYPES (with one beyond EASY_TYPES) and don't quietly need expert deduction", () => {
+  it("medium puzzles only use types allowed at medium (with at least one beyond easy) and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "medium", SAMPLES)) {
       let hasMediumOnly = false;
       for (const c of puzzle.constraints) {
         expect(
-          MEDIUM_TYPES.has(c.type),
-          `seed=${seed}: ${c.type} not in MEDIUM_TYPES`,
+          allowedAtMedium.has(c.type),
+          `seed=${seed}: ${c.type} not allowed at medium`,
         ).toBe(true);
-        if (!EASY_TYPES.has(c.type)) hasMediumOnly = true;
+        if (!allowedAtEasy.has(c.type)) hasMediumOnly = true;
       }
       expect(
         hasMediumOnly,
-        `seed=${seed}: medium puzzle has no type beyond EASY_TYPES`,
+        `seed=${seed}: medium puzzle has no type beyond the easy tier`,
       ).toBe(true);
       expect(
         isExpertSolution(puzzle),
@@ -97,11 +100,11 @@ describe("difficulty contract", () => {
   it("hard puzzles include a hard-only type and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "hard", SAMPLES)) {
       const hasHardOnly = puzzle.constraints.some(
-        (c) => !MEDIUM_TYPES.has(c.type),
+        (c) => !allowedAtMedium.has(c.type),
       );
       expect(
         hasHardOnly,
-        `seed=${seed}: hard puzzle has no type outside MEDIUM_TYPES`,
+        `seed=${seed}: hard puzzle has no type beyond the medium tier`,
       ).toBe(true);
       expect(
         isExpertSolution(puzzle),
@@ -130,10 +133,10 @@ describe("constraint diversity", () => {
     const seen = new Set<ConstraintType>();
     for (const { puzzle } of samples) {
       for (const c of puzzle.constraints) {
-        if (!MEDIUM_TYPES.has(c.type)) seen.add(c.type);
+        if (!allowedAtMedium.has(c.type)) seen.add(c.type);
       }
     }
-    for (const type of HARD_ONLY_TYPES) {
+    for (const type of hardOnly) {
       expect
         .soft(seen.has(type), `hard-only type ${type} never appeared`)
         .toBe(true);
@@ -141,7 +144,7 @@ describe("constraint diversity", () => {
   });
 
   it("no single constraint type dominates > 80% of clues at medium/hard/expert", () => {
-    // Easy is excluded — EASY_TYPES has only 2 entries, so dominance by
+    // Easy is excluded — only 2 types allowed at easy, so dominance by
     // same_position is structural, not a bug.
     const difficulties: Difficulty[] = ["medium", "hard", "expert"];
     for (const difficulty of difficulties) {

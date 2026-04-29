@@ -161,9 +161,16 @@ describe("classify with grid (deduction depth)", () => {
 
 describe("typesAtTier", () => {
   it("returns only types at the requested tier (no inheritance)", () => {
-    expect(typesAtTier("easy")).toEqual(["same_position", "not_same_position"]);
-    expect(typesAtTier("medium")).toEqual(["next_to", "left_of", "before"]);
-    expect(typesAtTier("hard")).toEqual([
+    expect([...typesAtTier("easy")]).toEqual([
+      "same_position",
+      "not_same_position",
+    ]);
+    expect([...typesAtTier("medium")]).toEqual([
+      "next_to",
+      "left_of",
+      "before",
+    ]);
+    expect([...typesAtTier("hard")]).toEqual([
       "between",
       "not_between",
       "not_next_to",

@@ -32,16 +32,17 @@ const TIER_RANK: Record<ConstraintTier, number> = {
 
 const allTypes = Object.keys(TYPE_TIER) as ConstraintType[];
 
-// Memoized at module load — both helpers are pure lookups by the time
-// generate() / classify() / filterByDifficulty() call them. Without this,
-// generate() would allocate a fresh Set on every call (it's on the hot path).
-const AT_TIER: Record<ConstraintTier, ConstraintType[]> = {
-  easy: allTypes.filter((t) => TYPE_TIER[t] === "easy"),
-  medium: allTypes.filter((t) => TYPE_TIER[t] === "medium"),
-  hard: allTypes.filter((t) => TYPE_TIER[t] === "hard"),
+// Memoized at module load. Returned as ReadonlySet so callers can't .add /
+// .delete the shared module-state instance. Without memoization,
+// filterByDifficulty would allocate a fresh Set on every call (it's invoked
+// once per generate(), so once per puzzle).
+const AT_TIER: Record<ConstraintTier, ReadonlySet<ConstraintType>> = {
+  easy: new Set(allTypes.filter((t) => TYPE_TIER[t] === "easy")),
+  medium: new Set(allTypes.filter((t) => TYPE_TIER[t] === "medium")),
+  hard: new Set(allTypes.filter((t) => TYPE_TIER[t] === "hard")),
 };
 
-const UP_TO_TIER: Record<ConstraintTier, Set<ConstraintType>> = {
+const UP_TO_TIER: Record<ConstraintTier, ReadonlySet<ConstraintType>> = {
   easy: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 0)),
   medium: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 1)),
   hard: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 2)),
@@ -49,9 +50,9 @@ const UP_TO_TIER: Record<ConstraintTier, Set<ConstraintType>> = {
 
 /**
  * Constraint types whose tier is exactly `tier`.
- * `typesAtTier("hard")` → ["between", "not_between", "not_next_to", "exact_distance"].
+ * `typesAtTier("hard")` → {between, not_between, not_next_to, exact_distance}.
  */
-export function typesAtTier(tier: ConstraintTier): ConstraintType[] {
+export function typesAtTier(tier: ConstraintTier): ReadonlySet<ConstraintType> {
   return AT_TIER[tier];
 }
 
@@ -60,7 +61,9 @@ export function typesAtTier(tier: ConstraintTier): ConstraintType[] {
  * generated at this difficulty.
  * `typesUpToTier("medium")` → easy + medium tiers (5 types).
  */
-export function typesUpToTier(tier: ConstraintTier): Set<ConstraintType> {
+export function typesUpToTier(
+  tier: ConstraintTier,
+): ReadonlySet<ConstraintType> {
   return UP_TO_TIER[tier];
 }
 
