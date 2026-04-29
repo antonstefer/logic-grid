@@ -113,7 +113,7 @@ describe("difficulty contract", () => {
     }
   });
 
-  it("expert puzzles need contradiction (or fail to fully deduce)", () => {
+  it("expert puzzles cannot be solved by pure forward deduction (require contradiction or are incomplete)", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "expert", SAMPLES)) {
       expect(
         isExpertSolution(puzzle),
@@ -199,6 +199,10 @@ describe("performance budgets", () => {
       const times: number[] = [];
       for (let seed = 0; seed < runs; seed++) {
         const t0 = performance.now();
+        // Deliberately no `difficulty:` — the budget tracks real generate()
+        // perf with default options, which is what end users hit. If
+        // generate()'s default behavior ever changes, the budget shifts
+        // accordingly (which is the signal we want, not a bug).
         generate({ size, categories: size, seed });
         times.push(performance.now() - t0);
       }

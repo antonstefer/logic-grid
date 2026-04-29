@@ -471,7 +471,7 @@ function filterByDifficulty(
       ? typesUpToTier("easy")
       : difficulty === "medium"
         ? typesUpToTier("medium")
-        : null; // hard allows all types
+        : null; // hard / expert: all types allowed
 
   if (!allowedTypes) return constraints;
   return constraints.filter((c) => allowedTypes.has(c.type));
