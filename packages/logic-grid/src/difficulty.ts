@@ -1,19 +1,71 @@
 import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 import { deduce } from "./deduce";
 
-export const EASY_TYPES: Set<ConstraintType> = new Set([
-  "same_position",
-  "not_same_position",
-]);
+/** Constraint-type difficulty tiers. Distinct from {@link Difficulty} which
+ *  also has "expert" — that's a deduction promotion, not a constraint tier. */
+export type ConstraintTier = "easy" | "medium" | "hard";
 
-export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
-  ...EASY_TYPES,
-  "next_to",
-  "left_of",
-  "before",
-]);
+/**
+ * Single source of truth for the difficulty tier of every constraint type.
+ *
+ * Adding a new ConstraintType variant to types.ts is a TypeScript error here
+ * until its tier is decided — there's no way to forget to classify it. The
+ * helpers below derive everything else from this map.
+ */
+const TYPE_TIER: Record<ConstraintType, ConstraintTier> = {
+  same_position: "easy",
+  not_same_position: "easy",
+  next_to: "medium",
+  left_of: "medium",
+  before: "medium",
+  between: "hard",
+  not_between: "hard",
+  not_next_to: "hard",
+  exact_distance: "hard",
+};
 
-// Hard types: between, not_between, not_next_to, exact_distance (plus everything else)
+const TIER_RANK: Record<ConstraintTier, number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
+
+const allTypes = Object.keys(TYPE_TIER) as ConstraintType[];
+
+// Memoized at module load. Returned as ReadonlySet so callers can't .add /
+// .delete the shared module-state instance. Without memoization,
+// filterByDifficulty would allocate a fresh Set on every call (it's invoked
+// once per generate(), so once per puzzle).
+const AT_TIER: Record<ConstraintTier, ReadonlySet<ConstraintType>> = {
+  easy: new Set(allTypes.filter((t) => TYPE_TIER[t] === "easy")),
+  medium: new Set(allTypes.filter((t) => TYPE_TIER[t] === "medium")),
+  hard: new Set(allTypes.filter((t) => TYPE_TIER[t] === "hard")),
+};
+
+const UP_TO_TIER: Record<ConstraintTier, ReadonlySet<ConstraintType>> = {
+  easy: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 0)),
+  medium: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 1)),
+  hard: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 2)),
+};
+
+/**
+ * Constraint types whose tier is exactly `tier`.
+ * `typesAtTier("hard")` → {between, not_between, not_next_to, exact_distance}.
+ */
+export function typesAtTier(tier: ConstraintTier): ReadonlySet<ConstraintType> {
+  return AT_TIER[tier];
+}
+
+/**
+ * Constraint types whose tier is `tier` or below — i.e. allowed in puzzles
+ * generated at this difficulty.
+ * `typesUpToTier("medium")` → easy + medium tiers (5 types).
+ */
+export function typesUpToTier(
+  tier: ConstraintTier,
+): ReadonlySet<ConstraintType> {
+  return UP_TO_TIER[tier];
+}
 
 /**
  * Classify puzzle difficulty. Uses constraint types as a floor (easy/medium/hard),
@@ -35,20 +87,13 @@ export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
 }
 
 function classifyByTypes(constraints: Constraint[]): Difficulty {
-  let hasHard = false;
-  let hasMedium = false;
-
+  let maxRank = 0;
   for (const c of constraints) {
-    if (!MEDIUM_TYPES.has(c.type)) {
-      hasHard = true;
-      break;
-    }
-    if (!EASY_TYPES.has(c.type)) {
-      hasMedium = true;
-    }
+    const rank = TIER_RANK[TYPE_TIER[c.type]];
+    if (rank > maxRank) maxRank = rank;
+    if (maxRank === TIER_RANK.hard) break;
   }
-
-  if (hasHard) return "hard";
-  if (hasMedium) return "medium";
+  if (maxRank === TIER_RANK.hard) return "hard";
+  if (maxRank === TIER_RANK.medium) return "medium";
   return "easy";
 }

@@ -13,7 +13,7 @@ import { createSolverContext } from "./solver";
 import { encodeConstraint, RankVarAllocator } from "./encoding";
 import { IncrementalSolver } from "./sat";
 import { renderClue } from "./clues/templates";
-import { classify, EASY_TYPES, MEDIUM_TYPES } from "./difficulty";
+import { classify, typesUpToTier } from "./difficulty";
 import { deduce } from "./deduce";
 import {
   displayAxisCategory,
@@ -468,10 +468,10 @@ function filterByDifficulty(
 ): Constraint[] {
   const allowedTypes =
     difficulty === "easy"
-      ? EASY_TYPES
+      ? typesUpToTier("easy")
       : difficulty === "medium"
-        ? MEDIUM_TYPES
-        : null; // hard allows all types
+        ? typesUpToTier("medium")
+        : null; // hard / expert: all types allowed
 
   if (!allowedTypes) return constraints;
   return constraints.filter((c) => allowedTypes.has(c.type));
