@@ -17,8 +17,12 @@
 import { beforeAll, describe, it, expect } from "vitest";
 import { generate } from "../src";
 import { deduce } from "../src/deduce";
-import { EASY_TYPES, HARD_ONLY_TYPES, MEDIUM_TYPES } from "../src/difficulty";
+import { typesAtTier, typesUpToTier } from "../src/difficulty";
 import type { ConstraintType, Difficulty } from "../src/types";
+
+const EASY_TYPES = typesUpToTier("easy");
+const MEDIUM_TYPES = typesUpToTier("medium");
+const HARD_ONLY_TYPES = typesAtTier("hard");
 
 /** True when the deduction trace requires backtracking via contradiction
  *  (or never completes). Mirrors classify()'s expert-promotion rule. */

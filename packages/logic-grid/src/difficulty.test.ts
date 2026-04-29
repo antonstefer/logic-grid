@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classify } from "./difficulty";
+import { classify, typesAtTier, typesUpToTier } from "./difficulty";
 import { makeGrid } from "./test-helpers";
 import type { Constraint } from "./types";
 
@@ -156,5 +156,35 @@ describe("classify with grid (deduction depth)", () => {
       },
     ];
     expect(classify(constraints, grid3x3)).toBe("expert");
+  });
+});
+
+describe("typesAtTier", () => {
+  it("returns only types at the requested tier (no inheritance)", () => {
+    expect(typesAtTier("easy")).toEqual(["same_position", "not_same_position"]);
+    expect(typesAtTier("medium")).toEqual(["next_to", "left_of", "before"]);
+    expect(typesAtTier("hard")).toEqual([
+      "between",
+      "not_between",
+      "not_next_to",
+      "exact_distance",
+    ]);
+  });
+});
+
+describe("typesUpToTier", () => {
+  it("returns the tier and everything below (cumulative)", () => {
+    expect([...typesUpToTier("easy")]).toEqual([
+      "same_position",
+      "not_same_position",
+    ]);
+    expect([...typesUpToTier("medium")]).toEqual([
+      "same_position",
+      "not_same_position",
+      "next_to",
+      "left_of",
+      "before",
+    ]);
+    expect(typesUpToTier("hard").size).toBe(9);
   });
 });

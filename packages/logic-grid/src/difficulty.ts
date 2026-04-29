@@ -1,14 +1,18 @@
 import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 import { deduce } from "./deduce";
 
+/** Constraint-type difficulty tiers. Distinct from {@link Difficulty} which
+ *  also has "expert" — that's a deduction promotion, not a constraint tier. */
+export type ConstraintTier = "easy" | "medium" | "hard";
+
 /**
  * Single source of truth for the difficulty tier of every constraint type.
  *
  * Adding a new ConstraintType variant to types.ts is a TypeScript error here
  * until its tier is decided — there's no way to forget to classify it. The
- * three exported sets/lists below are derived from this Record.
+ * helpers below derive everything else from this map.
  */
-const TYPE_TIER: Record<ConstraintType, "easy" | "medium" | "hard"> = {
+const TYPE_TIER: Record<ConstraintType, ConstraintTier> = {
   same_position: "easy",
   not_same_position: "easy",
   next_to: "medium",
@@ -20,25 +24,31 @@ const TYPE_TIER: Record<ConstraintType, "easy" | "medium" | "hard"> = {
   exact_distance: "hard",
 };
 
-const tierEntries = Object.entries(TYPE_TIER) as [
-  ConstraintType,
-  "easy" | "medium" | "hard",
-][];
+const TIER_RANK: Record<ConstraintTier, number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
 
-export const EASY_TYPES: Set<ConstraintType> = new Set(
-  tierEntries.filter(([, tier]) => tier === "easy").map(([t]) => t),
-);
+const allTypes = Object.keys(TYPE_TIER) as ConstraintType[];
 
-export const MEDIUM_TYPES: Set<ConstraintType> = new Set(
-  tierEntries
-    .filter(([, tier]) => tier === "easy" || tier === "medium")
-    .map(([t]) => t),
-);
+/**
+ * Constraint types whose tier is exactly `tier`.
+ * `typesAtTier("hard")` → ["between", "not_between", "not_next_to", "exact_distance"].
+ */
+export function typesAtTier(tier: ConstraintTier): ConstraintType[] {
+  return allTypes.filter((t) => TYPE_TIER[t] === tier);
+}
 
-/** Types that classify a puzzle as "hard" (i.e. tier === "hard"). */
-export const HARD_ONLY_TYPES: ConstraintType[] = tierEntries
-  .filter(([, tier]) => tier === "hard")
-  .map(([t]) => t);
+/**
+ * Constraint types whose tier is `tier` or below — i.e. allowed in puzzles
+ * generated at this difficulty.
+ * `typesUpToTier("medium")` → easy + medium tiers (5 types).
+ */
+export function typesUpToTier(tier: ConstraintTier): Set<ConstraintType> {
+  const max = TIER_RANK[tier];
+  return new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= max));
+}
 
 /**
  * Classify puzzle difficulty. Uses constraint types as a floor (easy/medium/hard),
@@ -60,20 +70,13 @@ export function classify(constraints: Constraint[], grid?: Grid): Difficulty {
 }
 
 function classifyByTypes(constraints: Constraint[]): Difficulty {
-  let hasHard = false;
-  let hasMedium = false;
-
+  let maxRank = 0;
   for (const c of constraints) {
-    if (!MEDIUM_TYPES.has(c.type)) {
-      hasHard = true;
-      break;
-    }
-    if (!EASY_TYPES.has(c.type)) {
-      hasMedium = true;
-    }
+    const rank = TIER_RANK[TYPE_TIER[c.type]];
+    if (rank > maxRank) maxRank = rank;
+    if (maxRank === TIER_RANK.hard) break;
   }
-
-  if (hasHard) return "hard";
-  if (hasMedium) return "medium";
+  if (maxRank === TIER_RANK.hard) return "hard";
+  if (maxRank === TIER_RANK.medium) return "medium";
   return "easy";
 }
