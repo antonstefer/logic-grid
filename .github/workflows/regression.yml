@@ -3,6 +3,20 @@ name: Regression
 # Difficulty-contract assertions + perf budgets on logic-grid generation.
 # Split out from ci.yml so docs-only PRs don't pay the bench cost (or risk
 # the perf-budget flake) and so we can gate strictly on logic-grid sources.
+#
+# Two consequences of this split, both intentional:
+#
+# 1. DO NOT mark `Regression / regression` as a required status check in
+#    branch protection. With a `paths:` filter, GitHub skips the workflow
+#    on filtered PRs — and a skipped required check counts as "missing,"
+#    not "passed," which blocks merge. If you ever need to require it,
+#    add a "signal-success-on-skip" companion job that always runs.
+#
+# 2. The old setup had `needs: check` so basic-test failures short-circuited
+#    bench cost. With separate workflows, regression now runs concurrently
+#    with check — you pay full bench on a logic-grid PR even if the matrix
+#    is red. Trade-off: parallelism + independent perf signal, at the cost
+#    of some wasted bench runs. Worth it at this PR volume.
 on:
   push:
     branches: [main]
