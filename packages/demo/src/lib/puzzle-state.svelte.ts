@@ -428,6 +428,47 @@ export function createPuzzleState() {
     message = null;
   }
 
+  function translateClues(locale: string) {
+    if (!puzzle) throw new Error("No active puzzle");
+    loading = true;
+    loadingMessage = "Translating clues…";
+    message = null;
+
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const current = puzzle;
+          if (!current) return;
+          const res = await fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clues: current.clues, locale }),
+          });
+          if (!res.ok) {
+            let errorMsg = "Translation failed";
+            try {
+              const body = (await res.json()) as { error: string };
+              if (body.error) errorMsg = body.error;
+            } catch {
+              // non-JSON response (e.g. HTML error page)
+            }
+            throw new Error(errorMsg);
+          }
+          const body = (await res.json()) as { clues: typeof current.clues };
+          puzzle = { ...current, clues: body.clues };
+        } catch (e) {
+          message = {
+            text: e instanceof Error ? e.message : String(e),
+            type: "error",
+          };
+        } finally {
+          loading = false;
+          loadingMessage = "Generating…";
+        }
+      })();
+    }, 0);
+  }
+
   return {
     get puzzle() {
       return puzzle;
@@ -456,5 +497,6 @@ export function createPuzzleState() {
     nudge,
     hint,
     revealCell,
+    translateClues,
   };
 }
