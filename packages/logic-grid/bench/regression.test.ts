@@ -14,11 +14,21 @@
  *      shared-runner variance while still flagging an order-of-magnitude
  *      regression.
  */
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { generate } from "../src";
 import { deduce } from "../src/deduce";
 import { EASY_TYPES, HARD_ONLY_TYPES, MEDIUM_TYPES } from "../src/difficulty";
 import type { ConstraintType, Difficulty } from "../src/types";
+
+/** True when the deduction trace requires backtracking via contradiction
+ *  (or never completes). Mirrors classify()'s expert-promotion rule. */
+function isExpertSolution(puzzle: ReturnType<typeof generate>): boolean {
+  const result = deduce(puzzle.constraints, puzzle.grid);
+  return (
+    !result.complete ||
+    result.steps.some((s) => s.technique === "contradiction")
+  );
+}
 
 const SAMPLES = 50;
 
@@ -44,7 +54,7 @@ function generateMany(
 }
 
 describe("difficulty contract", () => {
-  it("easy puzzles use only EASY_TYPES", () => {
+  it("easy puzzles use only EASY_TYPES and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "easy", SAMPLES)) {
       for (const c of puzzle.constraints) {
         expect(
@@ -52,10 +62,14 @@ describe("difficulty contract", () => {
           `seed=${seed}: ${c.type} not in EASY_TYPES`,
         ).toBe(true);
       }
+      expect(
+        isExpertSolution(puzzle),
+        `seed=${seed}: easy puzzle silently requires expert deduction`,
+      ).toBe(false);
     }
   });
 
-  it("medium puzzles use only MEDIUM_TYPES, with at least one type beyond EASY_TYPES", () => {
+  it("medium puzzles use only MEDIUM_TYPES (with one beyond EASY_TYPES) and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "medium", SAMPLES)) {
       let hasMediumOnly = false;
       for (const c of puzzle.constraints) {
@@ -69,10 +83,14 @@ describe("difficulty contract", () => {
         hasMediumOnly,
         `seed=${seed}: medium puzzle has no type beyond EASY_TYPES`,
       ).toBe(true);
+      expect(
+        isExpertSolution(puzzle),
+        `seed=${seed}: medium puzzle silently requires expert deduction`,
+      ).toBe(false);
     }
   });
 
-  it("hard puzzles include at least one type outside MEDIUM_TYPES", () => {
+  it("hard puzzles include a hard-only type and don't quietly need expert deduction", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "hard", SAMPLES)) {
       const hasHardOnly = puzzle.constraints.some(
         (c) => !MEDIUM_TYPES.has(c.type),
@@ -81,17 +99,17 @@ describe("difficulty contract", () => {
         hasHardOnly,
         `seed=${seed}: hard puzzle has no type outside MEDIUM_TYPES`,
       ).toBe(true);
+      expect(
+        isExpertSolution(puzzle),
+        `seed=${seed}: hard puzzle silently requires expert deduction`,
+      ).toBe(false);
     }
   });
 
   it("expert puzzles need contradiction (or fail to fully deduce)", () => {
     for (const { seed, puzzle } of generateMany(4, 4, "expert", SAMPLES)) {
-      const result = deduce(puzzle.constraints, puzzle.grid);
-      const requiresContradiction =
-        !result.complete ||
-        result.steps.some((s) => s.technique === "contradiction");
       expect(
-        requiresContradiction,
+        isExpertSolution(puzzle),
         `seed=${seed}: expert puzzle solvable without contradiction`,
       ).toBe(true);
     }
@@ -99,9 +117,11 @@ describe("difficulty contract", () => {
 });
 
 describe("constraint diversity", () => {
-  it("every documented hard-only constraint type is reachable from hard generation", () => {
-    // Across SAMPLES hard puzzles, each hard-only type should appear at least
-    // once. Catches a regression that silently drops a type.
+  it("every hard-only type appears across 50 seeds at 4×4 hard", () => {
+    // NOT a reachability claim — only "we hit each type with these particular
+    // 50 seeds at 4×4." A regression here can mean (a) the generator dropped
+    // a type, or (b) the seed-to-type distribution shifted enough that none
+    // of seeds 0..49 happen to land on the missing type.
     const samples = generateMany(4, 4, "hard", SAMPLES);
     const seen = new Set<ConstraintType>();
     for (const { puzzle } of samples) {
@@ -152,8 +172,12 @@ describe("constraint diversity", () => {
 describe("performance budgets", () => {
   // Budgets are intentionally ~50-100× current measured values so shared-runner
   // variance doesn't cause flakes. They're tuned to catch order-of-magnitude
-  // regressions, not micro-regressions. Earlier `describe` blocks have already
-  // run hundreds of generations by the time we get here, so JIT is warm.
+  // regressions, not micro-regressions.
+  beforeAll(() => {
+    // Warm JIT locally so the 3×3 budget doesn't flake from cold-start cost
+    // if this describe block ever runs first. Don't rely on earlier describes.
+    generate({ size: 4, categories: 4, seed: 0 });
+  });
   const sizeBudgets: { size: number; medianMs: number; runs: number }[] = [
     { size: 3, medianMs: 30, runs: 10 },
     { size: 4, medianMs: 50, runs: 10 },

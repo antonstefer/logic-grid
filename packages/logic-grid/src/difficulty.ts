@@ -1,38 +1,44 @@
 import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 import { deduce } from "./deduce";
 
-export const EASY_TYPES: Set<ConstraintType> = new Set([
-  "same_position",
-  "not_same_position",
-]);
-
-export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
-  ...EASY_TYPES,
-  "next_to",
-  "left_of",
-  "before",
-]);
-
 /**
- * Types that classify a puzzle as "hard" (anything outside MEDIUM_TYPES).
+ * Single source of truth for the difficulty tier of every constraint type.
  *
- * The intermediate Record gives us a compile-time exhaustiveness check: a new
- * ConstraintType variant added to types.ts is a TypeScript error here unless
- * its key is added below, so this list never silently drifts.
+ * Adding a new ConstraintType variant to types.ts is a TypeScript error here
+ * until its tier is decided — there's no way to forget to classify it. The
+ * three exported sets/lists below are derived from this Record.
  */
-export const HARD_ONLY_TYPES: ConstraintType[] = (
-  Object.keys({
-    same_position: true,
-    not_same_position: true,
-    next_to: true,
-    not_next_to: true,
-    left_of: true,
-    before: true,
-    between: true,
-    not_between: true,
-    exact_distance: true,
-  } satisfies Record<ConstraintType, true>) as ConstraintType[]
-).filter((t) => !MEDIUM_TYPES.has(t));
+const TYPE_TIER: Record<ConstraintType, "easy" | "medium" | "hard"> = {
+  same_position: "easy",
+  not_same_position: "easy",
+  next_to: "medium",
+  left_of: "medium",
+  before: "medium",
+  between: "hard",
+  not_between: "hard",
+  not_next_to: "hard",
+  exact_distance: "hard",
+};
+
+const tierEntries = Object.entries(TYPE_TIER) as [
+  ConstraintType,
+  "easy" | "medium" | "hard",
+][];
+
+export const EASY_TYPES: Set<ConstraintType> = new Set(
+  tierEntries.filter(([, tier]) => tier === "easy").map(([t]) => t),
+);
+
+export const MEDIUM_TYPES: Set<ConstraintType> = new Set(
+  tierEntries
+    .filter(([, tier]) => tier === "easy" || tier === "medium")
+    .map(([t]) => t),
+);
+
+/** Types that classify a puzzle as "hard" (i.e. tier === "hard"). */
+export const HARD_ONLY_TYPES: ConstraintType[] = tierEntries
+  .filter(([, tier]) => tier === "hard")
+  .map(([t]) => t);
 
 /**
  * Classify puzzle difficulty. Uses constraint types as a floor (easy/medium/hard),

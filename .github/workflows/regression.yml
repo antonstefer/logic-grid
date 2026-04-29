@@ -1,0 +1,30 @@
+name: Regression
+
+# Difficulty-contract assertions + perf budgets on logic-grid generation.
+# Split out from ci.yml so docs-only PRs don't pay the bench cost (or risk
+# the perf-budget flake) and so we can gate strictly on logic-grid sources.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/logic-grid/**"
+      - ".github/workflows/regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/logic-grid/**"
+      - ".github/workflows/regression.yml"
+
+jobs:
+  regression:
+    # Single Node version on purpose — perf budgets are calibrated for one
+    # runner shape, and the difficulty contract is runtime-stable across Nodes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run -w packages/logic-grid bench
