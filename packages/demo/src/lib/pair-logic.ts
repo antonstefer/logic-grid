@@ -22,6 +22,13 @@ export interface DerivedWrite extends CellCoord {
  * Observes a just-changed cell and returns implied writes. Pure — must not
  * mutate state. New rules (triangle, last-cell, etc.) plug into `rules[]`
  * without touching call sites.
+ *
+ * Empty-cell contract: `derive` MUST only emit writes targeting cells whose
+ * current state is `"empty"`. The engine (`applyRulesFrom`) applies writes
+ * directly without re-checking, which is what protects user-set non-empty
+ * cells from being clobbered AND guarantees fixpoint termination (each write
+ * monotonically reduces the empty-cell set). Violating this contract will
+ * silently overwrite user state.
  */
 export interface PropagationRule {
   name: string;
@@ -142,15 +149,19 @@ const rules: PropagationRule[] = [subgridUniquenessRule];
 /**
  * Run the rules engine starting from a changed cell, in-place, fixpoint.
  *
- * Multi-rule caveat for future work: `seen` prevents re-processing the same
- * cell, so if rule A confirms (a,i,b,j) and a later rule B overwrites it
- * with a different state, B's write succeeds silently (auto→auto is
- * allowed) but B's state does NOT re-run A's derivations because the cell
- * is already in `seen`. Benign with one rule (subgridUniqueness only fires
- * on `confirmed` cells and only produces `eliminated` writes, so no two
- * rules ever disagree). When a second rule lands, decide the policy: detect
- * the conflict and throw, or drop `seen` and rely on the "state already
- * equal" skip above to terminate.
+ * Termination relies on each rule respecting the {@link PropagationRule}
+ * empty-cell contract: writes target only empty cells, so each write
+ * monotonically reduces the set of empty cells, and the queue cannot loop.
+ * With today's only rule (subgridUniqueness — fires on confirmed cells,
+ * emits eliminated-state writes), every queued cell that isn't the start
+ * also produces no further derivations because rule.derive returns []
+ * for non-confirmed input.
+ *
+ * Multi-rule caveat for future work: if a second rule lands that DOES
+ * derive on non-confirmed cells, we'd need a `seen` guard (or the rules
+ * to be designed so cycles are impossible). When that day comes, also
+ * decide what to do if two rules disagree on the same cell — today the
+ * single rule never produces conflicting writes.
  */
 function applyRulesFrom(pair: PairState, start: CellCoord): void {
   // Head-index queue instead of Array.shift() so dequeue is O(1). At current
@@ -160,9 +171,6 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
   while (head < queue.length) {
     const c = queue[head++];
     for (const rule of rules) {
-      // Rules are responsible for only emitting writes that target empty
-      // cells (subgridUniqueness filters in `derive`), so we can apply each
-      // write directly without re-checking state here.
       for (const w of rule.derive(pair, c)) {
         setPair(pair, w, w.state, "auto");
         queue.push({ a: w.a, i: w.i, b: w.b, j: w.j });
