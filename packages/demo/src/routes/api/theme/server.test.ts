@@ -136,4 +136,19 @@ describe("POST /api/theme", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("returns generic 500 when AI generation throws a non-MissingEnvError", async () => {
+    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    completeJSON.mockRejectedValue(new Error("upstream blew up"));
+
+    const res = await post({
+      request: postBody({ theme: "pirates", size: 4, categories: 4 }),
+    });
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Theme generation failed");
+    // Specific failure detail must NOT leak to the client.
+    expect(body.error).not.toContain("upstream");
+  });
 });

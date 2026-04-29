@@ -107,15 +107,15 @@
 >
   <thead>
     <tr>
-      <th class="corner" role="presentation"></th>
-      <th class="corner" role="presentation"></th>
+      <td class="corner"></td>
+      <td class="corner"></td>
       {#each topCats as { cat: topCat }}
         <th class="top-cat-label" colspan={S}>{topCat.name}</th>
       {/each}
     </tr>
     <tr>
-      <th class="corner" role="presentation"></th>
-      <th class="corner" role="presentation"></th>
+      <td class="corner"></td>
+      <td class="corner"></td>
       {#each topCats as { idx: topCatIdx }}
         {#each cats[topCatIdx].values as _, tvi}
           <th
