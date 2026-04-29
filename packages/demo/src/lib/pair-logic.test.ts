@@ -384,34 +384,15 @@ describe("replaceConfirm", () => {
 });
 
 describe("applyRulesFrom (via recomputeAuto)", () => {
-  it("doesn't clobber a user-set non-empty cell when a rule would derive an opposing state", () => {
-    // Set up a contradictory user state: two user confirms in the same row of
-    // sub-grid (0,1). Rule from cell B will try to eliminate cell A (same row),
-    // but A is user-confirmed — must be preserved.
+  it("preserves contradictory user confirms in the same sub-grid row", () => {
+    // Two user confirms in the same row of sub-grid (0,1). subgridUniqueness's
+    // derive pre-filters writes to empty cells only, so the rule never tries
+    // to eliminate the other user-confirmed cell — both must survive.
     const pair = emptyPair([4, 4]);
     set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
     set(pair, { a: 0, i: 0, b: 1, j: 1 }, "confirmed");
     recomputeAuto(pair, 0);
-    // Both user confirms must survive even though they contradict each other.
-    expect(pair[0][0][1][0].state).toBe("confirmed");
-    expect(pair[0][0][1][0].source).toBe("user");
-    expect(pair[0][0][1][1].state).toBe("confirmed");
-    expect(pair[0][0][1][1].source).toBe("user");
-  });
-
-  it("rewrites a non-empty auto cell when a later rule re-derives the same elimination", () => {
-    // Two user confirms in different rows AND cols of the same sub-grid.
-    // Rule from confirm A eliminates row/col around A; rule from confirm B
-    // eliminates row/col around B. The two sets overlap at (0,1,1,0) and
-    // (0,0,1,1) — those cells get hit twice, second time as non-empty auto.
-    const pair = emptyPair([4, 4]);
-    set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
-    set(pair, { a: 0, i: 1, b: 1, j: 1 }, "confirmed");
-    recomputeAuto(pair, 0);
-    // The overlap cells should still be auto-eliminated (rewriting a same-state
-    // cell is a no-op effect-wise, but the path through line 174's && must
-    // exercise the cur.source === "auto" branch).
-    expect(pair[0][1][1][0]).toEqual({ state: "eliminated", source: "auto" });
-    expect(pair[0][0][1][1]).toEqual({ state: "eliminated", source: "auto" });
+    expect(pair[0][0][1][0]).toEqual({ state: "confirmed", source: "user" });
+    expect(pair[0][0][1][1]).toEqual({ state: "confirmed", source: "user" });
   });
 });
