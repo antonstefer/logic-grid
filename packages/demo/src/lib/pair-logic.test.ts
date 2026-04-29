@@ -199,6 +199,29 @@ describe("deriveCrossSubgrids", () => {
     );
     expect(forCrossPair).toHaveLength(0);
   });
+
+  it("skips the pinned axis when it appears as `b` in the iteration", () => {
+    // pinIdx=1 means the b loop reaches pinIdx as a > 0 iterates: a=0, b runs
+    // 1..N-1 and hits pinIdx=1 — the `b === pinIdx` continue must fire.
+    // Without the guard, derivation would (wrongly) treat pin↔non-pin pairs
+    // as cross sub-grids.
+    const pair = emptyPair([4, 4, 4]);
+    // Prime pinned-axis (axis 1) facts so a non-pinned cross derivation
+    // would otherwise be triggered between axis 0 and axis 2.
+    set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
+    set(pair, { a: 2, i: 0, b: 1, j: 0 }, "confirmed");
+    const writes = deriveCrossSubgrids(pair, 1);
+    // The (axis 0 ↔ axis 2) cross must still be derived…
+    expect(writes).toContainEqual({
+      a: 0,
+      i: 0,
+      b: 2,
+      j: 0,
+      state: "confirmed",
+    });
+    // …but no write should target the pinned axis itself.
+    expect(writes.every((w) => w.a !== 1 && w.b !== 1)).toBe(true);
+  });
 });
 
 describe("recomputeAuto", () => {
@@ -349,5 +372,46 @@ describe("replaceConfirm", () => {
     replaceConfirm(pair, { a: 1, i: 0, b: 2, j: 1 });
     expect(pair[1][0][2][0]).toEqual({ state: "confirmed", source: "auto" });
     expect(pair[1][0][2][1]).toEqual({ state: "confirmed", source: "user" });
+  });
+
+  it("no-ops when a === b (no self sub-grid)", () => {
+    const pair = emptyPair(sizes);
+    set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
+    const before = JSON.stringify(pair);
+    replaceConfirm(pair, { a: 0, i: 0, b: 0, j: 1 });
+    expect(JSON.stringify(pair)).toBe(before);
+  });
+});
+
+describe("applyRulesFrom (via recomputeAuto)", () => {
+  it("doesn't clobber a user-set non-empty cell when a rule would derive an opposing state", () => {
+    // Set up a contradictory user state: two user confirms in the same row of
+    // sub-grid (0,1). Rule from cell B will try to eliminate cell A (same row),
+    // but A is user-confirmed — must be preserved.
+    const pair = emptyPair([4, 4]);
+    set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
+    set(pair, { a: 0, i: 0, b: 1, j: 1 }, "confirmed");
+    recomputeAuto(pair, 0);
+    // Both user confirms must survive even though they contradict each other.
+    expect(pair[0][0][1][0].state).toBe("confirmed");
+    expect(pair[0][0][1][0].source).toBe("user");
+    expect(pair[0][0][1][1].state).toBe("confirmed");
+    expect(pair[0][0][1][1].source).toBe("user");
+  });
+
+  it("rewrites a non-empty auto cell when a later rule re-derives the same elimination", () => {
+    // Two user confirms in different rows AND cols of the same sub-grid.
+    // Rule from confirm A eliminates row/col around A; rule from confirm B
+    // eliminates row/col around B. The two sets overlap at (0,1,1,0) and
+    // (0,0,1,1) — those cells get hit twice, second time as non-empty auto.
+    const pair = emptyPair([4, 4]);
+    set(pair, { a: 0, i: 0, b: 1, j: 0 }, "confirmed");
+    set(pair, { a: 0, i: 1, b: 1, j: 1 }, "confirmed");
+    recomputeAuto(pair, 0);
+    // The overlap cells should still be auto-eliminated (rewriting a same-state
+    // cell is a no-op effect-wise, but the path through line 174's && must
+    // exercise the cur.source === "auto" branch).
+    expect(pair[0][1][1][0]).toEqual({ state: "eliminated", source: "auto" });
+    expect(pair[0][0][1][1]).toEqual({ state: "eliminated", source: "auto" });
   });
 });

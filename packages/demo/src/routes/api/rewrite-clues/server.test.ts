@@ -108,4 +108,18 @@ describe("POST /api/rewrite-clues", () => {
     const res = await post({ request: postBody({ clues: SAMPLE_CLUES }) });
     expect(res.status).toBe(400);
   });
+
+  it("returns generic 500 when rewriting throws a non-MissingEnvError", async () => {
+    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    completeJSON.mockRejectedValue(new Error("upstream blew up"));
+
+    const res = await post({
+      request: postBody({ clues: SAMPLE_CLUES, style: "pirate" }),
+    });
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Clue rewriting failed");
+    expect(body.error).not.toContain("upstream");
+  });
 });

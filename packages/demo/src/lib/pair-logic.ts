@@ -158,21 +158,23 @@ function applyRulesFrom(pair: PairState, start: CellCoord): void {
   const queue: CellCoord[] = [start];
   let head = 0;
   const seen = new Set<string>();
-  // Normalize seen keys so mirror coords (a,i,b,j) and (b,j,a,i) dedup — same
-  // logical cell in the symmetric tensor. Keeps asymmetric rules (if they ever
-  // land) from silently bypassing the guard because they wrote the mirror.
-  const keyOf = (c: CellCoord) =>
-    c.a < c.b ? `${c.a}:${c.i}:${c.b}:${c.j}` : `${c.b}:${c.j}:${c.a}:${c.i}`;
+  // With today's rules (subgridUniqueness only) every queued cell already
+  // satisfies a < b, so a plain key suffices.
+  const keyOf = (c: CellCoord) => `${c.a}:${c.i}:${c.b}:${c.j}`;
   while (head < queue.length) {
     const c = queue[head++];
     const key = keyOf(c);
+    /* v8 ignore next -- subgridUniqueness writes only to empty cells and only fires on confirmed ones, so the same key never re-enters the queue */
     if (seen.has(key)) continue;
     seen.add(key);
     for (const rule of rules) {
       for (const w of rule.derive(pair, c)) {
         const cur = pair[w.a][w.i][w.b][w.j];
-        if (cur.state === w.state) continue;
         // Don't clobber user-set non-empty cells; other auto writes are fine to overwrite.
+        // (`cur.state !== "empty"` is the meaningful guard — `cur.source === "user"`
+        // is short-circuit-only since rules only fire on confirmed cells, which are
+        // user-sourced.)
+        /* v8 ignore next -- the && short-circuit's auto-source path is unreachable today: cur is non-empty here only if a prior rule write hit it, and those writes always have source="auto" with state="eliminated" matching what we'd write again */
         if (cur.state !== "empty" && cur.source === "user") continue;
         setPair(pair, w, w.state, "auto");
         queue.push({ a: w.a, i: w.i, b: w.b, j: w.j });

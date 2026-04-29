@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage"
   },
   "dependencies": {
     "logic-grid": "*",
