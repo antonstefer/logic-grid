@@ -32,12 +32,27 @@ const TIER_RANK: Record<ConstraintTier, number> = {
 
 const allTypes = Object.keys(TYPE_TIER) as ConstraintType[];
 
+// Memoized at module load — both helpers are pure lookups by the time
+// generate() / classify() / filterByDifficulty() call them. Without this,
+// generate() would allocate a fresh Set on every call (it's on the hot path).
+const AT_TIER: Record<ConstraintTier, ConstraintType[]> = {
+  easy: allTypes.filter((t) => TYPE_TIER[t] === "easy"),
+  medium: allTypes.filter((t) => TYPE_TIER[t] === "medium"),
+  hard: allTypes.filter((t) => TYPE_TIER[t] === "hard"),
+};
+
+const UP_TO_TIER: Record<ConstraintTier, Set<ConstraintType>> = {
+  easy: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 0)),
+  medium: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 1)),
+  hard: new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= 2)),
+};
+
 /**
  * Constraint types whose tier is exactly `tier`.
  * `typesAtTier("hard")` → ["between", "not_between", "not_next_to", "exact_distance"].
  */
 export function typesAtTier(tier: ConstraintTier): ConstraintType[] {
-  return allTypes.filter((t) => TYPE_TIER[t] === tier);
+  return AT_TIER[tier];
 }
 
 /**
@@ -46,8 +61,7 @@ export function typesAtTier(tier: ConstraintTier): ConstraintType[] {
  * `typesUpToTier("medium")` → easy + medium tiers (5 types).
  */
 export function typesUpToTier(tier: ConstraintTier): Set<ConstraintType> {
-  const max = TIER_RANK[tier];
-  return new Set(allTypes.filter((t) => TIER_RANK[TYPE_TIER[t]] <= max));
+  return UP_TO_TIER[tier];
 }
 
 /**
