@@ -26,6 +26,10 @@ jobs:
     # Difficulty-contract assertions + perf budgets on logic-grid generation.
     # Single Node version (perf budgets calibrated for one runner shape) and
     # gated on `check` so we don't spend bench time when basic tests are red.
+    # Note: `needs: check` waits for the FULL matrix [20, 22, 24] — a flake on
+    # any Node version blocks the regression job. Intentional (we want all
+    # supported Nodes green before spending bench time), but worth knowing
+    # when debugging an apparent regression-job hang.
     needs: check
     runs-on: ubuntu-latest
     steps:

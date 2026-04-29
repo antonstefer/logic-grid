@@ -3,7 +3,7 @@
  * (vitest.bench.ts config), not the main test suite — exercising 50+ puzzles
  * per (size, difficulty) is too slow for the standard `check` loop.
  *
- * Two layers:
+ * Three layers:
  *   1. Difficulty contract — directly mirrors EASY_TYPES / MEDIUM_TYPES from
  *      difficulty.ts and the deduce-based expert promotion. Guarantees the
  *      generator never silently leaks a higher-tier constraint into a lower
@@ -17,81 +17,95 @@
 import { describe, it, expect } from "vitest";
 import { generate } from "../src";
 import { deduce } from "../src/deduce";
-import { EASY_TYPES, MEDIUM_TYPES } from "../src/difficulty";
+import { EASY_TYPES, HARD_ONLY_TYPES, MEDIUM_TYPES } from "../src/difficulty";
 import type { ConstraintType, Difficulty } from "../src/types";
 
-const HARD_ONLY_TYPES: ConstraintType[] = [
-  "between",
-  "not_between",
-  "not_next_to",
-  "exact_distance",
-];
-
 const SAMPLES = 50;
+
+interface Sample {
+  seed: number;
+  puzzle: ReturnType<typeof generate>;
+}
 
 function generateMany(
   size: number,
   categories: number,
   difficulty: Difficulty,
   count: number,
-): ReturnType<typeof generate>[] {
-  const out: ReturnType<typeof generate>[] = [];
+): Sample[] {
+  const out: Sample[] = [];
   for (let seed = 0; seed < count; seed++) {
-    out.push(generate({ size, categories, difficulty, seed }));
+    out.push({
+      seed,
+      puzzle: generate({ size, categories, difficulty, seed }),
+    });
   }
   return out;
 }
 
 describe("difficulty contract", () => {
   it("easy puzzles use only EASY_TYPES", () => {
-    const puzzles = generateMany(4, 4, "easy", SAMPLES);
-    for (const p of puzzles) {
-      for (const c of p.constraints) {
-        expect(EASY_TYPES.has(c.type)).toBe(true);
+    for (const { seed, puzzle } of generateMany(4, 4, "easy", SAMPLES)) {
+      for (const c of puzzle.constraints) {
+        expect(
+          EASY_TYPES.has(c.type),
+          `seed=${seed}: ${c.type} not in EASY_TYPES`,
+        ).toBe(true);
       }
     }
   });
 
   it("medium puzzles use only MEDIUM_TYPES, with at least one type beyond EASY_TYPES", () => {
-    const puzzles = generateMany(4, 4, "medium", SAMPLES);
-    for (const p of puzzles) {
+    for (const { seed, puzzle } of generateMany(4, 4, "medium", SAMPLES)) {
       let hasMediumOnly = false;
-      for (const c of p.constraints) {
-        expect(MEDIUM_TYPES.has(c.type)).toBe(true);
+      for (const c of puzzle.constraints) {
+        expect(
+          MEDIUM_TYPES.has(c.type),
+          `seed=${seed}: ${c.type} not in MEDIUM_TYPES`,
+        ).toBe(true);
         if (!EASY_TYPES.has(c.type)) hasMediumOnly = true;
       }
-      expect(hasMediumOnly).toBe(true);
+      expect(
+        hasMediumOnly,
+        `seed=${seed}: medium puzzle has no type beyond EASY_TYPES`,
+      ).toBe(true);
     }
   });
 
   it("hard puzzles include at least one type outside MEDIUM_TYPES", () => {
-    const puzzles = generateMany(4, 4, "hard", SAMPLES);
-    for (const p of puzzles) {
-      const hasHardOnly = p.constraints.some((c) => !MEDIUM_TYPES.has(c.type));
-      expect(hasHardOnly).toBe(true);
+    for (const { seed, puzzle } of generateMany(4, 4, "hard", SAMPLES)) {
+      const hasHardOnly = puzzle.constraints.some(
+        (c) => !MEDIUM_TYPES.has(c.type),
+      );
+      expect(
+        hasHardOnly,
+        `seed=${seed}: hard puzzle has no type outside MEDIUM_TYPES`,
+      ).toBe(true);
     }
   });
 
   it("expert puzzles need contradiction (or fail to fully deduce)", () => {
-    const puzzles = generateMany(4, 4, "expert", SAMPLES);
-    for (const p of puzzles) {
-      const result = deduce(p.constraints, p.grid);
+    for (const { seed, puzzle } of generateMany(4, 4, "expert", SAMPLES)) {
+      const result = deduce(puzzle.constraints, puzzle.grid);
       const requiresContradiction =
         !result.complete ||
         result.steps.some((s) => s.technique === "contradiction");
-      expect(requiresContradiction).toBe(true);
+      expect(
+        requiresContradiction,
+        `seed=${seed}: expert puzzle solvable without contradiction`,
+      ).toBe(true);
     }
   });
 });
 
 describe("constraint diversity", () => {
   it("every documented hard-only constraint type is reachable from hard generation", () => {
-    // Across SAMPLES hard puzzles, each of the 4 hard-only types should appear
-    // at least once. Catches a regression that silently drops a type.
-    const puzzles = generateMany(4, 4, "hard", SAMPLES);
+    // Across SAMPLES hard puzzles, each hard-only type should appear at least
+    // once. Catches a regression that silently drops a type.
+    const samples = generateMany(4, 4, "hard", SAMPLES);
     const seen = new Set<ConstraintType>();
-    for (const p of puzzles) {
-      for (const c of p.constraints) {
+    for (const { puzzle } of samples) {
+      for (const c of puzzle.constraints) {
         if (!MEDIUM_TYPES.has(c.type)) seen.add(c.type);
       }
     }
@@ -107,11 +121,11 @@ describe("constraint diversity", () => {
     // same_position is structural, not a bug.
     const difficulties: Difficulty[] = ["medium", "hard", "expert"];
     for (const difficulty of difficulties) {
-      const puzzles = generateMany(4, 4, difficulty, SAMPLES);
+      const samples = generateMany(4, 4, difficulty, SAMPLES);
       const counts = new Map<ConstraintType, number>();
       let total = 0;
-      for (const p of puzzles) {
-        for (const c of p.constraints) {
+      for (const { puzzle } of samples) {
+        for (const c of puzzle.constraints) {
           counts.set(c.type, (counts.get(c.type) ?? 0) + 1);
           total++;
         }
@@ -126,10 +140,11 @@ describe("constraint diversity", () => {
   });
 
   it("4×4 medium puzzles have a sane clue count", () => {
-    const puzzles = generateMany(4, 4, "medium", SAMPLES);
-    for (const p of puzzles) {
-      expect(p.constraints.length).toBeGreaterThanOrEqual(3);
-      expect(p.constraints.length).toBeLessThanOrEqual(15);
+    for (const { seed, puzzle } of generateMany(4, 4, "medium", SAMPLES)) {
+      expect(puzzle.constraints.length, `seed=${seed}`).toBeGreaterThanOrEqual(
+        3,
+      );
+      expect(puzzle.constraints.length, `seed=${seed}`).toBeLessThanOrEqual(15);
     }
   });
 });
@@ -137,7 +152,8 @@ describe("constraint diversity", () => {
 describe("performance budgets", () => {
   // Budgets are intentionally ~50-100× current measured values so shared-runner
   // variance doesn't cause flakes. They're tuned to catch order-of-magnitude
-  // regressions, not micro-regressions.
+  // regressions, not micro-regressions. Earlier `describe` blocks have already
+  // run hundreds of generations by the time we get here, so JIT is warm.
   const sizeBudgets: { size: number; medianMs: number; runs: number }[] = [
     { size: 3, medianMs: 30, runs: 10 },
     { size: 4, medianMs: 50, runs: 10 },
@@ -146,9 +162,6 @@ describe("performance budgets", () => {
     { size: 7, medianMs: 600, runs: 5 },
     { size: 8, medianMs: 1200, runs: 5 },
   ];
-
-  // Warm-up to avoid measuring JIT compile of the first generation.
-  generate({ size: 4, categories: 4, seed: 1 });
 
   for (const { size, medianMs, runs } of sizeBudgets) {
     it(`generates ${size}×${size} puzzles within ${medianMs}ms (median of ${runs})`, () => {
@@ -159,6 +172,9 @@ describe("performance budgets", () => {
         times.push(performance.now() - t0);
       }
       times.sort((a, b) => a - b);
+      // Upper-middle for even N (matches profile.ts) — slightly conservative
+      // versus the strict (5th + 6th) / 2 average. Bumping `runs` is the
+      // first lever to pull if this gets noisy on shared runners.
       const median = times[Math.floor(times.length / 2)];
       expect(median).toBeLessThanOrEqual(medianMs);
     });

@@ -1,6 +1,26 @@
 import type { Constraint, ConstraintType, Difficulty, Grid } from "./types";
 import { deduce } from "./deduce";
 
+/**
+ * Every supported constraint type. Declared as a Record so a new
+ * ConstraintType variant in types.ts forces a compile-time update here:
+ * a missing key is a TypeScript error rather than silent stale config.
+ */
+const ALL_CONSTRAINT_TYPES_PRESENT: Record<ConstraintType, true> = {
+  same_position: true,
+  not_same_position: true,
+  next_to: true,
+  not_next_to: true,
+  left_of: true,
+  before: true,
+  between: true,
+  not_between: true,
+  exact_distance: true,
+};
+export const ALL_CONSTRAINT_TYPES: ConstraintType[] = Object.keys(
+  ALL_CONSTRAINT_TYPES_PRESENT,
+) as ConstraintType[];
+
 export const EASY_TYPES: Set<ConstraintType> = new Set([
   "same_position",
   "not_same_position",
@@ -13,7 +33,10 @@ export const MEDIUM_TYPES: Set<ConstraintType> = new Set([
   "before",
 ]);
 
-// Hard types: between, not_between, not_next_to, exact_distance (plus everything else)
+/** Types that classify a puzzle as "hard" (anything outside MEDIUM_TYPES). */
+export const HARD_ONLY_TYPES: ConstraintType[] = ALL_CONSTRAINT_TYPES.filter(
+  (t) => !MEDIUM_TYPES.has(t),
+);
 
 /**
  * Classify puzzle difficulty. Uses constraint types as a floor (easy/medium/hard),
