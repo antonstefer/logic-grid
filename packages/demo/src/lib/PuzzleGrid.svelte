@@ -18,9 +18,10 @@
     pair: PairState;
     /**
      * Optional localization overlay. Maps from canonical category / value
-     * names to localized display strings. Renderer falls back to the
-     * canonical name when a key is absent so partial localization still
-     * works gracefully.
+     * names to localized display strings. When set, every canonical key
+     * MUST be present — the renderer throws on a missing entry rather
+     * than silently rendering a half-localized grid. When `null`, the
+     * grid renders canonical names (the English-locale path).
      */
     localization?: PuzzleLocalization | null;
     onConfirm: (coord: CellCoord) => void;

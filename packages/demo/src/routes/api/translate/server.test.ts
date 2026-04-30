@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
-import { createAnthropicClient } from "logic-grid-ai";
+import { createAnthropicClient, VALIDATOR_PROMPT_HEADER } from "logic-grid-ai";
 import { _resetAnthropicClientCache } from "$lib/server/anthropic";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
@@ -134,7 +134,7 @@ function dispatchByPrompt(
   validatorPayload: unknown,
 ): void {
   completeJSON.mockImplementation((prompt: string) => {
-    if (prompt.includes("reviewing translated clues")) {
+    if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
       return Promise.resolve(validatorPayload);
     }
     return Promise.resolve(translatorPayload);
@@ -205,6 +205,42 @@ describe("POST /api/translate", () => {
     const res = await post({
       request: postBody({
         puzzle: { ...SAMPLE_PUZZLE, clues: [{ text: "no constraint" }] },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a clue is null", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: { ...SAMPLE_PUZZLE, clues: [null] },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a clue's text is not a string", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          clues: [{ text: 42, constraint: { type: "same_position" } }],
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a clue's constraint has no `type` field", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          clues: [{ text: "x", constraint: { a: "Alice", b: "Red" } }],
+        },
         locale: "German",
       }),
     });

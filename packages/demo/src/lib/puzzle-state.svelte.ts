@@ -13,8 +13,9 @@ import { buildNudgeText } from "./nudge-text";
 /**
  * Localization maps applied on top of a canonical English puzzle.
  * Keys are canonical names from the source puzzle; values are localized
- * display strings. Renderers fall back to the canonical name when a key
- * is absent.
+ * display strings. When this object is present, every canonical category
+ * and every canonical value MUST have a non-empty entry — the renderer
+ * throws on a missing key rather than masking the bug with a fallback.
  */
 export interface PuzzleLocalization {
   categoryNames: Record<string, string>;

@@ -14,15 +14,19 @@ function isValidPuzzleShape(p: unknown): p is Puzzle {
   if (!Array.isArray(grid.categories) || grid.categories.length === 0)
     return false;
   if (typeof grid.size !== "number") return false;
-  return obj.clues.every(
-    (c: unknown) =>
-      typeof c === "object" &&
-      c !== null &&
-      "text" in c &&
-      typeof (c as Record<string, unknown>).text === "string" &&
-      "constraint" in c &&
-      typeof (c as Record<string, unknown>).constraint === "object",
-  );
+  return obj.clues.every((c: unknown) => {
+    if (typeof c !== "object" || c === null) return false;
+    const clue = c as Record<string, unknown>;
+    if (typeof clue.text !== "string") return false;
+    if (typeof clue.constraint !== "object" || clue.constraint === null)
+      return false;
+    // Reject before burning AI calls: a malformed constraint passes the
+    // outer object check but causes the translator to drift; require a
+    // string `type` so the translate pipeline gets meaningful input.
+    const c2 = clue.constraint as Record<string, unknown>;
+    if (typeof c2.type !== "string") return false;
+    return true;
+  });
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -42,6 +46,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
   try {
     const client = getAnthropicClient();
+    // Demo deliberately uses one Anthropic client for both translator and
+    // validator roles. Production AOT pipelines should pass a separate
+    // `validator` (different model) — see logic-grid-ai README for why.
     const result = await translate({ puzzle, locale, client });
     return json(result);
   } catch (e) {
