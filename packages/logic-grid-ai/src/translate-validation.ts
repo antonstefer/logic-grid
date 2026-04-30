@@ -66,6 +66,9 @@ const IS_ASYMMETRIC: Record<ConstraintType, boolean> = {
   exact_distance: false,
 };
 
+const ASYMMETRIC_TYPES = CONSTRAINT_TYPES.filter((t) => IS_ASYMMETRIC[t]);
+const SYMMETRIC_TYPES = CONSTRAINT_TYPES.filter((t) => !IS_ASYMMETRIC[t]);
+
 /** Per-clue length budget for translated clue text. */
 const MAX_CLUE_LENGTH = 500;
 
@@ -327,12 +330,11 @@ For each clue, parse the ${locale} sentence back to a constraint and verify:
    distinct from \`same_position\`. If the negation is dropped, return the
    POSITIVE type so the mismatch is visible.
 
-2. directionOk (only meaningful for \`before\` and \`left_of\`): is the subject
+2. directionOk (only meaningful for ${ASYMMETRIC_TYPES.map((t) => `\`${t}\``).join(" and ")}): is the subject
    of the ${locale} sentence the same entity as the source constraint's \`a\`
    field? If the translation says "B is before A" when the source says
    \`before(a=A, b=B)\`, that's a flip — return false. For symmetric
-   constraints (same_position, not_same_position, next_to, not_next_to,
-   between, not_between, exact_distance), always return true.
+   constraints (${SYMMETRIC_TYPES.join(", ")}), always return true.
 
 3. numericOk: are all numbers and units from the source constraint preserved
    exactly in the ${locale} text?
