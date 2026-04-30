@@ -96,6 +96,15 @@ const MIDDLE_TYPES = CONSTRAINT_TYPES.filter((t) => HAS_MIDDLE[t]);
 const MAX_CLUE_LENGTH = 500;
 
 /**
+ * Per-label length budget for localized category names and value labels.
+ * Inputs are capped at 100 chars (per the demo route's MAX_NAME_LENGTH);
+ * 200 leaves headroom for verbose locales (German is roughly 1.5×
+ * English) without letting a 10KB AI hallucination through to the
+ * renderer.
+ */
+const MAX_LABEL_LENGTH = 200;
+
+/**
  * Stable header that opens every validator prompt. Exported so tests
  * (and consumers wiring multiple AI clients in front of `translate`) can
  * dispatch translator vs validator calls without depending on the rest
@@ -226,6 +235,16 @@ export function checkTranslationStructure(
       );
       continue;
     }
+    if (localized.length > MAX_LABEL_LENGTH) {
+      errors.push(
+        err(
+          "long_category_name",
+          `Localized name for category "${cat.name}" is too long (${localized.length} chars, max ${MAX_LABEL_LENGTH}).`,
+          { key: cat.name },
+        ),
+      );
+      continue;
+    }
     const lower = localized.trim().toLowerCase();
     const earlier = seenCategoryLabels.get(lower);
     if (earlier !== undefined) {
@@ -263,6 +282,16 @@ export function checkTranslationStructure(
           err(
             "empty_value_label",
             `Localized label for value "${value}" is empty.`,
+            { key: value },
+          ),
+        );
+        continue;
+      }
+      if (localized.length > MAX_LABEL_LENGTH) {
+        errors.push(
+          err(
+            "long_value_label",
+            `Localized label for value "${value}" is too long (${localized.length} chars, max ${MAX_LABEL_LENGTH}).`,
             { key: value },
           ),
         );

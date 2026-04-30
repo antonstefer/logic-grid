@@ -198,6 +198,8 @@ const localized = await translate({
 ```
 
 > **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for low-variance (near-deterministic — Anthropic has no seed, so minor cross-run variance is still possible) verdicts.
+>
+> **Footgun:** if you pass `client` but not `validator`, the validator reuses your `client` as-is — including its temperature. The temperature-0 default fires only when **both** are omitted. If you want low-variance verdicts AND a custom translator, pass both explicitly (e.g. `validator: createAnthropicClient(apiKey, { temperature: 0 })`).
 
 > **Proper nouns stay verbatim.** People names, place names, brand names, and numeric/unit literals (`1972`, `8%`, `7am`) map to themselves in `valueLabels` and remain unchanged in clue text. Descriptive words (colors, animals, common-noun categories) translate, with grammatical inflection in clue text expected (`yellow` → bare label `gelb`, inflected forms `gelben` / `gelbe` are correct in clue context).
 
@@ -212,9 +214,11 @@ If validation fails on every attempt, `translate` throws a `TranslationError` ca
 | `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                 |
 | `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`       |
 | `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                             |
+| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                |
 | `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive) |
 | `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
 | `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
+| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                  |
 | `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
 | `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
 | `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |

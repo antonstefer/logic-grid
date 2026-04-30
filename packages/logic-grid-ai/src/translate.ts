@@ -130,17 +130,21 @@ C. \`valueLabels\`: a map from each canonical category value to its localized
    - Negative constraints (\`not_*\`) MUST preserve the negation.
 2. Preserve directional asymmetry. For \`before\` and \`left_of\`, the
    subject is \`a\` and the object is \`b\` — do not swap them.
-3. **Proper nouns and literal values stay verbatim** in BOTH the clue text
+3. Preserve the middle role. For \`between\` and \`not_between\`, the
+   \`middle\` field is the entity in the middle — do not swap it with
+   \`outer1\` or \`outer2\`. \`between(outer1=A, middle=B, outer2=C)\`
+   translates as "B is between A and C", NOT "A is between B and C".
+4. **Proper nouns and literal values stay verbatim** in BOTH the clue text
    AND \`valueLabels\`:
    - People names (Alice, Bob, Carol).
    - Place names, brand names, ship names, fund names.
    - Numeric or unit literals like "1972", "8%", "7am".
    In \`valueLabels\`, these map to themselves: \`{ "Alice": "Alice" }\`.
-4. **Descriptive words and adjectives translate** in both surfaces. Color
+5. **Descriptive words and adjectives translate** in both surfaces. Color
    names, animal names, common-noun categories. Inflections in clue text
    are expected (e.g. "yellow" → "gelb" in the bare label, "gelben" /
    "gelbe" in the inflected clue text — both correct).
-5. Category names ARE descriptive — translate them too unless they're
+6. Category names ARE descriptive — translate them too unless they're
    already a proper noun.
 
 ## Categories
@@ -246,19 +250,21 @@ export async function translate(
 
   const schema = buildSchema(puzzle.clues.length);
 
-  let lastErrors: TranslationValidationError[] | undefined;
+  // Init as `[]` rather than undefined so the throw path below doesn't
+  // need a non-null assertion. If MAX_RETRIES is ever lowered to 0, the
+  // function throws cleanly with an empty errors array instead of
+  // crashing on `lastErrors!.map`.
+  let lastErrors: TranslationValidationError[] = [];
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     // Only feed back errors the translator can actually act on. Validator-
     // ordering issues (verdict_index_mismatch) are noise to the translator.
     const translatorFeedback = lastErrors
-      ?.filter((e) => !VALIDATOR_ONLY_CODES.has(e.code))
+      .filter((e) => !VALIDATOR_ONLY_CODES.has(e.code))
       .map((e) => e.message);
     const prompt = buildPrompt(
       sanitizedOptions,
-      translatorFeedback && translatorFeedback.length > 0
-        ? translatorFeedback
-        : undefined,
+      translatorFeedback.length > 0 ? translatorFeedback : undefined,
     );
     const raw = await translator.completeJSON<TranslateRawResult>(
       prompt,
@@ -292,9 +298,9 @@ export async function translate(
   }
 
   throw new TranslationError(
-    `Translation to ${cleanLocale} failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!
+    `Translation to ${cleanLocale} failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors
       .map((e) => e.message)
       .join("\n")}`,
-    lastErrors!,
+    lastErrors,
   );
 }

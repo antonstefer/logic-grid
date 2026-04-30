@@ -241,6 +241,16 @@ describe("checkTranslationStructure", () => {
     expect(hasCode(errors, "empty_category_name")).toBe(true);
   });
 
+  it("rejects categoryNames value over the length cap", () => {
+    const raw = validRaw();
+    raw.categoryNames.Color = "x".repeat(201);
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    expect(hasCode(errors, "long_category_name")).toBe(true);
+    expect(errors.find((e) => e.code === "long_category_name")?.key).toBe(
+      "Color",
+    );
+  });
+
   it("rejects missing valueLabels key", () => {
     const raw = validRaw();
     delete raw.valueLabels.Carol;
@@ -264,6 +274,14 @@ describe("checkTranslationStructure", () => {
     raw.valueLabels.Red = 42;
     const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
     expect(hasCode(errors, "empty_value_label")).toBe(true);
+  });
+
+  it("rejects valueLabels value over the length cap", () => {
+    const raw = validRaw();
+    raw.valueLabels.Red = "x".repeat(201);
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    expect(hasCode(errors, "long_value_label")).toBe(true);
+    expect(errors.find((e) => e.code === "long_value_label")?.key).toBe("Red");
   });
 
   it("rejects two categories mapped to the same localized name", () => {
