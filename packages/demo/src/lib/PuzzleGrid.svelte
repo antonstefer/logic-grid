@@ -6,6 +6,10 @@
     CellState,
     PuzzleLocalization,
   } from "./puzzle-state.svelte";
+  import {
+    categoryLabel as categoryLabelFn,
+    valueLabel as valueLabelFn,
+  } from "./label-fns";
 
   let {
     puzzleGrid,
@@ -55,50 +59,15 @@
     return list;
   });
 
-  // No silent fallbacks: when localization is set, every canonical key is
-  // expected to have an entry (the structural validator enforces this).
-  // A missing entry indicates corrupted output that bypassed validation —
-  // throw rather than render a half-localized grid that hides the bug.
-
+  // Label resolution is in label-fns.ts so the throw paths (missing
+  // localization key, displayLabels length mismatch) can be unit-tested
+  // without Svelte component-test infrastructure.
   function categoryLabel(name: string): string {
-    if (localization === null) return name;
-    const localized = localization.categoryNames[name];
-    if (localized === undefined) {
-      throw new Error(
-        `Localization is missing categoryNames entry for "${name}"`,
-      );
-    }
-    return localized;
+    return categoryLabelFn(name, localization);
   }
 
   function valueLabel(catIdx: number, valIdx: number): string {
-    const cat = cats[catIdx];
-    const canonical = cat.values[valIdx];
-    // displayLabels (when present) are the consumer's chosen visual form
-    // for the grid — usually a universal abbreviation like "1, 2, 3, 4"
-    // for House. They take priority over localization regardless of locale,
-    // matching the English-locale behavior. AI-translated forms still
-    // appear in clue text where they read naturally in the target locale.
-    // logic-grid's contract is that displayLabels matches values length;
-    // if it doesn't, that's an upstream bug and we surface it instead of
-    // quietly substituting the canonical key.
-    if (cat.ordered === true && cat.displayLabels) {
-      const label = cat.displayLabels[valIdx];
-      if (label === undefined) {
-        throw new Error(
-          `Category "${cat.name}" has displayLabels of length ${cat.displayLabels.length} but values has ${cat.values.length} entries (index ${valIdx} out of range)`,
-        );
-      }
-      return label;
-    }
-    if (localization === null) return canonical;
-    const localized = localization.valueLabels[canonical];
-    if (localized === undefined) {
-      throw new Error(
-        `Localization is missing valueLabels entry for "${canonical}"`,
-      );
-    }
-    return localized;
+    return valueLabelFn(cats[catIdx], valIdx, localization);
   }
 
   function cellSymbol(state: CellState): string {

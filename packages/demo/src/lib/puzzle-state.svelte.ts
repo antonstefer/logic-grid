@@ -34,6 +34,12 @@ export interface PuzzleLocalization {
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
+  // Snapshot of the puzzle's English clues at generate time, used as the
+  // canonical source for every translate request. Without this, a second
+  // translation (e.g. German → French) would send the German text back
+  // to the API under a prompt header that says "from English to French",
+  // misleading the model and the validator.
+  let originalClues = $state<Puzzle["clues"] | null>(null);
   let localization = $state<PuzzleLocalization | null>(null);
   let pair = $state<PairState>([]);
   let genTime = $state(0);
@@ -79,6 +85,7 @@ export function createPuzzleState() {
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
     localization = null; // canonical names changed; previous localization is stale
+    originalClues = null; // English source is regenerated below; clear stale snapshot
 
     setTimeout(() => {
       void (async () => {
@@ -154,6 +161,10 @@ export function createPuzzleState() {
         }
         pair = initPair(puzzle.grid.categories);
         hintSteps = [];
+        // Snapshot the post-rewrite English clues. Translate always sends
+        // this snapshot, so successive translations stay anchored to the
+        // English source instead of round-tripping through prior locales.
+        originalClues = puzzle.clues;
         loading = false;
         loadingMessage = "Generating…";
       })();
@@ -444,11 +455,16 @@ export function createPuzzleState() {
 
   function translatePuzzle(locale: string) {
     if (!puzzle) throw new Error("No active puzzle");
+    if (!originalClues)
+      throw new Error(
+        "originalClues is missing — it should have been set when the puzzle was generated.",
+      );
     // Capture before setTimeout so the async closure has a non-null target
     // without needing a defensive null guard inside. The Translate button is
     // disabled while loading, so the puzzle can't be replaced before the
     // fetch completes.
     const target = puzzle;
+    const sourceClues = originalClues;
     loading = true;
     loadingMessage = "Translating puzzle…";
     message = null;
@@ -456,10 +472,17 @@ export function createPuzzleState() {
     setTimeout(() => {
       void (async () => {
         try {
+          // Send the canonical English clues, NOT whatever's currently in
+          // puzzle.clues. After a previous translation puzzle.clues holds
+          // target-locale text; sending that with a "from English"
+          // prompt would mislead the model and confuse the validator.
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ puzzle: target, locale }),
+            body: JSON.stringify({
+              puzzle: { ...target, clues: sourceClues },
+              locale,
+            }),
           });
           if (!res.ok) {
             let errorMsg = "Translation failed";
