@@ -481,9 +481,11 @@ export function createPuzzleState() {
           // target-locale text; sending that with a "from English"
           // prompt would mislead the model and confuse the validator.
           //
-          // Send only the fields the route actually needs — `solution`
-          // is unused server-side and would just leak the answer in the
-          // wire payload (and any access logs).
+          // Send only what the route actually reads — translate() looks
+          // at `puzzle.grid` and `puzzle.clues[i].constraint` (the
+          // embedded per-clue constraint), never the top-level
+          // `constraints` array. `solution` would just leak the answer
+          // in the wire payload + access logs.
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -491,7 +493,6 @@ export function createPuzzleState() {
               puzzle: {
                 grid: target.grid,
                 clues: sourceClues,
-                constraints: target.constraints,
               },
               locale,
             }),
@@ -519,7 +520,12 @@ export function createPuzzleState() {
           };
         } finally {
           loading = false;
-          loadingMessage = "Generating…";
+          // Don't reset loadingMessage here. The next operation
+          // (newPuzzle / translatePuzzle) sets its own message on
+          // entry. Resetting to "Generating…" causes a brief flash of
+          // the wrong text on the disabled New Puzzle button if the
+          // user kicks off another Translate immediately after a
+          // failed one.
         }
       })();
     }, 0);
