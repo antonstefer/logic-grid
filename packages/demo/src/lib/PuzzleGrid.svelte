@@ -1,15 +1,33 @@
 <script lang="ts">
   import { displayAxisCategory, type Grid } from "logic-grid";
-  import type { CellCoord, PairState, CellState } from "./puzzle-state.svelte";
+  import type {
+    CellCoord,
+    PairState,
+    CellState,
+    PuzzleLocalization,
+  } from "./puzzle-state.svelte";
+  import {
+    categoryLabel as categoryLabelFn,
+    valueLabel as valueLabelFn,
+  } from "./label-fns";
 
   let {
     puzzleGrid,
     pair,
+    localization = null,
     onConfirm,
     onEliminate,
   }: {
     puzzleGrid: Grid;
     pair: PairState;
+    /**
+     * Optional localization overlay. Maps from canonical category / value
+     * names to localized display strings. When set, every canonical key
+     * MUST be present — the renderer throws on a missing entry rather
+     * than silently rendering a half-localized grid. When `null`, the
+     * grid renders canonical names (the English-locale path).
+     */
+    localization?: PuzzleLocalization | null;
     onConfirm: (coord: CellCoord) => void;
     onEliminate: (coord: CellCoord) => void;
   } = $props();
@@ -41,12 +59,15 @@
     return list;
   });
 
+  // Label resolution is in label-fns.ts so the throw paths (missing
+  // localization key, displayLabels length mismatch) can be unit-tested
+  // without Svelte component-test infrastructure.
+  function categoryLabel(name: string): string {
+    return categoryLabelFn(name, localization);
+  }
+
   function valueLabel(catIdx: number, valIdx: number): string {
-    const cat = cats[catIdx];
-    if (cat.ordered === true && cat.displayLabels) {
-      return cat.displayLabels[valIdx] ?? cat.values[valIdx];
-    }
-    return cat.values[valIdx];
+    return valueLabelFn(cats[catIdx], valIdx, localization);
   }
 
   function cellSymbol(state: CellState): string {
@@ -110,7 +131,7 @@
       <td class="corner"></td>
       <td class="corner"></td>
       {#each topCats as { cat: topCat }}
-        <th class="top-cat-label" colspan={S}>{topCat.name}</th>
+        <th class="top-cat-label" colspan={S}>{categoryLabel(topCat.name)}</th>
       {/each}
     </tr>
     <tr>
@@ -134,7 +155,9 @@
       {#each rowCat.values as _, rvi}
         <tr>
           {#if rvi === 0}
-            <th class="left-cat-label" rowspan={S}>{rowCat.name}</th>
+            <th class="left-cat-label" rowspan={S}
+              >{categoryLabel(rowCat.name)}</th
+            >
           {/if}
           <th
             class="left-value"

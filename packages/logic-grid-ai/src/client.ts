@@ -4,10 +4,21 @@ import type { AIClient, JSONSchema } from "./types";
 /** Default model used when no `model` option is provided. */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
+/** Default sampling temperature used when no `temperature` option is provided. */
+export const DEFAULT_ANTHROPIC_TEMPERATURE = 0.8;
+
 /** Optional knobs for the default Anthropic-backed client. */
 export interface AnthropicClientOptions {
   /** Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. */
   model?: string;
+  /**
+   * Override the sampling temperature. Defaults to
+   * {@link DEFAULT_ANTHROPIC_TEMPERATURE}. Use 0 for low-variance (greedy
+   * decoding, near-deterministic — minor cross-run variance still possible)
+   * verdicts
+   * (e.g. validator clients in `translate`).
+   */
+  temperature?: number;
 }
 
 /**
@@ -28,13 +39,22 @@ export function createAnthropicClient(
 ): AIClient {
   const client = new Anthropic({ apiKey });
   const model = options.model ?? DEFAULT_ANTHROPIC_MODEL;
+  const temperature = options.temperature ?? DEFAULT_ANTHROPIC_TEMPERATURE;
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
       const response = await client.messages.create({
         model,
-        max_tokens: 4096,
-        temperature: 0.8,
+        // 8192 tokens covers the heaviest output we produce — a
+        // `translate` call on an 8×8 puzzle returns ~56 clues + 64
+        // value labels + 8 category names in one structured JSON. In
+        // verbose locales (German is roughly 1.5× English) this can
+        // approach 4096; a truncated tool_use block returns malformed
+        // JSON that doesn't surface as a clean validation failure.
+        // Output tokens are billed on actual use, so a higher cap
+        // doesn't cost more — it just removes the truncation risk.
+        max_tokens: 8192,
+        temperature,
         messages: [{ role: "user", content: prompt }],
         tools: [
           {

@@ -189,6 +189,13 @@
   let theme = $state("");
   let clueStyle = $state("");
   let preset = $state("none");
+  let translateLocale = $state("");
+
+  function handleTranslate() {
+    const locale = translateLocale.trim();
+    if (!locale) return;
+    puzzleState.translatePuzzle(locale);
+  }
 
   function handleNewPuzzle() {
     const p = presets[preset];
@@ -310,6 +317,7 @@
         <PuzzleGrid
           puzzleGrid={puzzleState.puzzle.grid}
           pair={puzzleState.pair}
+          localization={puzzleState.localization}
           onConfirm={(coord) => puzzleState.toggleConfirm(coord)}
           onEliminate={(coord) => puzzleState.toggleEliminate(coord)}
         />
@@ -329,6 +337,22 @@
             >Show Solution</button
           >
           <button class="btn" onclick={() => puzzleState.clear()}>Clear</button>
+        </div>
+
+        <div class="translate-row">
+          <input
+            type="text"
+            bind:value={translateLocale}
+            placeholder="Locale (e.g. German, ja-JP)"
+            maxlength={50}
+          />
+          <button
+            class="btn"
+            onclick={handleTranslate}
+            disabled={puzzleState.loading || !translateLocale.trim()}
+          >
+            Translate puzzle
+          </button>
         </div>
 
         {#if puzzleState.message}
@@ -464,6 +488,22 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+  }
+
+  .translate-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .translate-row input[type="text"] {
+    width: 14rem;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .message {

@@ -1,4 +1,4 @@
-import type { Category, Clue } from "logic-grid";
+import type { Category, Clue, Puzzle } from "logic-grid";
 
 /** Options for AI-powered theme generation. */
 export interface ThemeOptions {
@@ -106,4 +106,105 @@ export interface RewriteCluesValidationError {
   message: string;
   /** 1-indexed clue position when the error is scoped to a single clue. */
   clueIndex?: number;
+}
+
+/** Options for AI-powered puzzle translation. */
+export interface TranslateOptions {
+  /**
+   * Source puzzle. The `constraints` and `grid.categories` are the ground
+   * truth that validation compares against; rendered clue `text` is shown
+   * to the translator as a stylistic hint but may have already drifted
+   * (e.g. via {@link rewriteClues}).
+   */
+  puzzle: Puzzle;
+  /**
+   * Target locale. Free-form string passed verbatim into the prompt — both
+   * BCP-47 codes ("de-DE", "ja-JP") and plain language names ("German",
+   * "Japanese") work. Empty string is rejected.
+   */
+  locale: string;
+  /** Translator client. Defaults to Anthropic SDK using ANTHROPIC_API_KEY. */
+  client?: AIClient;
+  /**
+   * Validator client. Strongly recommended to pass a client backed by a
+   * different model than the translator — single-model validation has
+   * correlated blind spots.
+   *
+   * Fallback rules:
+   *  - If you pass `validator` explicitly, it's used as-is.
+   *  - If you pass `client` but no `validator`, the validator reuses
+   *    `client` (including its temperature). The package can't auto-spin
+   *    a "matching" temperature-0 validator from an opaque AIClient, so
+   *    if you want low-variance verdicts AND a custom translator, pass
+   *    both explicitly.
+   *  - If you pass neither, the package creates two default Anthropic
+   *    clients: translator at the default temperature, validator at
+   *    `temperature: 0` for low-variance (near-deterministic — Anthropic
+   *    has no seed parameter so minor cross-run variance is still
+   *    possible) verdicts.
+   */
+  validator?: AIClient;
+}
+
+/**
+ * Result of translating a puzzle.
+ *
+ * Constraints and the canonical `grid` are NOT modified — the engine
+ * continues to operate on the original English keys. The renderer composes
+ * the original puzzle with these maps to display localized strings.
+ */
+export interface TranslatedPuzzle {
+  /** Localized clue text, in the same order as `puzzle.clues`. */
+  clues: Clue[];
+  /**
+   * Map from canonical category name → localized display name.
+   * E.g. `{ "House": "Haus", "Color": "Farbe" }`.
+   */
+  categoryNames: Record<string, string>;
+  /**
+   * Map from canonical value (across all categories) → localized label.
+   * Values are globally unique in a logic-grid puzzle, so a flat map is
+   * unambiguous. Proper nouns map to themselves verbatim.
+   * E.g. `{ "Yellow": "Gelb", "Cat": "Katze", "Alice": "Alice" }`.
+   */
+  valueLabels: Record<string, string>;
+}
+
+/**
+ * Structured validation error for AI-translated puzzles.
+ *
+ * Codes split into two tiers:
+ * - Structural (cheap, deterministic): wrong counts, non-strings, empties,
+ *   over-length, duplicates, missing keys.
+ * - Semantic (AI-driven): constraint type drift incl. polarity, direction
+ *   flip on asymmetric comparators, numeric / unit drift, proper-noun drop.
+ */
+export type TranslationValidationCode =
+  | "wrong_clue_count"
+  | "non_string_clue"
+  | "empty_translation"
+  | "long_translation"
+  | "duplicate_translation"
+  | "missing_category_name"
+  | "empty_category_name"
+  | "long_category_name"
+  | "duplicate_category_name"
+  | "missing_value_label"
+  | "empty_value_label"
+  | "long_value_label"
+  | "duplicate_value_label"
+  | "verdict_index_mismatch"
+  | "constraint_type_mismatch"
+  | "direction_flip"
+  | "between_middle_swapped"
+  | "numeric_changed"
+  | "proper_noun_dropped";
+
+export interface TranslationValidationError {
+  code: TranslationValidationCode;
+  message: string;
+  /** 1-indexed clue position when the error is scoped to a single clue. */
+  clueIndex?: number;
+  /** Canonical category or value name when the error is scoped to one. */
+  key?: string;
 }

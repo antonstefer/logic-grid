@@ -7,7 +7,7 @@ import {
   type Difficulty,
   type DeductionStep,
 } from "logic-grid";
-import type { ThemeResult } from "logic-grid-ai";
+import type { ThemeResult, TranslatedPuzzle } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
 import {
   recomputeAuto as recomputeAutoPure,
@@ -20,8 +20,27 @@ import {
 
 export type { Cell, CellCoord, CellState, PairState } from "./pair-logic";
 
+/**
+ * Localization maps applied on top of a canonical English puzzle.
+ * Keys are canonical names from the source puzzle; values are localized
+ * display strings. When this object is present, every canonical category
+ * and every canonical value MUST have a non-empty entry — the renderer
+ * throws on a missing key rather than masking the bug with a fallback.
+ */
+export interface PuzzleLocalization {
+  categoryNames: Record<string, string>;
+  valueLabels: Record<string, string>;
+}
+
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
+  // Snapshot of the puzzle's English clues at generate time, used as the
+  // canonical source for every translate request. Without this, a second
+  // translation (e.g. German → French) would send the German text back
+  // to the API under a prompt header that says "from English to French",
+  // misleading the model and the validator.
+  let originalClues = $state<Puzzle["clues"] | null>(null);
+  let localization = $state<PuzzleLocalization | null>(null);
   let pair = $state<PairState>([]);
   let genTime = $state(0);
   let loading = $state(false);
@@ -65,6 +84,11 @@ export function createPuzzleState() {
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
+    // Don't clear `localization` / `originalClues` synchronously — if the
+    // generate path throws (theme fetch fails, rewriteClues 503, etc.),
+    // the previous puzzle stays visible and we want its localization +
+    // English source to stay consistent with it. Both are refreshed only
+    // in the success path below.
 
     setTimeout(() => {
       void (async () => {
@@ -140,6 +164,11 @@ export function createPuzzleState() {
         }
         pair = initPair(puzzle.grid.categories);
         hintSteps = [];
+        // The new puzzle has new canonical names, so any prior translation
+        // is now stale. Snapshot the post-rewrite English clues so every
+        // future Translate call sends them as the source.
+        localization = null;
+        originalClues = puzzle.clues;
         loading = false;
         loadingMessage = "Generating…";
       })();
@@ -428,9 +457,86 @@ export function createPuzzleState() {
     message = null;
   }
 
+  function translatePuzzle(locale: string) {
+    if (!puzzle) throw new Error("No active puzzle");
+    if (!originalClues)
+      throw new Error(
+        "originalClues is missing — it should have been set when the puzzle was generated.",
+      );
+    // Capture before setTimeout so the async closure has a non-null target
+    // without needing a defensive null guard inside. The Translate button is
+    // disabled while loading, so the puzzle can't be replaced before the
+    // fetch completes.
+    const target = puzzle;
+    const sourceClues = originalClues;
+    loading = true;
+    loadingMessage = "Translating puzzle…";
+    message = null;
+
+    setTimeout(() => {
+      void (async () => {
+        try {
+          // Send the canonical English clues, NOT whatever's currently in
+          // puzzle.clues. After a previous translation puzzle.clues holds
+          // target-locale text; sending that with a "from English"
+          // prompt would mislead the model and confuse the validator.
+          //
+          // Send only what the route actually reads — translate() looks
+          // at `puzzle.grid` and `puzzle.clues[i].constraint` (the
+          // embedded per-clue constraint), never the top-level
+          // `constraints` array. `solution` would just leak the answer
+          // in the wire payload + access logs.
+          const res = await fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              puzzle: {
+                grid: target.grid,
+                clues: sourceClues,
+              },
+              locale,
+            }),
+          });
+          if (!res.ok) {
+            let errorMsg = "Translation failed";
+            try {
+              const body = (await res.json()) as { error: string };
+              if (body.error) errorMsg = body.error;
+            } catch {
+              // non-JSON response (e.g. HTML error page)
+            }
+            throw new Error(errorMsg);
+          }
+          const body = (await res.json()) as TranslatedPuzzle;
+          puzzle = { ...target, clues: body.clues };
+          localization = {
+            categoryNames: body.categoryNames,
+            valueLabels: body.valueLabels,
+          };
+        } catch (e) {
+          message = {
+            text: e instanceof Error ? e.message : String(e),
+            type: "error",
+          };
+        } finally {
+          loading = false;
+          // Don't reset loadingMessage here. The next operation
+          // (newPuzzle / translatePuzzle) sets its own message on
+          // entry. Resetting to "Generating…" causes a brief flash of
+          // the wrong text on the disabled New Puzzle button if the
+          // user kicks off another Translate immediately after a
+          // failed one.
+        }
+      })();
+    }, 0);
+  }
+
   return {
     get puzzle() {
       return puzzle;
+    },
+    get localization() {
+      return localization;
     },
     get pair() {
       return pair;
@@ -456,5 +562,6 @@ export function createPuzzleState() {
     nudge,
     hint,
     revealCell,
+    translatePuzzle,
   };
 }

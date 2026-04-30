@@ -158,6 +158,103 @@ import { validateRewrittenClues } from "logic-grid-ai";
 const errors = validateRewrittenClues({ clues: ["..."] }, puzzle.clues.length);
 ```
 
+### `translate(options)`
+
+Translate every visible string of a logic-grid puzzle to a target locale using AI: clue text, category names, and category value labels. Intended for **ahead-of-time (AOT)** puzzle pipelines that produce localized corpora once and serve them statically — quality is the constraint, not latency. The package engine stays English-only; this is a post-processing layer that returns localization maps the renderer composes with the canonical puzzle.
+
+```typescript
+import { translate } from "logic-grid-ai";
+import { generate } from "logic-grid";
+
+const puzzle = generate({ size: 4, categories: 4, seed: 42 });
+const localized = await translate({
+  puzzle,
+  locale: "German", // also accepts BCP-47 like "de-DE"
+});
+// localized = {
+//   clues: [{ constraint, text: "Bob wohnt genau 2 Häuser vom gelben Haus entfernt." }, ...],
+//   categoryNames: { "House": "Haus", "Color": "Farbe", ... },
+//   valueLabels:   { "Yellow": "Gelb", "Cat": "Katze", "Alice": "Alice", ... },
+// }
+```
+
+The original `puzzle.constraints` and `puzzle.grid` are passed through unchanged — the engine continues to operate on canonical English keys. Renderers compose `categoryNames` / `valueLabels` over the canonical grid to display localized headers. The structural validator guarantees every canonical key has a non-empty entry, so renderers can treat the maps as exhaustive and surface any missing key as an error rather than silently rendering a half-localized grid.
+
+The function runs a two-stage AI flow:
+
+1. **Translator** produces all three surfaces (localized clue text, category names, value labels) in a single batched call. The constraint JSON is shown alongside each English clue as ground truth — if the source clue text is ambiguous or has drifted (e.g. via `rewriteClues`), the constraint defines the meaning.
+2. **Validator** round-trips each translated clue back to a constraint type and checks polarity, direction, numeric/unit preservation, and proper-noun preservation in the clue text. Failures are fed back to the translator on retry (up to 3 attempts). Completeness of `categoryNames` and `valueLabels` is enforced structurally.
+
+```typescript
+const localized = await translate({
+  puzzle,
+  locale: "ja-JP",
+  client: createAnthropicClient(undefined, { model: "claude-sonnet-4-6" }),
+  validator: createAnthropicClient(undefined, {
+    model: "claude-opus-4-5",
+    temperature: 0,
+  }),
+});
+```
+
+> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for low-variance (near-deterministic — Anthropic has no seed, so minor cross-run variance is still possible) verdicts.
+>
+> **Footgun:** if you pass `client` but not `validator`, the validator reuses your `client` as-is — including its temperature. The temperature-0 default fires only when **both** are omitted. If you want low-variance verdicts AND a custom translator, pass both explicitly (e.g. `validator: createAnthropicClient(apiKey, { temperature: 0 })`).
+
+> **Proper nouns stay verbatim.** People names, place names, brand names, and numeric/unit literals (`1972`, `8%`, `7am`) map to themselves in `valueLabels` and remain unchanged in clue text. Descriptive words (colors, animals, common-noun categories) translate, with grammatical inflection in clue text expected (`yellow` → bare label `gelb`, inflected forms `gelben` / `gelbe` are correct in clue context).
+
+If validation fails on every attempt, `translate` throws a `TranslationError` carrying structured `errors` with stable codes:
+
+| Code                       | Surface        | Meaning                                                                    |
+| -------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                    |
+| `non_string_clue`          | clues          | A clue entry is not a string                                               |
+| `empty_translation`        | clues          | A clue is empty or whitespace-only                                         |
+| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                  |
+| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                 |
+| `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`       |
+| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                             |
+| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                |
+| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive) |
+| `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
+| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
+| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                  |
+| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
+| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
+| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
+| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |
+| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer              |
+| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                          |
+| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                        |
+
+```typescript
+import { translate, TranslationError } from "logic-grid-ai";
+
+try {
+  const localized = await translate({ puzzle, locale: "German" });
+} catch (err) {
+  if (err instanceof TranslationError) {
+    if (err.errors.some((e) => e.code === "direction_flip")) {
+      // Translator flipped the subject/object on a `before` or `left_of` clue.
+    }
+  }
+  throw err;
+}
+```
+
+#### Known limitations
+
+- **`valueLabels` is checked structurally only — semantic validation is on clue text.** The proper-noun-preservation check covers the translated clue text. If the AI mistranslates a proper noun in `valueLabels` (e.g. `"Alice" → "Alise"`) but uses it correctly in clue text, the structural validator can't distinguish a faithful from a drifted label, and the semantic validator never sees the labels. In practice every value tends to appear in at least one clue (so clue-text checks catch drift), but a value that's only ever shown via `valueLabels` (in the grid header) and never referenced by a clue is a blind spot.
+- **`Category.noun` / `verb` / `valueSuffix` / `orderingPhrases` stay English on the canonical grid.** Translation rewrites clue text and provides display-label maps; it doesn't deeply translate the renderer-side metadata used by `renderClue` / `rewriteClues`. Downstream calls to those functions on a translated puzzle will regenerate English clues from the English category fields, overwriting the translation. Plan accordingly: translate as the last step of an AOT pipeline.
+
+### `createAnthropicClient(apiKey?, options?)` temperature option
+
+`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for low-variance responses (greedy decoding — near-deterministic, but Anthropic doesn't expose a seed so minor cross-run variance can still occur) — typically the right default for validator clients in `translate()`:
+
+```typescript
+const validator = createAnthropicClient(undefined, { temperature: 0 });
+```
+
 ## How It Works
 
 1. A detailed prompt describes the puzzle structure, category contract, and ordering semantics
