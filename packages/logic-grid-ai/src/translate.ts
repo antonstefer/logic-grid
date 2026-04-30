@@ -90,12 +90,16 @@ function buildPrompt(
   const { puzzle, locale } = options;
   const { grid, clues } = puzzle;
 
+  // Use JSON.stringify for every interpolated category field so quotes
+  // or newlines (in user-supplied or AI-themed names/values/nouns)
+  // can't break out of the prompt context. Same pattern as the clue
+  // text below.
   const categoryList = grid.categories
     .map(
       (c) =>
-        `- ${c.name}: [${c.values.map((v) => `"${v}"`).join(", ")}]${
+        `- ${JSON.stringify(c.name)}: [${c.values.map((v) => JSON.stringify(v)).join(", ")}]${
           c.noun !== undefined && c.noun !== ""
-            ? ` (noun phrase in clues: "${c.noun}")`
+            ? ` (noun phrase in clues: ${JSON.stringify(c.noun)})`
             : ""
         }`,
     )

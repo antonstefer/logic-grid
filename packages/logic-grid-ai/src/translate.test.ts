@@ -114,6 +114,7 @@ interface ClueVerdict {
   index: number;
   constraintType: string;
   directionOk: boolean;
+  middleOk: boolean;
   numericOk: boolean;
   properNounsOk: boolean;
 }
@@ -124,6 +125,7 @@ function allOkVerdict(): { clues: ClueVerdict[] } {
       index: i + 1,
       constraintType: c.constraint.type,
       directionOk: true,
+      middleOk: true,
       numericOk: true,
       properNounsOk: true,
     })),
@@ -214,10 +216,12 @@ describe("translate", () => {
     await translate({ puzzle: SAMPLE_PUZZLE, locale: "Japanese", client });
 
     expect(prompts[0]).toContain("Japanese");
-    // Category list is included for the translator's reference
-    expect(prompts[0]).toContain("House:");
-    expect(prompts[0]).toContain("Name:");
-    expect(prompts[0]).toContain("Color:");
+    // Category list is included. Category names are JSON.stringify-quoted
+    // so quotes/newlines in user-supplied or AI-themed names can't break
+    // out of the prompt — match the quoted form.
+    expect(prompts[0]).toContain('"House"');
+    expect(prompts[0]).toContain('"Name"');
+    expect(prompts[0]).toContain('"Color"');
     // Constraint JSON for ground truth
     expect(prompts[0]).toContain('"type":"same_position"');
     expect(prompts[0]).toContain('"type":"next_to"');
@@ -315,6 +319,7 @@ describe("translate", () => {
                 index: i + 1,
                 constraintType: i === 1 ? "next_to" : "near",
                 directionOk: true,
+                middleOk: true,
                 numericOk: true,
                 properNounsOk: true,
               })),
@@ -347,6 +352,7 @@ describe("translate", () => {
               index: i + 1,
               constraintType: c.constraint.type,
               directionOk: c.constraint.type !== "before", // flip on `before`
+              middleOk: true,
               numericOk: true,
               properNounsOk: true,
             })),
@@ -376,6 +382,7 @@ describe("translate", () => {
               index: i + 1,
               constraintType: "wrong_type",
               directionOk: true,
+              middleOk: true,
               numericOk: true,
               properNounsOk: true,
             })),
@@ -465,6 +472,7 @@ describe("translate", () => {
                 index: i + 1,
                 constraintType: c.constraint.type,
                 directionOk: true,
+                middleOk: true,
                 numericOk: i !== 0,
                 properNounsOk: true,
               })),
@@ -507,6 +515,7 @@ describe("translate", () => {
         index: i + 1,
         constraintType: c.constraint.type,
         directionOk: true,
+        middleOk: true,
         numericOk: true,
         properNounsOk: true,
       })),
@@ -561,6 +570,7 @@ describe("translate", () => {
                   index: 99,
                   constraintType: "same_position",
                   directionOk: true,
+                  middleOk: true,
                   numericOk: true,
                   properNounsOk: true,
                 },
@@ -568,6 +578,7 @@ describe("translate", () => {
                   index: 99,
                   constraintType: "next_to",
                   directionOk: true,
+                  middleOk: true,
                   numericOk: true,
                   properNounsOk: true,
                 },
@@ -575,6 +586,7 @@ describe("translate", () => {
                   index: 99,
                   constraintType: "before",
                   directionOk: true,
+                  middleOk: true,
                   numericOk: true,
                   properNounsOk: true,
                 },

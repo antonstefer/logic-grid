@@ -197,7 +197,7 @@ const localized = await translate({
 });
 ```
 
-> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for deterministic verdicts.
+> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for low-variance (near-deterministic — Anthropic has no seed, so minor cross-run variance is still possible) verdicts.
 
 > **Proper nouns stay verbatim.** People names, place names, brand names, and numeric/unit literals (`1972`, `8%`, `7am`) map to themselves in `valueLabels` and remain unchanged in clue text. Descriptive words (colors, animals, common-noun categories) translate, with grammatical inflection in clue text expected (`yellow` → bare label `gelb`, inflected forms `gelben` / `gelbe` are correct in clue context).
 
@@ -219,6 +219,7 @@ If validation fails on every attempt, `translate` throws a `TranslationError` ca
 | `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
 | `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
 | `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |
+| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer              |
 | `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                          |
 | `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                        |
 
@@ -244,7 +245,7 @@ try {
 
 ### `createAnthropicClient(apiKey?, options?)` temperature option
 
-`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for deterministic responses — typically the right default for validator clients in `translate()`:
+`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for low-variance responses (greedy decoding — near-deterministic, but Anthropic doesn't expose a seed so minor cross-run variance can still occur) — typically the right default for validator clients in `translate()`:
 
 ```typescript
 const validator = createAnthropicClient(undefined, { temperature: 0 });

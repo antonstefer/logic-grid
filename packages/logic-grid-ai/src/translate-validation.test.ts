@@ -120,6 +120,7 @@ interface ClueVerdict {
   index: number;
   constraintType: string;
   directionOk: boolean;
+  middleOk: boolean;
   numericOk: boolean;
   properNounsOk: boolean;
 }
@@ -130,6 +131,7 @@ function allOk(): { clues: ClueVerdict[] } {
       index: i + 1,
       constraintType: c.constraint.type,
       directionOk: true,
+      middleOk: true,
       numericOk: true,
       properNounsOk: true,
     })),
@@ -403,6 +405,7 @@ describe("validateTranslation", () => {
           index: 1,
           constraintType: "left_of",
           directionOk: false,
+          middleOk: true,
           numericOk: true,
           properNounsOk: true,
         },
@@ -521,6 +524,7 @@ describe("validateTranslation", () => {
           index: 1,
           constraintType: "same_position",
           directionOk: true,
+          middleOk: true,
           numericOk: true,
           properNounsOk: true,
         },
@@ -546,6 +550,7 @@ describe("validateTranslation", () => {
         index: i === 0 ? 2 : i + 1,
         constraintType: c.constraint.type,
         directionOk: true,
+        middleOk: true,
         numericOk: true,
         properNounsOk: true,
       })),
@@ -563,6 +568,45 @@ describe("validateTranslation", () => {
     // we already know is corrupted.
     expect(errors).toHaveLength(1);
     expect(errors[0].clueIndex).toBe(1);
+  });
+
+  it("emits between_middle_swapped when the validator flags a middle role mismatch", async () => {
+    // SAMPLE_PUZZLE.clues[2] is a not_between constraint. Set middleOk:false
+    // on that verdict only and expect a between_middle_swapped error.
+    const verdicts = allOk();
+    verdicts.clues[2].middleOk = false;
+
+    const errors = await validateTranslation(
+      SAMPLE_PUZZLE,
+      { clues: ["a", "b", "c"] },
+      "German",
+      mockValidator(verdicts),
+    );
+
+    const middleErrors = errors.filter(
+      (e) => e.code === "between_middle_swapped",
+    );
+    expect(middleErrors).toHaveLength(1);
+    expect(middleErrors[0].clueIndex).toBe(3);
+  });
+
+  it("does not flag middle on non-between constraints when middleOk is false", async () => {
+    const verdicts = allOk();
+    // same_position (clue 1) and before (clue 2) — not between. middleOk:false
+    // here should be ignored, since they don't have a middle role.
+    verdicts.clues[0].middleOk = false;
+    verdicts.clues[1].middleOk = false;
+
+    const errors = await validateTranslation(
+      SAMPLE_PUZZLE,
+      { clues: ["a", "b", "c"] },
+      "German",
+      mockValidator(verdicts),
+    );
+
+    expect(
+      errors.filter((e) => e.code === "between_middle_swapped"),
+    ).toHaveLength(0);
   });
 
   it("does not flag direction on symmetric constraints when directionOk is false", async () => {
@@ -595,6 +639,7 @@ describe("validateTranslation", () => {
         index: i + 1,
         constraintType: c.constraint.type,
         directionOk: false, // verdict is false on symmetric — should be ignored
+        middleOk: true,
         numericOk: true,
         properNounsOk: true,
       })),

@@ -13,7 +13,9 @@ export interface AnthropicClientOptions {
   model?: string;
   /**
    * Override the sampling temperature. Defaults to
-   * {@link DEFAULT_ANTHROPIC_TEMPERATURE}. Use 0 for deterministic verdicts
+   * {@link DEFAULT_ANTHROPIC_TEMPERATURE}. Use 0 for low-variance (greedy
+   * decoding, near-deterministic — minor cross-run variance still possible)
+   * verdicts
    * (e.g. validator clients in `translate`).
    */
   temperature?: number;

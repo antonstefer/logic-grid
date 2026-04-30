@@ -66,8 +66,31 @@ const IS_ASYMMETRIC: Record<ConstraintType, boolean> = {
   exact_distance: false,
 };
 
+/**
+ * Per-type "has a `middle` role" classification. `between` /
+ * `not_between` carry three entities (outer1, middle, outer2) and are
+ * symmetric only around the outer/outer swap — outer↔middle is a real
+ * meaning change ("A is between B and C" vs "B is between A and C"),
+ * which neither `directionOk` (skipped because the type is symmetric)
+ * nor `properNounsOk` (all three names still present) catches. Same
+ * exhaustiveness pattern as IS_ASYMMETRIC: a future variant with a
+ * middle role is a TS error here until classified.
+ */
+const HAS_MIDDLE: Record<ConstraintType, boolean> = {
+  same_position: false,
+  not_same_position: false,
+  next_to: false,
+  not_next_to: false,
+  left_of: false,
+  before: false,
+  between: true,
+  not_between: true,
+  exact_distance: false,
+};
+
 const ASYMMETRIC_TYPES = CONSTRAINT_TYPES.filter((t) => IS_ASYMMETRIC[t]);
 const SYMMETRIC_TYPES = CONSTRAINT_TYPES.filter((t) => !IS_ASYMMETRIC[t]);
+const MIDDLE_TYPES = CONSTRAINT_TYPES.filter((t) => HAS_MIDDLE[t]);
 
 /** Per-clue length budget for translated clue text. */
 const MAX_CLUE_LENGTH = 500;
@@ -84,6 +107,7 @@ interface ClueVerdict {
   index: number;
   constraintType: string;
   directionOk: boolean;
+  middleOk: boolean;
   numericOk: boolean;
   properNounsOk: boolean;
 }
@@ -287,6 +311,11 @@ function buildSchema(clueCount: number): JSONSchema {
               description:
                 "For `before` and `left_of`: is the translation's subject the same as the source constraint's `a` field? For symmetric constraints, always true.",
             },
+            middleOk: {
+              type: "boolean",
+              description:
+                "For `between` and `not_between`: is the middle entity in the translation the same as the source constraint's `middle` field? For other constraint types, always true.",
+            },
             numericOk: {
               type: "boolean",
               description:
@@ -302,6 +331,7 @@ function buildSchema(clueCount: number): JSONSchema {
             "index",
             "constraintType",
             "directionOk",
+            "middleOk",
             "numericOk",
             "properNounsOk",
           ],
@@ -336,10 +366,17 @@ For each clue, parse the ${locale} sentence back to a constraint and verify:
    \`before(a=A, b=B)\`, that's a flip — return false. For symmetric
    constraints (${SYMMETRIC_TYPES.join(", ")}), always return true.
 
-3. numericOk: are all numbers and units from the source constraint preserved
+3. middleOk (only meaningful for ${MIDDLE_TYPES.map((t) => `\`${t}\``).join(" and ")}): is the
+   "middle" entity in the ${locale} sentence the same entity as the source
+   constraint's \`middle\` field? If the translation says "A is between B and
+   C" when the source says \`between(outer1=A, middle=B, outer2=C)\`, that's
+   a middle-swap (A is now the middle) — return false. For all other
+   constraint types, return true.
+
+4. numericOk: are all numbers and units from the source constraint preserved
    exactly in the ${locale} text?
 
-4. properNounsOk: are all proper nouns from the source preserved verbatim
+5. properNounsOk: are all proper nouns from the source preserved verbatim
    in the ${locale} clue text? Names of people, places, brands, ships, and
    numeric/literal values must NOT be translated. Inflection of descriptive
    words (colors, animals, common nouns) is FINE — that's not a violation.
@@ -426,6 +463,16 @@ export async function validateTranslation(
         err(
           "direction_flip",
           `Clue ${pos}: subject/object order is reversed for ${source.constraint.type}.`,
+          { clueIndex: pos },
+        ),
+      );
+    }
+
+    if (HAS_MIDDLE[source.constraint.type] && !verdict.middleOk) {
+      errors.push(
+        err(
+          "between_middle_swapped",
+          `Clue ${pos}: the "middle" entity in the translation does not match the source constraint's middle field for ${source.constraint.type}.`,
           { clueIndex: pos },
         ),
       );
