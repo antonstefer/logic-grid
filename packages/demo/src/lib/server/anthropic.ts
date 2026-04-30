@@ -29,7 +29,7 @@ export function getAnthropicClient(): AIClient {
 
 /**
  * Return a cached Anthropic AIClient configured for use as the `translate`
- * validator: same model, but `temperature: 0` for deterministic verdicts —
+ * validator: same model, but `temperature: 0` for low-variance verdicts —
  * the recommended default in the logic-grid-ai README. Cached separately
  * from the translator client because the configs differ.
  */

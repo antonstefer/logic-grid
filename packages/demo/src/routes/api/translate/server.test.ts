@@ -119,6 +119,7 @@ const VALID_VERDICT = {
     index: i + 1,
     constraintType: c.constraint.type,
     directionOk: true,
+    middleOk: true,
     numericOk: true,
     properNounsOk: true,
   })),
@@ -251,6 +252,134 @@ describe("POST /api/translate", () => {
         puzzle: {
           ...SAMPLE_PUZZLE,
           clues: [{ text: 42, constraint: { type: "same_position" } }],
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a category's noun is too long", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: {
+            ...SAMPLE_PUZZLE.grid,
+            categories: [
+              { ...SAMPLE_PUZZLE.grid.categories[0], noun: "x".repeat(101) },
+              ...SAMPLE_PUZZLE.grid.categories.slice(1),
+            ],
+          },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a category has too many values", async () => {
+    const tooManyValues = Array.from({ length: 17 }, (_, i) => `V${i}`);
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: {
+            ...SAMPLE_PUZZLE.grid,
+            categories: [
+              { ...SAMPLE_PUZZLE.grid.categories[0], values: tooManyValues },
+              ...SAMPLE_PUZZLE.grid.categories.slice(1),
+            ],
+          },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a category's value string is too long", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: {
+            ...SAMPLE_PUZZLE.grid,
+            categories: [
+              {
+                ...SAMPLE_PUZZLE.grid.categories[0],
+                values: ["x".repeat(101), "Bob", "Carol"],
+              },
+              ...SAMPLE_PUZZLE.grid.categories.slice(1),
+            ],
+          },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when there are too many clues", async () => {
+    const tooManyClues = Array.from({ length: 65 }, () => ({
+      text: "x",
+      constraint: { type: "same_position", a: "Alice", b: "Red" },
+    }));
+    const res = await post({
+      request: postBody({
+        puzzle: { ...SAMPLE_PUZZLE, clues: tooManyClues },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when there are too many categories", async () => {
+    const tooManyCategories = Array.from({ length: 17 }, (_, i) => ({
+      name: `Cat${i}`,
+      values: ["a", "b", "c"],
+      noun: "",
+    }));
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: { ...SAMPLE_PUZZLE.grid, categories: tooManyCategories },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a category name is missing", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: {
+            ...SAMPLE_PUZZLE.grid,
+            categories: [
+              { values: ["a", "b", "c"], noun: "" }, // no name
+              ...SAMPLE_PUZZLE.grid.categories.slice(1),
+            ],
+          },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when a category is null", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: {
+            ...SAMPLE_PUZZLE.grid,
+            categories: [null, ...SAMPLE_PUZZLE.grid.categories.slice(1)],
+          },
         },
         locale: "German",
       }),

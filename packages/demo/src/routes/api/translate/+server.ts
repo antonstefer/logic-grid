@@ -9,22 +9,66 @@ import {
 } from "$lib/server/anthropic";
 
 /**
- * Hard cap on per-clue input text. Translator output is bounded by the
- * package's MAX_CLUE_LENGTH; the same cap applied to input prevents a
- * pathological 1MB string landing in the prompt before any AI call.
- * Real puzzle clues are well under this.
+ * Hard caps applied at the HTTP boundary, before any AI call. Each cap
+ * is generous relative to what logic-grid actually emits (sizes 3-8,
+ * short category/value names) but tight enough to fail loud on
+ * pathological payloads — 1MB strings, 50k clues, etc. — instead of
+ * shipping them into the AI prompt and burning tokens.
+ *
+ * The package itself doesn't enforce these because it trusts callers
+ * have a well-formed `Puzzle`; the demo route is the untrusted edge.
  */
 const MAX_INPUT_CLUE_LENGTH = 500;
+const MAX_CLUE_COUNT = 64; // 8×8 puzzles have at most 8×7=56 typical clues
+const MAX_CATEGORY_COUNT = 16;
+const MAX_VALUES_PER_CATEGORY = 16;
+const MAX_NAME_LENGTH = 100; // category names, values, nouns
+
+function isValidStringField(v: unknown, maxLength: number): boolean {
+  return typeof v === "string" && v.length > 0 && v.length <= maxLength;
+}
 
 function isValidPuzzleShape(p: unknown): p is Puzzle {
   if (typeof p !== "object" || p === null) return false;
   const obj = p as Record<string, unknown>;
-  if (!Array.isArray(obj.clues) || obj.clues.length === 0) return false;
+  if (
+    !Array.isArray(obj.clues) ||
+    obj.clues.length === 0 ||
+    obj.clues.length > MAX_CLUE_COUNT
+  )
+    return false;
   if (typeof obj.grid !== "object" || obj.grid === null) return false;
   const grid = obj.grid as Record<string, unknown>;
-  if (!Array.isArray(grid.categories) || grid.categories.length === 0)
+  if (
+    !Array.isArray(grid.categories) ||
+    grid.categories.length === 0 ||
+    grid.categories.length > MAX_CATEGORY_COUNT
+  )
     return false;
   if (typeof grid.size !== "number") return false;
+  if (
+    !grid.categories.every((cat: unknown) => {
+      if (typeof cat !== "object" || cat === null) return false;
+      const c = cat as Record<string, unknown>;
+      if (!isValidStringField(c.name, MAX_NAME_LENGTH)) return false;
+      // `noun` is optional; reject only if present and malformed.
+      if (
+        c.noun !== undefined &&
+        (typeof c.noun !== "string" || c.noun.length > MAX_NAME_LENGTH)
+      )
+        return false;
+      if (
+        !Array.isArray(c.values) ||
+        c.values.length === 0 ||
+        c.values.length > MAX_VALUES_PER_CATEGORY
+      )
+        return false;
+      return c.values.every((v: unknown) =>
+        isValidStringField(v, MAX_NAME_LENGTH),
+      );
+    })
+  )
+    return false;
   return obj.clues.every((c: unknown) => {
     if (typeof c !== "object" || c === null) return false;
     const clue = c as Record<string, unknown>;

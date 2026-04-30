@@ -480,11 +480,19 @@ export function createPuzzleState() {
           // puzzle.clues. After a previous translation puzzle.clues holds
           // target-locale text; sending that with a "from English"
           // prompt would mislead the model and confuse the validator.
+          //
+          // Send only the fields the route actually needs — `solution`
+          // is unused server-side and would just leak the answer in the
+          // wire payload (and any access logs).
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              puzzle: { ...target, clues: sourceClues },
+              puzzle: {
+                grid: target.grid,
+                clues: sourceClues,
+                constraints: target.constraints,
+              },
               locale,
             }),
           });
