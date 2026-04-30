@@ -9,6 +9,16 @@ import {
 } from "logic-grid";
 import type { ThemeResult, TranslatedPuzzle } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
+import {
+  recomputeAuto as recomputeAutoPure,
+  replaceConfirm,
+  setPair,
+  type CellCoord,
+  type CellState,
+  type PairState,
+} from "./pair-logic";
+
+export type { Cell, CellCoord, CellState, PairState } from "./pair-logic";
 
 /**
  * Localization maps applied on top of a canonical English puzzle.
@@ -21,16 +31,6 @@ export interface PuzzleLocalization {
   categoryNames: Record<string, string>;
   valueLabels: Record<string, string>;
 }
-import {
-  recomputeAuto as recomputeAutoPure,
-  replaceConfirm,
-  setPair,
-  type CellCoord,
-  type CellState,
-  type PairState,
-} from "./pair-logic";
-
-export type { Cell, CellCoord, CellState, PairState } from "./pair-logic";
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);

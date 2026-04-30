@@ -62,6 +62,12 @@ function buildSchema(clueCount: number): JSONSchema {
         description:
           "Translated clue texts, one per source clue, in the same order.",
       },
+      // categoryNames / valueLabels are typed as bare objects rather than
+      // schemas with explicit `properties`, because the required keys vary
+      // per puzzle (the source's category and value names) and JSON Schema
+      // can't be parameterized over a runtime key set without code-genning
+      // a schema per call. Key presence and shape are enforced by
+      // `checkTranslationStructure` on the returned output instead.
       categoryNames: {
         type: "object",
         description:
