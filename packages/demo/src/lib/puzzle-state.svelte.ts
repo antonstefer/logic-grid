@@ -7,8 +7,19 @@ import {
   type Difficulty,
   type DeductionStep,
 } from "logic-grid";
-import type { ThemeResult } from "logic-grid-ai";
+import type { ThemeResult, TranslatedPuzzle } from "logic-grid-ai";
 import { buildNudgeText } from "./nudge-text";
+
+/**
+ * Localization maps applied on top of a canonical English puzzle.
+ * Keys are canonical names from the source puzzle; values are localized
+ * display strings. Renderers fall back to the canonical name when a key
+ * is absent.
+ */
+export interface PuzzleLocalization {
+  categoryNames: Record<string, string>;
+  valueLabels: Record<string, string>;
+}
 import {
   recomputeAuto as recomputeAutoPure,
   replaceConfirm,
@@ -22,6 +33,7 @@ export type { Cell, CellCoord, CellState, PairState } from "./pair-logic";
 
 export function createPuzzleState() {
   let puzzle = $state<Puzzle | null>(null);
+  let localization = $state<PuzzleLocalization | null>(null);
   let pair = $state<PairState>([]);
   let genTime = $state(0);
   let loading = $state(false);
@@ -65,6 +77,7 @@ export function createPuzzleState() {
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
+    localization = null; // canonical names changed; previous localization is stale
 
     setTimeout(() => {
       void (async () => {
@@ -428,10 +441,10 @@ export function createPuzzleState() {
     message = null;
   }
 
-  function translateClues(locale: string) {
+  function translatePuzzle(locale: string) {
     if (!puzzle) throw new Error("No active puzzle");
     loading = true;
-    loadingMessage = "Translating clues…";
+    loadingMessage = "Translating puzzle…";
     message = null;
 
     setTimeout(() => {
@@ -442,7 +455,7 @@ export function createPuzzleState() {
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ clues: current.clues, locale }),
+            body: JSON.stringify({ puzzle: current, locale }),
           });
           if (!res.ok) {
             let errorMsg = "Translation failed";
@@ -454,8 +467,12 @@ export function createPuzzleState() {
             }
             throw new Error(errorMsg);
           }
-          const body = (await res.json()) as { clues: typeof current.clues };
+          const body = (await res.json()) as TranslatedPuzzle;
           puzzle = { ...current, clues: body.clues };
+          localization = {
+            categoryNames: body.categoryNames,
+            valueLabels: body.valueLabels,
+          };
         } catch (e) {
           message = {
             text: e instanceof Error ? e.message : String(e),
@@ -472,6 +489,9 @@ export function createPuzzleState() {
   return {
     get puzzle() {
       return puzzle;
+    },
+    get localization() {
+      return localization;
     },
     get pair() {
       return pair;
@@ -497,6 +517,6 @@ export function createPuzzleState() {
     nudge,
     hint,
     revealCell,
-    translateClues,
+    translatePuzzle,
   };
 }

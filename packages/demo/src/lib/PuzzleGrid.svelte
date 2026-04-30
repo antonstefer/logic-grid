@@ -1,15 +1,28 @@
 <script lang="ts">
   import { displayAxisCategory, type Grid } from "logic-grid";
-  import type { CellCoord, PairState, CellState } from "./puzzle-state.svelte";
+  import type {
+    CellCoord,
+    PairState,
+    CellState,
+    PuzzleLocalization,
+  } from "./puzzle-state.svelte";
 
   let {
     puzzleGrid,
     pair,
+    localization = null,
     onConfirm,
     onEliminate,
   }: {
     puzzleGrid: Grid;
     pair: PairState;
+    /**
+     * Optional localization overlay. Maps from canonical category / value
+     * names to localized display strings. Renderer falls back to the
+     * canonical name when a key is absent so partial localization still
+     * works gracefully.
+     */
+    localization?: PuzzleLocalization | null;
     onConfirm: (coord: CellCoord) => void;
     onEliminate: (coord: CellCoord) => void;
   } = $props();
@@ -41,12 +54,22 @@
     return list;
   });
 
+  function categoryLabel(name: string): string {
+    return localization?.categoryNames[name] ?? name;
+  }
+
   function valueLabel(catIdx: number, valIdx: number): string {
     const cat = cats[catIdx];
+    const canonical = cat.values[valIdx];
+    // displayLabels (when present) are the consumer's chosen visual form
+    // for the grid — usually a universal abbreviation like "1, 2, 3, 4"
+    // for House. They take priority over localization regardless of locale,
+    // matching the English-locale behavior. AI-translated forms still
+    // appear in clue text where they read naturally in the target locale.
     if (cat.ordered === true && cat.displayLabels) {
-      return cat.displayLabels[valIdx] ?? cat.values[valIdx];
+      return cat.displayLabels[valIdx] ?? canonical;
     }
-    return cat.values[valIdx];
+    return localization?.valueLabels[canonical] ?? canonical;
   }
 
   function cellSymbol(state: CellState): string {
@@ -110,7 +133,7 @@
       <td class="corner"></td>
       <td class="corner"></td>
       {#each topCats as { cat: topCat }}
-        <th class="top-cat-label" colspan={S}>{topCat.name}</th>
+        <th class="top-cat-label" colspan={S}>{categoryLabel(topCat.name)}</th>
       {/each}
     </tr>
     <tr>
@@ -134,7 +157,9 @@
       {#each rowCat.values as _, rvi}
         <tr>
           {#if rvi === 0}
-            <th class="left-cat-label" rowspan={S}>{rowCat.name}</th>
+            <th class="left-cat-label" rowspan={S}
+              >{categoryLabel(rowCat.name)}</th
+            >
           {/if}
           <th
             class="left-value"

@@ -194,7 +194,7 @@
   function handleTranslate() {
     const locale = translateLocale.trim();
     if (!locale) return;
-    puzzleState.translateClues(locale);
+    puzzleState.translatePuzzle(locale);
   }
 
   function handleNewPuzzle() {
@@ -317,6 +317,7 @@
         <PuzzleGrid
           puzzleGrid={puzzleState.puzzle.grid}
           pair={puzzleState.pair}
+          localization={puzzleState.localization}
           onConfirm={(coord) => puzzleState.toggleConfirm(coord)}
           onEliminate={(coord) => puzzleState.toggleEliminate(coord)}
         />
@@ -350,7 +351,7 @@
             onclick={handleTranslate}
             disabled={puzzleState.loading || !translateLocale.trim()}
           >
-            Translate clues
+            Translate puzzle
           </button>
         </div>
 

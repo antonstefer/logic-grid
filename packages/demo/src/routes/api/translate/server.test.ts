@@ -42,48 +42,99 @@ function postBody(body: unknown): Request {
   });
 }
 
-const SAMPLE_CLUES = [
-  {
-    constraint: { type: "same_position", a: "Alice", b: "Cat" },
-    text: "Alice owns the cat.",
+const SAMPLE_PUZZLE = {
+  grid: {
+    size: 3,
+    categories: [
+      {
+        name: "House",
+        values: ["1", "2", "3"],
+        noun: "house",
+        ordered: true,
+        verb: ["lives in the", "does not live in the"],
+        orderingPhrases: {
+          unit: ["house", "houses"],
+          comparators: {
+            before: ["lives left of", "lives right of"],
+            left_of: ["lives directly left of", "lives directly right of"],
+            next_to: "lives next to",
+            not_next_to: "does not live next to",
+            between: "lives between",
+            not_between: "does not live between",
+            exact_distance: "lives exactly",
+          },
+        },
+      },
+      {
+        name: "Name",
+        values: ["Alice", "Bob", "Carol"],
+        noun: "",
+      },
+      {
+        name: "Color",
+        values: ["Red", "Blue", "Green"],
+        noun: "house",
+        valueSuffix: "house",
+        lowercase: true,
+        positionAdjective: ["is", "is not"],
+      },
+    ],
   },
-  {
-    constraint: { type: "next_to", a: "Bob", b: "Dog", axis: "House" },
-    text: "Bob lives next to the dog owner.",
+  constraints: [
+    { type: "same_position", a: "Alice", b: "Red" },
+    { type: "next_to", a: "Bob", b: "Green", axis: "House" },
+  ],
+  clues: [
+    {
+      constraint: { type: "same_position", a: "Alice", b: "Red" },
+      text: "Alice lives in the red house.",
+    },
+    {
+      constraint: { type: "next_to", a: "Bob", b: "Green", axis: "House" },
+      text: "Bob lives next to the green house.",
+    },
+  ],
+  solution: [],
+  difficulty: "easy",
+};
+
+const VALID_TRANSLATION = {
+  clues: ["Alice wohnt im roten Haus.", "Bob wohnt neben dem grünen Haus."],
+  categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
+  valueLabels: {
+    "1": "1",
+    "2": "2",
+    "3": "3",
+    Alice: "Alice",
+    Bob: "Bob",
+    Carol: "Carol",
+    Red: "Rot",
+    Blue: "Blau",
+    Green: "Grün",
   },
-];
+};
 
-interface ClueVerdict {
-  index: number;
-  constraintType: string;
-  directionOk: boolean;
-  numericOk: boolean;
-  properNounsOk: boolean;
-}
-
-function allOkVerdict(): { clues: ClueVerdict[] } {
-  return {
-    clues: SAMPLE_CLUES.map((c, i) => ({
-      index: i + 1,
-      constraintType: c.constraint.type,
-      directionOk: true,
-      numericOk: true,
-      properNounsOk: true,
-    })),
-  };
-}
+const VALID_VERDICT = {
+  clues: SAMPLE_PUZZLE.clues.map((c, i) => ({
+    index: i + 1,
+    constraintType: c.constraint.type,
+    directionOk: true,
+    numericOk: true,
+    properNounsOk: true,
+  })),
+};
 
 /**
- * Wire the shared completeJSON mock to dispatch translator vs validator calls
- * based on prompt substring. Demo's getAnthropicClient supplies one client for
- * both roles, so we differentiate at the prompt level.
+ * Wire the shared completeJSON mock to dispatch translator vs validator
+ * calls based on prompt substring. Demo uses a single getAnthropicClient
+ * for both roles; we differentiate at the prompt level.
  */
 function dispatchByPrompt(
   translatorPayload: unknown,
   validatorPayload: unknown,
 ): void {
   completeJSON.mockImplementation((prompt: string) => {
-    if (prompt.includes("reviewing a translation")) {
+    if (prompt.includes("reviewing translated clues")) {
       return Promise.resolve(validatorPayload);
     }
     return Promise.resolve(translatorPayload);
@@ -93,7 +144,7 @@ function dispatchByPrompt(
 describe("POST /api/translate", () => {
   it("returns 503 with code missing_api_key when ANTHROPIC_API_KEY is missing", async () => {
     const res = await post({
-      request: postBody({ clues: SAMPLE_CLUES, locale: "German" }),
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
     expect(res.status).toBe(503);
@@ -103,23 +154,25 @@ describe("POST /api/translate", () => {
     expect(body.error.toLowerCase()).toContain("unavailable");
   });
 
-  it("returns 200 with translated clues on success", async () => {
+  it("returns 200 with translated puzzle on success", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-test";
-    const translations = {
-      clues: ["Alice besitzt die Katze.", "Bob wohnt neben dem Hundebesitzer."],
-    };
-    dispatchByPrompt(translations, allOkVerdict());
+    dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
     const res = await post({
-      request: postBody({ clues: SAMPLE_CLUES, locale: "German" }),
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { clues: { text: string }[] };
+    const body = (await res.json()) as {
+      clues: { text: string }[];
+      categoryNames: Record<string, string>;
+      valueLabels: Record<string, string>;
+    };
     expect(body.clues).toHaveLength(2);
-    expect(body.clues[0].text).toBe("Alice besitzt die Katze.");
-    expect(body.clues[1].text).toBe("Bob wohnt neben dem Hundebesitzer.");
-    // The env key actually flowed through to the Anthropic client factory.
+    expect(body.clues[0].text).toBe("Alice wohnt im roten Haus.");
+    expect(body.categoryNames.House).toBe("Haus");
+    expect(body.valueLabels.Red).toBe("Rot");
+    expect(body.valueLabels.Alice).toBe("Alice");
     expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
   });
 
@@ -133,38 +186,81 @@ describe("POST /api/translate", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 on empty clue list", async () => {
+  it("returns 400 on missing puzzle", async () => {
+    const res = await post({ request: postBody({ locale: "German" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on puzzle with no clues", async () => {
     const res = await post({
-      request: postBody({ clues: [], locale: "German" }),
+      request: postBody({
+        puzzle: { ...SAMPLE_PUZZLE, clues: [] },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on puzzle with malformed clue items", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: { ...SAMPLE_PUZZLE, clues: [{ text: "no constraint" }] },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on puzzle with no grid", async () => {
+    const { grid: _grid, ...puzzleNoGrid } = SAMPLE_PUZZLE;
+    void _grid;
+    const res = await post({
+      request: postBody({ puzzle: puzzleNoGrid, locale: "German" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on puzzle with empty categories", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: { ...SAMPLE_PUZZLE.grid, categories: [] },
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on puzzle with non-numeric grid size", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          grid: { ...SAMPLE_PUZZLE.grid, size: "three" },
+        },
+        locale: "German",
+      }),
     });
     expect(res.status).toBe(400);
   });
 
   it("returns 400 on missing locale", async () => {
-    const res = await post({ request: postBody({ clues: SAMPLE_CLUES }) });
+    const res = await post({ request: postBody({ puzzle: SAMPLE_PUZZLE }) });
     expect(res.status).toBe(400);
   });
 
   it("returns 400 on empty locale string", async () => {
     const res = await post({
-      request: postBody({ clues: SAMPLE_CLUES, locale: "   " }),
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "   " }),
     });
     expect(res.status).toBe(400);
   });
 
   it("returns 400 on overlong locale string", async () => {
     const res = await post({
-      request: postBody({ clues: SAMPLE_CLUES, locale: "x".repeat(101) }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 on malformed clue items", async () => {
-    const res = await post({
-      request: postBody({
-        clues: [{ text: "no constraint" }],
-        locale: "German",
-      }),
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "x".repeat(101) }),
     });
     expect(res.status).toBe(400);
   });
@@ -174,7 +270,7 @@ describe("POST /api/translate", () => {
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
     const res = await post({
-      request: postBody({ clues: SAMPLE_CLUES, locale: "German" }),
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
     expect(res.status).toBe(500);
