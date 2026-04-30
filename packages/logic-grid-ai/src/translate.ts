@@ -146,7 +146,13 @@ ${categoryList}
 ## Source clues`;
 
   for (let i = 0; i < clues.length; i++) {
-    prompt += `\n\n${i + 1}. Original: "${clues[i].text}"\n   Constraint: ${JSON.stringify(clues[i].constraint)}`;
+    // JSON.stringify gives a quoted, escape-safe form for both the clue
+    // text and the constraint object. Avoids breaking out of the prompt
+    // when source text contains quotes or newlines (rewriteClues output
+    // is bound only by length/uniqueness, and a future API consumer
+    // accepting user-authored text would otherwise have an injection
+    // vector here).
+    prompt += `\n\n${i + 1}. Original: ${JSON.stringify(clues[i].text)}\n   Constraint: ${JSON.stringify(clues[i].constraint)}`;
   }
 
   if (previousErrors && previousErrors.length > 0) {

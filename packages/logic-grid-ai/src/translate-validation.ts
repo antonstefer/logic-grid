@@ -349,7 +349,9 @@ variation.
 ## Source / translation pairs`;
 
   for (let i = 0; i < sourceClues.length; i++) {
-    prompt += `\n\n${i + 1}. EN: "${sourceClues[i].text}"\n   Constraint: ${JSON.stringify(sourceClues[i].constraint)}\n   ${locale}: "${translated[i]}"`;
+    // JSON.stringify produces quoted, escape-safe forms so quotes or
+    // newlines in clue text can't break out of the prompt context.
+    prompt += `\n\n${i + 1}. EN: ${JSON.stringify(sourceClues[i].text)}\n   Constraint: ${JSON.stringify(sourceClues[i].constraint)}\n   ${locale}: ${JSON.stringify(translated[i])}`;
   }
 
   return prompt;

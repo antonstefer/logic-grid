@@ -128,9 +128,18 @@ export interface TranslateOptions {
   /**
    * Validator client. Strongly recommended to pass a client backed by a
    * different model than the translator — single-model validation has
-   * correlated blind spots. Defaults to `client` if omitted; if both are
-   * omitted, a separate Anthropic client with `temperature: 0` is created
-   * for deterministic verdicts.
+   * correlated blind spots.
+   *
+   * Fallback rules:
+   *  - If you pass `validator` explicitly, it's used as-is.
+   *  - If you pass `client` but no `validator`, the validator reuses
+   *    `client` (including its temperature). The package can't auto-spin
+   *    a "matching" temperature-0 validator from an opaque AIClient, so
+   *    if you want deterministic verdicts AND a custom translator, pass
+   *    both explicitly.
+   *  - If you pass neither, the package creates two default Anthropic
+   *    clients: translator at the default temperature, validator at
+   *    `temperature: 0` for deterministic verdicts.
    */
   validator?: AIClient;
 }
