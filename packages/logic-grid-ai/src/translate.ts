@@ -185,18 +185,45 @@ ${categoryList}
  * retries (429s, 5xx, network errors) are handled inside the Anthropic SDK
  * with exponential backoff and don't consume one of the 3 attempts.
  *
+/**
+ * Locale string format. The locale is interpolated verbatim into both
+ * the translator and validator prompts, so the package — not just any
+ * HTTP layer that wraps it — has to reject anything that could break out
+ * of prompt context. Allows plain language names ("German", "Japanese"),
+ * BCP-47 codes ("de-DE", "zh-Hans"), and short multi-word forms; rejects
+ * newlines, quotes, brackets, and punctuation. Cap of 50 chars (real
+ * locales never exceed ~30).
+ */
+const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
+
+/** ... see top-level JSDoc on `translate` ... */
+/**
  * @throws {TranslationError} If translation fails validation after all
  *   retry attempts. Inspect `error.errors` for the structured failures.
- * @throws {Error} If `locale` is empty.
+ * @throws {Error} If `locale` is empty or contains characters that aren't
+ *   safe to interpolate into the AI prompt.
  */
 export async function translate(
   options: TranslateOptions,
 ): Promise<TranslatedPuzzle> {
   const { puzzle, locale } = options;
 
-  if (!locale || locale.trim() === "") {
+  if (typeof locale !== "string" || locale.trim() === "") {
     throw new Error("locale must be a non-empty string");
   }
+  const cleanLocale = locale.trim();
+  if (!LOCALE_RE.test(cleanLocale)) {
+    throw new Error(
+      "locale must contain only letters, digits, hyphens, underscores, and spaces (max 50 chars). The string is interpolated into the AI prompt, so punctuation that could break prompt context is rejected.",
+    );
+  }
+
+  // Sanitized form is what flows into prompts and validator calls; the
+  // user's original `options.locale` is left untouched.
+  const sanitizedOptions: TranslateOptions = {
+    ...options,
+    locale: cleanLocale,
+  };
 
   const translator: AIClient = options.client ?? createAnthropicClient();
   const validator: AIClient =
@@ -215,7 +242,7 @@ export async function translate(
       ?.filter((e) => !VALIDATOR_ONLY_CODES.has(e.code))
       .map((e) => e.message);
     const prompt = buildPrompt(
-      options,
+      sanitizedOptions,
       translatorFeedback && translatorFeedback.length > 0
         ? translatorFeedback
         : undefined,
@@ -231,7 +258,12 @@ export async function translate(
       continue;
     }
 
-    const semantic = await validateTranslation(puzzle, raw, locale, validator);
+    const semantic = await validateTranslation(
+      puzzle,
+      raw,
+      cleanLocale,
+      validator,
+    );
     if (semantic.length === 0) {
       return {
         clues: raw.clues.map((text, i) => ({
@@ -247,7 +279,7 @@ export async function translate(
   }
 
   throw new TranslationError(
-    `Translation to ${locale} failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!
+    `Translation to ${cleanLocale} failed after ${MAX_RETRIES} attempts. Last errors:\n${lastErrors!
       .map((e) => e.message)
       .join("\n")}`,
     lastErrors!,

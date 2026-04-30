@@ -26,19 +26,45 @@ import type {
  * from the source puzzle must appear with a non-empty translation).
  */
 
-const CONSTRAINT_TYPES: ConstraintType[] = [
-  "same_position",
-  "not_same_position",
-  "next_to",
-  "not_next_to",
-  "left_of",
-  "before",
-  "between",
-  "not_between",
-  "exact_distance",
-];
+/**
+ * Exhaustiveness: when a new variant is added to logic-grid's
+ * {@link ConstraintType} union, this map errors at compile time, forcing
+ * the contributor to classify it (and to flag whether it's asymmetric
+ * via {@link IS_ASYMMETRIC} below). Mirrors the pattern in
+ * `logic-grid/src/difficulty.ts`'s `TYPE_TIER`.
+ */
+const CONSTRAINT_TYPE_SET: Record<ConstraintType, true> = {
+  same_position: true,
+  not_same_position: true,
+  next_to: true,
+  not_next_to: true,
+  left_of: true,
+  before: true,
+  between: true,
+  not_between: true,
+  exact_distance: true,
+};
 
-const ASYMMETRIC: Set<ConstraintType> = new Set(["before", "left_of"]);
+const CONSTRAINT_TYPES = Object.keys(CONSTRAINT_TYPE_SET) as ConstraintType[];
+
+/**
+ * Per-type direction-sensitivity. `true` for constraints where swapping
+ * `a` and `b` changes meaning (the validator runs a `directionOk` check
+ * for these); `false` for symmetric constraints. Same exhaustiveness
+ * pattern as {@link CONSTRAINT_TYPE_SET} — adding a new variant is a TS
+ * error here until classified.
+ */
+const IS_ASYMMETRIC: Record<ConstraintType, boolean> = {
+  same_position: false,
+  not_same_position: false,
+  next_to: false,
+  not_next_to: false,
+  left_of: true,
+  before: true,
+  between: false,
+  not_between: false,
+  exact_distance: false,
+};
 
 /** Per-clue length budget for translated clue text. */
 const MAX_CLUE_LENGTH = 500;
@@ -342,6 +368,19 @@ export async function validateTranslation(
   const prompt = buildPrompt(sourceClues, raw.clues, locale);
   const result = await validator.completeJSON<ValidatorResult>(prompt, schema);
 
+  // Length guard before reading any verdict — the tools-API schema
+  // enforces `minItems`/`maxItems`, but enforcement is best-effort and a
+  // short array would otherwise crash with "Cannot read properties of
+  // undefined" instead of feeding into the retry loop.
+  if (result.clues.length !== sourceClues.length) {
+    return [
+      {
+        code: "verdict_index_mismatch",
+        message: `Validator returned ${result.clues.length} verdicts; expected ${sourceClues.length}.`,
+      },
+    ];
+  }
+
   // Verify verdict order matches source clue order before we trust the
   // per-clue judgements. The schema guarantees count and item shape but
   // not that verdicts arrive in source order — a misordered batch would
@@ -378,7 +417,7 @@ export async function validateTranslation(
       );
     }
 
-    if (ASYMMETRIC.has(source.constraint.type) && !verdict.directionOk) {
+    if (IS_ASYMMETRIC[source.constraint.type] && !verdict.directionOk) {
       errors.push(
         err(
           "direction_flip",

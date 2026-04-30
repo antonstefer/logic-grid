@@ -511,6 +511,34 @@ describe("validateTranslation", () => {
     expect(callCount).toBe(1);
   });
 
+  it("emits verdict_index_mismatch (without crashing) when the AI returns fewer verdicts than expected", async () => {
+    // Schema enforcement is best-effort; if a model returns a short
+    // array, we should still get a typed error instead of a TypeError
+    // crash on `result.clues[i].index`.
+    const verdicts = {
+      clues: [
+        {
+          index: 1,
+          constraintType: "same_position",
+          directionOk: true,
+          numericOk: true,
+          properNounsOk: true,
+        },
+      ],
+    };
+
+    const errors = await validateTranslation(
+      SAMPLE_PUZZLE,
+      { clues: ["a", "b", "c"] },
+      "German",
+      mockValidator(verdicts),
+    );
+
+    expect(hasCode(errors, "verdict_index_mismatch")).toBe(true);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain("expected 3");
+  });
+
   it("emits verdict_index_mismatch when the AI returns misordered verdicts", async () => {
     const verdicts = {
       clues: SAMPLE_PUZZLE.clues.map((c, i) => ({
