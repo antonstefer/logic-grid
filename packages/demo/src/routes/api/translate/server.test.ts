@@ -173,12 +173,31 @@ describe("POST /api/translate", () => {
     expect(body.categoryNames.House).toBe("Haus");
     expect(body.valueLabels.Red).toBe("Rot");
     expect(body.valueLabels.Alice).toBe("Alice");
-    // Translator client created with default temperature; validator
-    // explicitly with temperature: 0 (matches README recommendation).
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test", {
-      temperature: 0,
+    // Translator client created with default temperature on the FIRST
+    // call; validator explicitly with temperature: 0 on the SECOND.
+    // Pinning by call order catches a regression where the translator
+    // would also pick up { temperature: 0 } — `toHaveBeenCalledWith`
+    // alone wouldn't.
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
+      1,
+      "sk-test",
+    );
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
+      2,
+      "sk-test",
+      { temperature: 0 },
+    );
+  });
+
+  it("trims whitespace around the locale before passing to translate", async () => {
+    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
+
+    const res = await post({
+      request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "  German  " }),
     });
+
+    expect(res.status).toBe(200);
   });
 
   it("returns 400 on invalid JSON", async () => {

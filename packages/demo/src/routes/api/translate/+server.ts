@@ -44,14 +44,19 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ error: "Invalid puzzle" }, { status: 400 });
   }
   // Locale is interpolated into the AI prompt verbatim, so the format must
-  // be tight enough to prevent injection. Allow plain language names
-  // ("German", "Japanese") and BCP-47 codes ("de-DE", "zh-Hans"); reject
+  // be tight enough to prevent injection. Trim first so trailing spaces
+  // don't survive into the prompt; then allow plain language names
+  // ("German", "Japanese") and BCP-47 codes ("de-DE", "zh-Hans"). Reject
   // anything with newlines, quotes, brackets, or punctuation that could
   // break out of the prompt context. Letters, digits, hyphen, underscore,
-  // and single internal spaces only; cap at 50 chars (real locales never
-  // exceed ~30).
+  // and internal spaces only; cap at 50 chars (real locales never exceed
+  // ~30).
+  if (typeof locale !== "string") {
+    return json({ error: "Invalid locale" }, { status: 400 });
+  }
+  const cleanLocale = locale.trim();
   const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
-  if (typeof locale !== "string" || !LOCALE_RE.test(locale)) {
+  if (!LOCALE_RE.test(cleanLocale)) {
     return json({ error: "Invalid locale" }, { status: 400 });
   }
 
@@ -63,7 +68,12 @@ export const POST: RequestHandler = async ({ request }) => {
     // back the validator with a *different model* than the translator to
     // avoid correlated blind spots; the demo accepts that trade-off.
     const validator = getAnthropicValidator();
-    const result = await translate({ puzzle, locale, client, validator });
+    const result = await translate({
+      puzzle,
+      locale: cleanLocale,
+      client,
+      validator,
+    });
     return json(result);
   } catch (e) {
     if (e instanceof MissingEnvError) {
