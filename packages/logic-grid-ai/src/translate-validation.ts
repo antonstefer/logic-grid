@@ -331,6 +331,25 @@ export async function validateTranslation(
   const prompt = buildPrompt(sourceClues, raw.clues, locale);
   const result = await validator.completeJSON<ValidatorResult>(prompt, schema);
 
+  // Verify verdict order matches source clue order before we trust the
+  // per-clue judgements. The schema guarantees count and item shape but
+  // not that verdicts arrive in source order — a misordered batch would
+  // silently misalign every check below. Bail early so the retry loop
+  // gets fresh verdicts; partial per-clue results from a broken batch
+  // would just confuse the feedback prompt.
+  for (let i = 0; i < sourceClues.length; i++) {
+    const verdict = result.clues[i];
+    if (verdict.index !== i + 1) {
+      return [
+        {
+          code: "verdict_index_mismatch",
+          message: `Validator returned verdict with index ${verdict.index} at array position ${i + 1}; verdicts must align with source clue order.`,
+          clueIndex: i + 1,
+        },
+      ];
+    }
+  }
+
   const errors: TranslationValidationError[] = [];
 
   for (let i = 0; i < sourceClues.length; i++) {

@@ -216,6 +216,7 @@ If validation fails on every attempt, `translate` throws a `TranslationError` ca
 | `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
 | `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
 | `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
+| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
 | `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
 | `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |
 | `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                          |

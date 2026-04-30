@@ -180,6 +180,7 @@ export type TranslationValidationCode =
   | "missing_value_label"
   | "empty_value_label"
   | "duplicate_value_label"
+  | "verdict_index_mismatch"
   | "constraint_type_mismatch"
   | "direction_flip"
   | "numeric_changed"

@@ -513,6 +513,32 @@ describe("validateTranslation", () => {
     expect(callCount).toBe(1);
   });
 
+  it("emits verdict_index_mismatch when the AI returns misordered verdicts", async () => {
+    const verdicts = {
+      clues: SAMPLE_PUZZLE.clues.map((c, i) => ({
+        // First verdict claims to be index 2 — order broken.
+        index: i === 0 ? 2 : i + 1,
+        constraintType: c.constraint.type,
+        directionOk: true,
+        numericOk: true,
+        properNounsOk: true,
+      })),
+    };
+
+    const errors = await validateTranslation(
+      SAMPLE_PUZZLE,
+      { clues: ["a", "b", "c"] },
+      "German",
+      mockValidator(verdicts),
+    );
+
+    expect(hasCode(errors, "verdict_index_mismatch")).toBe(true);
+    // Bails early — no other per-clue errors should appear from a batch
+    // we already know is corrupted.
+    expect(errors).toHaveLength(1);
+    expect(errors[0].clueIndex).toBe(1);
+  });
+
   it("does not flag direction on symmetric constraints when directionOk is false", async () => {
     const symPuzzle: Puzzle = {
       ...SAMPLE_PUZZLE,
