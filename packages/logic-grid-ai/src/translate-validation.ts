@@ -137,6 +137,9 @@ export function checkTranslationStructure(
   }
 
   // --- Category names ---
+  // Track localized→canonical to detect collisions: two distinct categories
+  // mapping to the same display string would render as identical headers.
+  const seenCategoryLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
     const localized = raw.categoryNames[cat.name];
     if (localized === undefined) {
@@ -157,10 +160,27 @@ export function checkTranslationStructure(
           { key: cat.name },
         ),
       );
+      continue;
+    }
+    const lower = localized.trim().toLowerCase();
+    const earlier = seenCategoryLabels.get(lower);
+    if (earlier !== undefined) {
+      errors.push(
+        err(
+          "duplicate_category_name",
+          `Localized category name "${localized}" is shared by canonical names "${earlier}" and "${cat.name}".`,
+          { key: cat.name },
+        ),
+      );
+    } else {
+      seenCategoryLabels.set(lower, cat.name);
     }
   }
 
   // --- Value labels ---
+  // Same collision check across all categories. Values are globally unique
+  // by logic-grid contract, so we walk every value in one pass.
+  const seenValueLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
     for (const value of cat.values) {
       const localized = raw.valueLabels[value];
@@ -182,6 +202,20 @@ export function checkTranslationStructure(
             { key: value },
           ),
         );
+        continue;
+      }
+      const lower = localized.trim().toLowerCase();
+      const earlier = seenValueLabels.get(lower);
+      if (earlier !== undefined) {
+        errors.push(
+          err(
+            "duplicate_value_label",
+            `Localized label "${localized}" is shared by canonical values "${earlier}" and "${value}".`,
+            { key: value },
+          ),
+        );
+      } else {
+        seenValueLabels.set(lower, value);
       }
     }
   }

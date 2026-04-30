@@ -178,7 +178,7 @@ const localized = await translate({
 // }
 ```
 
-The original `puzzle.constraints` and `puzzle.grid` are passed through unchanged — the engine continues to operate on canonical English keys. Renderers compose `categoryNames` / `valueLabels` over the canonical grid to display localized headers, falling back to the canonical names for keys without an entry.
+The original `puzzle.constraints` and `puzzle.grid` are passed through unchanged — the engine continues to operate on canonical English keys. Renderers compose `categoryNames` / `valueLabels` over the canonical grid to display localized headers. The structural validator guarantees every canonical key has a non-empty entry, so renderers can treat the maps as exhaustive and surface any missing key as an error rather than silently rendering a half-localized grid.
 
 The function runs a two-stage AI flow:
 
@@ -203,21 +203,23 @@ const localized = await translate({
 
 If validation fails on every attempt, `translate` throws a `TranslationError` carrying structured `errors` with stable codes:
 
-| Code                       | Surface        | Meaning                                                               |
-| -------------------------- | -------------- | --------------------------------------------------------------------- |
-| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source               |
-| `non_string_clue`          | clues          | A clue entry is not a string                                          |
-| `empty_translation`        | clues          | A clue is empty or whitespace-only                                    |
-| `long_translation`         | clues          | A clue exceeds the per-clue length budget                             |
-| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                            |
-| `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`  |
-| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                        |
-| `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`       |
-| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                          |
-| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint |
-| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                          |
-| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                     |
-| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                   |
+| Code                       | Surface        | Meaning                                                                    |
+| -------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                    |
+| `non_string_clue`          | clues          | A clue entry is not a string                                               |
+| `empty_translation`        | clues          | A clue is empty or whitespace-only                                         |
+| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                  |
+| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                 |
+| `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`       |
+| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                             |
+| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive) |
+| `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
+| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
+| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
+| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
+| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |
+| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                          |
+| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                        |
 
 ```typescript
 import { translate, TranslationError } from "logic-grid-ai";

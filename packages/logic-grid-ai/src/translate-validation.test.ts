@@ -264,6 +264,53 @@ describe("checkTranslationStructure", () => {
     expect(hasCode(errors, "empty_value_label")).toBe(true);
   });
 
+  it("rejects two categories mapped to the same localized name", () => {
+    const raw = validRaw();
+    raw.categoryNames.Color = "Haus"; // collides with House → "Haus"
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    expect(hasCode(errors, "duplicate_category_name")).toBe(true);
+    const dup = errors.find((e) => e.code === "duplicate_category_name");
+    expect(dup?.key).toBe("Color");
+    expect(dup?.message).toContain("House");
+  });
+
+  it("flags duplicate category names case-insensitively", () => {
+    const raw = validRaw();
+    raw.categoryNames.House = "Farbe";
+    raw.categoryNames.Color = "FARBE";
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    expect(hasCode(errors, "duplicate_category_name")).toBe(true);
+  });
+
+  it("rejects two values mapped to the same localized label", () => {
+    const raw = validRaw();
+    raw.valueLabels.Bob = "Alice"; // Alice already maps to "Alice"
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    expect(hasCode(errors, "duplicate_value_label")).toBe(true);
+    const dup = errors.find((e) => e.code === "duplicate_value_label");
+    expect(dup?.key).toBe("Bob");
+    expect(dup?.message).toContain("Alice");
+  });
+
+  it("flags duplicate value labels case-insensitively", () => {
+    const raw = validRaw();
+    raw.valueLabels.Cat = "FOO"; // hypothetical: Cat isn't in SAMPLE_PUZZLE
+    raw.valueLabels.Red = "foo";
+    raw.valueLabels.Blue = "FoO";
+    const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
+    // Red sees no earlier "foo" since Cat isn't a SAMPLE_PUZZLE value;
+    // Blue collides with Red.
+    expect(hasCode(errors, "duplicate_value_label")).toBe(true);
+    const dup = errors.find((e) => e.code === "duplicate_value_label");
+    expect(dup?.key).toBe("Blue");
+  });
+
+  it("does not flag a value mapping to itself (proper noun preservation)", () => {
+    // Alice → "Alice", Bob → "Bob": fine, they're different localized strings.
+    const raw = validRaw();
+    expect(checkTranslationStructure(raw, SAMPLE_PUZZLE)).toEqual([]);
+  });
+
   it("omits clueIndex on count-level errors", () => {
     const raw = validRaw();
     raw.clues = ["only one"];
