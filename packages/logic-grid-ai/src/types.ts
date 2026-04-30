@@ -1,4 +1,4 @@
-import type { Category, Clue } from "logic-grid";
+import type { Category, Clue, Puzzle } from "logic-grid";
 
 /** Options for AI-powered theme generation. */
 export interface ThemeOptions {
@@ -108,14 +108,15 @@ export interface RewriteCluesValidationError {
   clueIndex?: number;
 }
 
-/** Options for AI-powered clue translation. */
+/** Options for AI-powered puzzle translation. */
 export interface TranslateOptions {
   /**
-   * Source clues. The `constraint` field is the ground truth that the
-   * validator compares against; `text` is shown to the translator as a
-   * stylistic hint but may have already drifted (e.g. via {@link rewriteClues}).
+   * Source puzzle. The `constraints` and `grid.categories` are the ground
+   * truth that validation compares against; rendered clue `text` is shown
+   * to the translator as a stylistic hint but may have already drifted
+   * (e.g. via {@link rewriteClues}).
    */
-  clues: Clue[];
+  puzzle: Puzzle;
   /**
    * Target locale. Free-form string passed verbatim into the prompt — both
    * BCP-47 codes ("de-DE", "ja-JP") and plain language names ("German",
@@ -135,12 +136,37 @@ export interface TranslateOptions {
 }
 
 /**
- * Structured validation error for AI-translated clues.
+ * Result of translating a puzzle.
+ *
+ * Constraints and the canonical `grid` are NOT modified — the engine
+ * continues to operate on the original English keys. The renderer composes
+ * the original puzzle with these maps to display localized strings.
+ */
+export interface TranslatedPuzzle {
+  /** Localized clue text, in the same order as `puzzle.clues`. */
+  clues: Clue[];
+  /**
+   * Map from canonical category name → localized display name.
+   * E.g. `{ "House": "Haus", "Color": "Farbe" }`.
+   */
+  categoryNames: Record<string, string>;
+  /**
+   * Map from canonical value (across all categories) → localized label.
+   * Values are globally unique in a logic-grid puzzle, so a flat map is
+   * unambiguous. Proper nouns map to themselves verbatim.
+   * E.g. `{ "Yellow": "Gelb", "Cat": "Katze", "Alice": "Alice" }`.
+   */
+  valueLabels: Record<string, string>;
+}
+
+/**
+ * Structured validation error for AI-translated puzzles.
  *
  * Codes split into two tiers:
- * - Structural (cheap, deterministic): wrong count, non-string, empty, too long, duplicate.
- * - Semantic (AI-driven): constraint type drift incl. polarity, direction flip on
- *   asymmetric comparators, numeric / unit drift, proper-noun drop.
+ * - Structural (cheap, deterministic): wrong counts, non-strings, empties,
+ *   over-length, duplicates, missing keys.
+ * - Semantic (AI-driven): constraint type drift incl. polarity, direction
+ *   flip on asymmetric comparators, numeric / unit drift, proper-noun drop.
  */
 export type TranslationValidationCode =
   | "wrong_clue_count"
@@ -148,6 +174,10 @@ export type TranslationValidationCode =
   | "empty_translation"
   | "long_translation"
   | "duplicate_translation"
+  | "missing_category_name"
+  | "empty_category_name"
+  | "missing_value_label"
+  | "empty_value_label"
   | "constraint_type_mismatch"
   | "direction_flip"
   | "numeric_changed"
@@ -158,4 +188,6 @@ export interface TranslationValidationError {
   message: string;
   /** 1-indexed clue position when the error is scoped to a single clue. */
   clueIndex?: number;
+  /** Canonical category or value name when the error is scoped to one. */
+  key?: string;
 }

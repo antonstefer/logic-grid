@@ -1,4 +1,4 @@
-import type { Clue, ConstraintType } from "logic-grid";
+import type { Clue, ConstraintType, Puzzle } from "logic-grid";
 import type {
   AIClient,
   JSONSchema,
@@ -7,25 +7,23 @@ import type {
 } from "./types";
 
 /**
- * AI-driven semantic validator for translated clues.
+ * AI-driven semantic validator for translated puzzles, plus a sync
+ * structural pre-check.
  *
  * NOT exported from the package. Internal to the {@link translate} retry loop.
  *
- * The validator round-trips each translation back to a constraint type and
- * checks four properties per clue:
+ * The semantic validator round-trips each translated clue back to a
+ * constraint type and checks four properties per clue:
  *  1. Constraint type round-trip (with polarity baked in: `not_between` is a
  *     distinct value from `between`).
  *  2. Direction (only for `before` / `left_of`): does the translation's
  *     subject/object order match the source constraint's `a`/`b` fields?
- *  3. Numeric and unit preservation.
- *  4. Proper-noun preservation.
+ *  3. Numeric and unit preservation in the clue text.
+ *  4. Proper-noun preservation in the clue text.
  *
- * All checks are evaluated by a single AI call against a structured schema —
- * the verdicts are typed booleans + an enum, not free-text reasoning. Failures
- * are mapped to {@link TranslationValidationError} with stable codes.
- *
- * Caller is responsible for picking a validator client distinct from the
- * translator (or accepting correlated blind spots if the same client is used).
+ * The structural pre-check covers clue counts, empties, duplicates, and
+ * the completeness of `categoryNames` / `valueLabels` (every canonical key
+ * from the source puzzle must appear with a non-empty translation).
  */
 
 const CONSTRAINT_TYPES: ConstraintType[] = [
@@ -54,49 +52,64 @@ interface ValidatorResult {
   clues: ClueVerdict[];
 }
 
+interface RawTranslation {
+  clues: unknown[];
+  categoryNames: Record<string, unknown>;
+  valueLabels: Record<string, unknown>;
+}
+
 function err(
   code: TranslationValidationCode,
   message: string,
-  clueIndex?: number,
+  opts: { clueIndex?: number; key?: string } = {},
 ): TranslationValidationError {
-  return clueIndex !== undefined
-    ? { code, message, clueIndex }
-    : { code, message };
+  const e: TranslationValidationError = { code, message };
+  if (opts.clueIndex !== undefined) e.clueIndex = opts.clueIndex;
+  if (opts.key !== undefined) e.key = opts.key;
+  return e;
 }
 
 /**
  * Cheap, deterministic structural check on the raw translator output.
  * Run before the AI validator to reject obvious failures without burning
- * an LLM call. Mirrors {@link validateRewrittenClues}'s shape.
+ * an LLM call.
  */
 export function checkTranslationStructure(
-  result: { clues: unknown[] },
-  expectedCount: number,
+  raw: RawTranslation,
+  puzzle: Puzzle,
 ): TranslationValidationError[] {
   const errors: TranslationValidationError[] = [];
+  const expectedClueCount = puzzle.clues.length;
 
-  if (result.clues.length !== expectedCount) {
+  // --- Clues ---
+  if (raw.clues.length !== expectedClueCount) {
     errors.push(
       err(
         "wrong_clue_count",
-        `Expected ${expectedCount} clues, got ${result.clues.length}.`,
+        `Expected ${expectedClueCount} clues, got ${raw.clues.length}.`,
       ),
     );
   }
 
   const seen = new Set<string>();
 
-  for (let i = 0; i < result.clues.length; i++) {
-    const text = result.clues[i];
+  for (let i = 0; i < raw.clues.length; i++) {
+    const text = raw.clues[i];
     const pos = i + 1;
 
     if (typeof text !== "string") {
-      errors.push(err("non_string_clue", `Clue ${pos} is not a string.`, pos));
+      errors.push(
+        err("non_string_clue", `Clue ${pos} is not a string.`, {
+          clueIndex: pos,
+        }),
+      );
       continue;
     }
 
     if (!text || text.trim() === "") {
-      errors.push(err("empty_translation", `Clue ${pos} is empty.`, pos));
+      errors.push(
+        err("empty_translation", `Clue ${pos} is empty.`, { clueIndex: pos }),
+      );
       continue;
     }
 
@@ -105,7 +118,7 @@ export function checkTranslationStructure(
         err(
           "long_translation",
           `Clue ${pos} is too long (${text.length} chars, max 500).`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }
@@ -116,11 +129,61 @@ export function checkTranslationStructure(
         err(
           "duplicate_translation",
           `Clue ${pos} is a duplicate of an earlier clue.`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }
     seen.add(lower);
+  }
+
+  // --- Category names ---
+  for (const cat of puzzle.grid.categories) {
+    const localized = raw.categoryNames[cat.name];
+    if (localized === undefined) {
+      errors.push(
+        err(
+          "missing_category_name",
+          `Category "${cat.name}" has no localized name in categoryNames.`,
+          { key: cat.name },
+        ),
+      );
+      continue;
+    }
+    if (typeof localized !== "string" || localized.trim() === "") {
+      errors.push(
+        err(
+          "empty_category_name",
+          `Localized name for category "${cat.name}" is empty.`,
+          { key: cat.name },
+        ),
+      );
+    }
+  }
+
+  // --- Value labels ---
+  for (const cat of puzzle.grid.categories) {
+    for (const value of cat.values) {
+      const localized = raw.valueLabels[value];
+      if (localized === undefined) {
+        errors.push(
+          err(
+            "missing_value_label",
+            `Value "${value}" has no localized label in valueLabels.`,
+            { key: value },
+          ),
+        );
+        continue;
+      }
+      if (typeof localized !== "string" || localized.trim() === "") {
+        errors.push(
+          err(
+            "empty_value_label",
+            `Localized label for value "${value}" is empty.`,
+            { key: value },
+          ),
+        );
+      }
+    }
   }
 
   return errors;
@@ -158,7 +221,7 @@ function buildSchema(clueCount: number): JSONSchema {
             properNounsOk: {
               type: "boolean",
               description:
-                "All proper nouns and category-value names from the source are preserved verbatim.",
+                "All proper nouns and category-value names from the source are preserved verbatim in the clue text (inflection of descriptive words is fine).",
             },
           },
           required: [
@@ -182,7 +245,7 @@ function buildPrompt(
   translated: string[],
   locale: string,
 ): string {
-  let prompt = `You are reviewing a translation of logic-puzzle clues from English to ${locale}.
+  let prompt = `You are reviewing translated clues for a logic-grid puzzle (English → ${locale}).
 
 For each clue, parse the ${locale} sentence back to a constraint and verify:
 
@@ -203,9 +266,10 @@ For each clue, parse the ${locale} sentence back to a constraint and verify:
 3. numericOk: are all numbers and units from the source constraint preserved
    exactly in the ${locale} text?
 
-4. properNounsOk: are all proper nouns and category-value names from the
-   source preserved verbatim (Alice stays Alice; "Black River fund" stays
-   "Black River fund")?
+4. properNounsOk: are all proper nouns from the source preserved verbatim
+   in the ${locale} clue text? Names of people, places, brands, ships, and
+   numeric/literal values must NOT be translated. Inflection of descriptive
+   words (colors, animals, common nouns) is FINE — that's not a violation.
 
 Be calibrated — accept fluent translations that preserve meaning even if
 phrased differently. Only flag GENUINE semantic drift, not stylistic
@@ -221,15 +285,16 @@ variation.
 }
 
 export async function validateTranslation(
-  sourceClues: Clue[],
-  translated: string[],
+  puzzle: Puzzle,
+  raw: { clues: string[] },
   locale: string,
   validator: AIClient,
 ): Promise<TranslationValidationError[]> {
+  const sourceClues = puzzle.clues;
   if (sourceClues.length === 0) return [];
 
   const schema = buildSchema(sourceClues.length);
-  const prompt = buildPrompt(sourceClues, translated, locale);
+  const prompt = buildPrompt(sourceClues, raw.clues, locale);
   const result = await validator.completeJSON<ValidatorResult>(prompt, schema);
 
   const errors: TranslationValidationError[] = [];
@@ -244,7 +309,7 @@ export async function validateTranslation(
         err(
           "constraint_type_mismatch",
           `Clue ${pos}: translation expresses '${verdict.constraintType}' but source constraint is '${source.constraint.type}'.`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }
@@ -254,7 +319,7 @@ export async function validateTranslation(
         err(
           "direction_flip",
           `Clue ${pos}: subject/object order is reversed for ${source.constraint.type}.`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }
@@ -264,7 +329,7 @@ export async function validateTranslation(
         err(
           "numeric_changed",
           `Clue ${pos}: numbers or units differ from the source constraint.`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }
@@ -274,7 +339,7 @@ export async function validateTranslation(
         err(
           "proper_noun_dropped",
           `Clue ${pos}: a proper noun or value name was changed.`,
-          pos,
+          { clueIndex: pos },
         ),
       );
     }

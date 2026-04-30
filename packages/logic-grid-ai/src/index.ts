@@ -15,6 +15,7 @@ export type {
   RewriteCluesOptions,
   RewriteCluesResult,
   TranslateOptions,
+  TranslatedPuzzle,
   AIClient,
   JSONSchema,
   ThemeValidationCode,
