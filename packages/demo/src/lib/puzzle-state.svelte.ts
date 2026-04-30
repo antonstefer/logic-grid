@@ -443,6 +443,11 @@ export function createPuzzleState() {
 
   function translatePuzzle(locale: string) {
     if (!puzzle) throw new Error("No active puzzle");
+    // Capture before setTimeout so the async closure has a non-null target
+    // without needing a defensive null guard inside. The Translate button is
+    // disabled while loading, so the puzzle can't be replaced before the
+    // fetch completes.
+    const target = puzzle;
     loading = true;
     loadingMessage = "Translating puzzle…";
     message = null;
@@ -450,12 +455,10 @@ export function createPuzzleState() {
     setTimeout(() => {
       void (async () => {
         try {
-          const current = puzzle;
-          if (!current) return;
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ puzzle: current, locale }),
+            body: JSON.stringify({ puzzle: target, locale }),
           });
           if (!res.ok) {
             let errorMsg = "Translation failed";
@@ -468,7 +471,7 @@ export function createPuzzleState() {
             throw new Error(errorMsg);
           }
           const body = (await res.json()) as TranslatedPuzzle;
-          puzzle = { ...current, clues: body.clues };
+          puzzle = { ...target, clues: body.clues };
           localization = {
             categoryNames: body.categoryNames,
             valueLabels: body.valueLabels,

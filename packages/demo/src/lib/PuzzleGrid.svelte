@@ -54,8 +54,20 @@
     return list;
   });
 
+  // No silent fallbacks: when localization is set, every canonical key is
+  // expected to have an entry (the structural validator enforces this).
+  // A missing entry indicates corrupted output that bypassed validation —
+  // throw rather than render a half-localized grid that hides the bug.
+
   function categoryLabel(name: string): string {
-    return localization?.categoryNames[name] ?? name;
+    if (localization === null) return name;
+    const localized = localization.categoryNames[name];
+    if (localized === undefined) {
+      throw new Error(
+        `Localization is missing categoryNames entry for "${name}"`,
+      );
+    }
+    return localized;
   }
 
   function valueLabel(catIdx: number, valIdx: number): string {
@@ -66,10 +78,26 @@
     // for House. They take priority over localization regardless of locale,
     // matching the English-locale behavior. AI-translated forms still
     // appear in clue text where they read naturally in the target locale.
+    // logic-grid's contract is that displayLabels matches values length;
+    // if it doesn't, that's an upstream bug and we surface it instead of
+    // quietly substituting the canonical key.
     if (cat.ordered === true && cat.displayLabels) {
-      return cat.displayLabels[valIdx] ?? canonical;
+      const label = cat.displayLabels[valIdx];
+      if (label === undefined) {
+        throw new Error(
+          `Category "${cat.name}" has displayLabels of length ${cat.displayLabels.length} but values has ${cat.values.length} entries (index ${valIdx} out of range)`,
+        );
+      }
+      return label;
     }
-    return localization?.valueLabels[canonical] ?? canonical;
+    if (localization === null) return canonical;
+    const localized = localization.valueLabels[canonical];
+    if (localized === undefined) {
+      throw new Error(
+        `Localization is missing valueLabels entry for "${canonical}"`,
+      );
+    }
+    return localized;
   }
 
   function cellSymbol(state: CellState): string {
