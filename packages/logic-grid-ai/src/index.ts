@@ -4,6 +4,7 @@ export {
   translate,
   TranslationError,
   TRANSLATOR_PROMPT_HEADER,
+  LOCALE_RE,
 } from "./translate";
 export { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
 export {

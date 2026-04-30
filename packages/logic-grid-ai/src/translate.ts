@@ -170,8 +170,12 @@ ${categoryList}
  * BCP-47 codes ("de-DE", "zh-Hans"), and short multi-word forms; rejects
  * newlines, quotes, brackets, and punctuation. Cap of 50 chars (real
  * locales never exceed ~30).
+ *
+ * Exported so HTTP layers (e.g. the demo's /api/translate route) can
+ * reuse the exact same regex for boundary validation, instead of
+ * duplicating it and risking divergence.
  */
-const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
+export const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
 
 /**
  * Translate a logic-grid puzzle to a target locale using AI.

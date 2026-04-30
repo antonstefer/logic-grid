@@ -237,6 +237,11 @@ try {
 }
 ```
 
+#### Known limitations
+
+- **`valueLabels` is checked structurally only — semantic validation is on clue text.** The proper-noun-preservation check covers the translated clue text. If the AI mistranslates a proper noun in `valueLabels` (e.g. `"Alice" → "Alise"`) but uses it correctly in clue text, the structural validator can't distinguish a faithful from a drifted label, and the semantic validator never sees the labels. In practice every value tends to appear in at least one clue (so clue-text checks catch drift), but a value that's only ever shown via `valueLabels` (in the grid header) and never referenced by a clue is a blind spot.
+- **`Category.noun` / `verb` / `valueSuffix` / `orderingPhrases` stay English on the canonical grid.** Translation rewrites clue text and provides display-label maps; it doesn't deeply translate the renderer-side metadata used by `renderClue` / `rewriteClues`. Downstream calls to those functions on a translated puzzle will regenerate English clues from the English category fields, overwriting the translation. Plan accordingly: translate as the last step of an AOT pipeline.
+
 ### `createAnthropicClient(apiKey?, options?)` temperature option
 
 `AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for deterministic responses — typically the right default for validator clients in `translate()`:
