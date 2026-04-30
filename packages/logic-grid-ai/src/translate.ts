@@ -157,6 +157,17 @@ ${categoryList}
 }
 
 /**
+ * Locale string format. The locale is interpolated verbatim into both
+ * the translator and validator prompts, so the package — not just any
+ * HTTP layer that wraps it — has to reject anything that could break out
+ * of prompt context. Allows plain language names ("German", "Japanese"),
+ * BCP-47 codes ("de-DE", "zh-Hans"), and short multi-word forms; rejects
+ * newlines, quotes, brackets, and punctuation. Cap of 50 chars (real
+ * locales never exceed ~30).
+ */
+const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
+
+/**
  * Translate a logic-grid puzzle to a target locale using AI.
  *
  * The package engine is English-only by design. This function is a
@@ -185,19 +196,6 @@ ${categoryList}
  * retries (429s, 5xx, network errors) are handled inside the Anthropic SDK
  * with exponential backoff and don't consume one of the 3 attempts.
  *
-/**
- * Locale string format. The locale is interpolated verbatim into both
- * the translator and validator prompts, so the package — not just any
- * HTTP layer that wraps it — has to reject anything that could break out
- * of prompt context. Allows plain language names ("German", "Japanese"),
- * BCP-47 codes ("de-DE", "zh-Hans"), and short multi-word forms; rejects
- * newlines, quotes, brackets, and punctuation. Cap of 50 chars (real
- * locales never exceed ~30).
- */
-const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
-
-/** ... see top-level JSDoc on `translate` ... */
-/**
  * @throws {TranslationError} If translation fails validation after all
  *   retry attempts. Inspect `error.errors` for the structured failures.
  * @throws {Error} If `locale` is empty or contains characters that aren't
