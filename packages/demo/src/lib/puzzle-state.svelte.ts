@@ -84,8 +84,11 @@ export function createPuzzleState() {
     loading = true;
     loadingMessage = theme ? "Generating theme…" : "Generating…";
     message = null;
-    localization = null; // canonical names changed; previous localization is stale
-    originalClues = null; // English source is regenerated below; clear stale snapshot
+    // Don't clear `localization` / `originalClues` synchronously — if the
+    // generate path throws (theme fetch fails, rewriteClues 503, etc.),
+    // the previous puzzle stays visible and we want its localization +
+    // English source to stay consistent with it. Both are refreshed only
+    // in the success path below.
 
     setTimeout(() => {
       void (async () => {
@@ -161,9 +164,10 @@ export function createPuzzleState() {
         }
         pair = initPair(puzzle.grid.categories);
         hintSteps = [];
-        // Snapshot the post-rewrite English clues. Translate always sends
-        // this snapshot, so successive translations stay anchored to the
-        // English source instead of round-tripping through prior locales.
+        // The new puzzle has new canonical names, so any prior translation
+        // is now stale. Snapshot the post-rewrite English clues so every
+        // future Translate call sends them as the source.
+        localization = null;
         originalClues = puzzle.clues;
         loading = false;
         loadingMessage = "Generating…";

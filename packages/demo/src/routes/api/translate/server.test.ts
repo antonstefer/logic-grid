@@ -258,6 +258,24 @@ describe("POST /api/translate", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 when a clue's text exceeds the input cap", async () => {
+    const res = await post({
+      request: postBody({
+        puzzle: {
+          ...SAMPLE_PUZZLE,
+          clues: [
+            {
+              text: "x".repeat(501),
+              constraint: { type: "same_position", a: "Alice", b: "Red" },
+            },
+          ],
+        },
+        locale: "German",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("returns 400 when a clue's constraint has no `type` field", async () => {
     const res = await post({
       request: postBody({

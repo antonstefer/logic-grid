@@ -8,6 +8,14 @@ import {
   getAnthropicValidator,
 } from "$lib/server/anthropic";
 
+/**
+ * Hard cap on per-clue input text. Translator output is bounded by the
+ * package's MAX_CLUE_LENGTH; the same cap applied to input prevents a
+ * pathological 1MB string landing in the prompt before any AI call.
+ * Real puzzle clues are well under this.
+ */
+const MAX_INPUT_CLUE_LENGTH = 500;
+
 function isValidPuzzleShape(p: unknown): p is Puzzle {
   if (typeof p !== "object" || p === null) return false;
   const obj = p as Record<string, unknown>;
@@ -21,6 +29,7 @@ function isValidPuzzleShape(p: unknown): p is Puzzle {
     if (typeof c !== "object" || c === null) return false;
     const clue = c as Record<string, unknown>;
     if (typeof clue.text !== "string") return false;
+    if (clue.text.length > MAX_INPUT_CLUE_LENGTH) return false;
     if (typeof clue.constraint !== "object" || clue.constraint === null)
       return false;
     // Reject before burning AI calls: a malformed constraint passes the

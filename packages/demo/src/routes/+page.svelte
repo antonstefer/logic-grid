@@ -344,7 +344,7 @@
             type="text"
             bind:value={translateLocale}
             placeholder="Locale (e.g. German, ja-JP)"
-            maxlength={100}
+            maxlength={50}
           />
           <button
             class="btn"

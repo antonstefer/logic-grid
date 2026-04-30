@@ -132,6 +132,57 @@ describe("createPuzzleState — originalClues invariant", () => {
     expect(secondBody.puzzle.clues[0].text).not.toContain("[de]");
   });
 
+  it("preserves originalClues when a regenerate attempt fails (theme 503)", async () => {
+    const state = createPuzzleState();
+
+    state.newPuzzle({
+      size: 3,
+      categories: 3,
+      customCategories: SAMPLE_CATEGORIES,
+    });
+    await vi.runAllTimersAsync();
+    const firstClues = state.puzzle!.clues.map((c) => c.text);
+
+    // Attempt a themed regenerate that fails — /api/theme returns 503.
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: "AI theme generation is unavailable" }),
+    });
+    state.newPuzzle({
+      size: 3,
+      categories: 3,
+      theme: "pirate adventure",
+    });
+    await vi.runAllTimersAsync();
+
+    // Old puzzle stays visible because the assignment never happened in
+    // the failed try block.
+    expect(state.puzzle!.clues.map((c) => c.text)).toEqual(firstClues);
+
+    // Critical: originalClues should still match the still-current
+    // (first) puzzle, NOT have been wiped by the failed regenerate.
+    // The Translate button must keep working.
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        clues: firstClues.map((_, i) => ({
+          constraint: state.puzzle!.clues[i].constraint,
+          text: `[de] ${i}`,
+        })),
+        categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
+        valueLabels: makeValueLabels(SAMPLE_CATEGORIES, (v) => `[de]${v}`),
+      }),
+    });
+    state.translatePuzzle("German");
+    await vi.runAllTimersAsync();
+
+    // Body's source clues should be the (still-active) first puzzle's.
+    const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(body.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
+      firstClues,
+    );
+  });
+
   it("clears originalClues on regenerate so a stale snapshot can't leak", async () => {
     const state = createPuzzleState();
 
