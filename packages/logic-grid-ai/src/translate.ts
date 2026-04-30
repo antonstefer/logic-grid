@@ -172,14 +172,15 @@ ${categoryList}
  * HTTP layer that wraps it — has to reject anything that could break out
  * of prompt context. Allows plain language names ("German", "Japanese"),
  * BCP-47 codes ("de-DE", "zh-Hans"), and short multi-word forms; rejects
- * newlines, quotes, brackets, and punctuation. Cap of 50 chars (real
- * locales never exceed ~30).
+ * newlines, quotes, brackets, punctuation, and non-BCP-47 separators
+ * (no underscores — POSIX-style "en_US" should be passed as "en-US").
+ * Cap of 50 chars (real locales never exceed ~30).
  *
  * Exported so HTTP layers (e.g. the demo's /api/translate route) can
  * reuse the exact same regex for boundary validation, instead of
  * duplicating it and risking divergence.
  */
-export const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
+export const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\- ]{0,49}$/;
 
 /**
  * Translate a logic-grid puzzle to a target locale using AI.
@@ -226,7 +227,7 @@ export async function translate(
   const cleanLocale = locale.trim();
   if (!LOCALE_RE.test(cleanLocale)) {
     throw new Error(
-      "locale must contain only letters, digits, hyphens, underscores, and spaces (max 50 chars). The string is interpolated into the AI prompt, so punctuation that could break prompt context is rejected.",
+      "locale must contain only letters, digits, hyphens, and spaces (max 50 chars). The string is interpolated into the AI prompt, so punctuation that could break prompt context is rejected.",
     );
   }
 

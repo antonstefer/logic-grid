@@ -437,6 +437,12 @@ describe("translate", () => {
     ).rejects.toThrow(/letters, digits, hyphens/);
   });
 
+  it("rejects POSIX-style locale (use BCP-47 'en-US' instead of 'en_US')", async () => {
+    await expect(
+      translate({ puzzle: SAMPLE_PUZZLE, locale: "en_US" }),
+    ).rejects.toThrow(/letters, digits, hyphens/);
+  });
+
   it("trims and accepts a locale with trailing whitespace", async () => {
     const prompts: string[] = [];
     const client: AIClient = {

@@ -45,7 +45,15 @@ export function createAnthropicClient(
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
       const response = await client.messages.create({
         model,
-        max_tokens: 4096,
+        // 8192 tokens covers the heaviest output we produce — a
+        // `translate` call on an 8×8 puzzle returns ~56 clues + 64
+        // value labels + 8 category names in one structured JSON. In
+        // verbose locales (German is roughly 1.5× English) this can
+        // approach 4096; a truncated tool_use block returns malformed
+        // JSON that doesn't surface as a clean validation failure.
+        // Output tokens are billed on actual use, so a higher cap
+        // doesn't cost more — it just removes the truncation risk.
+        max_tokens: 8192,
         temperature,
         messages: [{ role: "user", content: prompt }],
         tools: [
