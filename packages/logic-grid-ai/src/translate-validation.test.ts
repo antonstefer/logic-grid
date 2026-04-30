@@ -294,12 +294,10 @@ describe("checkTranslationStructure", () => {
 
   it("flags duplicate value labels case-insensitively", () => {
     const raw = validRaw();
-    raw.valueLabels.Cat = "FOO"; // hypothetical: Cat isn't in SAMPLE_PUZZLE
     raw.valueLabels.Red = "foo";
     raw.valueLabels.Blue = "FoO";
     const errors = checkTranslationStructure(raw, SAMPLE_PUZZLE);
-    // Red sees no earlier "foo" since Cat isn't a SAMPLE_PUZZLE value;
-    // Blue collides with Red.
+    // Blue collides with Red despite different casing.
     expect(hasCode(errors, "duplicate_value_label")).toBe(true);
     const dup = errors.find((e) => e.code === "duplicate_value_label");
     expect(dup?.key).toBe("Blue");

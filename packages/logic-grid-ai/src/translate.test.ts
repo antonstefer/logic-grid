@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { generate, deduce } from "logic-grid";
-import { translate, TranslationError } from "./translate";
+import {
+  translate,
+  TranslationError,
+  TRANSLATOR_PROMPT_HEADER,
+} from "./translate";
+import { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
 import type { AIClient } from "./types";
 import type { Puzzle } from "logic-grid";
 import * as clientModule from "./client";
@@ -136,7 +141,7 @@ function mockSingleClient(
 ): AIClient {
   return {
     completeJSON: <T>(prompt: string): Promise<T> => {
-      if (prompt.includes("reviewing translated clues")) {
+      if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
         return Promise.resolve(validatorResult as T);
       }
       return Promise.resolve(translatorResult as T);
@@ -196,7 +201,7 @@ describe("translate", () => {
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
         prompts.push(prompt);
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve(allOkVerdict() as T);
         }
         return Promise.resolve(VALID_TRANSLATION as T);
@@ -241,8 +246,8 @@ describe("translate", () => {
 
     expect(translatorCalls).toHaveLength(1);
     expect(validatorCalls).toHaveLength(1);
-    expect(translatorCalls[0]).toContain("translating a logic-grid puzzle");
-    expect(validatorCalls[0]).toContain("reviewing translated clues");
+    expect(translatorCalls[0]).toContain(TRANSLATOR_PROMPT_HEADER);
+    expect(validatorCalls[0]).toContain(VALIDATOR_PROMPT_HEADER);
   });
 
   it("falls back validator to client when validator is omitted", async () => {
@@ -250,7 +255,7 @@ describe("translate", () => {
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
         calls.push(prompt);
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve(allOkVerdict() as T);
         }
         return Promise.resolve(VALID_TRANSLATION as T);
@@ -260,15 +265,15 @@ describe("translate", () => {
     await translate({ puzzle: SAMPLE_PUZZLE, locale: "German", client });
 
     expect(calls).toHaveLength(2);
-    expect(calls[0]).toContain("translating a logic-grid puzzle");
-    expect(calls[1]).toContain("reviewing translated clues");
+    expect(calls[0]).toContain(TRANSLATOR_PROMPT_HEADER);
+    expect(calls[1]).toContain(VALIDATOR_PROMPT_HEADER);
   });
 
   it("retries on structural failure (missing valueLabels key)", async () => {
     let translatorCalls = 0;
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve(allOkVerdict() as T);
         }
         translatorCalls++;
@@ -299,7 +304,7 @@ describe("translate", () => {
     let translatorCalls = 0;
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           if (translatorCalls < 2) {
             return Promise.resolve({
               clues: SAMPLE_PUZZLE.clues.map((_, i) => ({
@@ -332,7 +337,7 @@ describe("translate", () => {
     let caught: unknown;
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve({
             clues: SAMPLE_PUZZLE.clues.map((c, i) => ({
               index: i + 1,
@@ -361,7 +366,7 @@ describe("translate", () => {
   it("throws TranslationError with structured errors after max retries", async () => {
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve({
             clues: SAMPLE_PUZZLE.clues.map((_, i) => ({
               index: i + 1,
@@ -417,7 +422,7 @@ describe("translate", () => {
     let translatorCalls = 0;
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           if (translatorCalls < 2) {
             return Promise.resolve({
               clues: SAMPLE_PUZZLE.clues.map((c, i) => ({
@@ -473,7 +478,7 @@ describe("translate", () => {
 
     const client: AIClient = {
       completeJSON: <T>(prompt: string) => {
-        if (prompt.includes("reviewing translated clues")) {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
           return Promise.resolve(verdicts as T);
         }
         return Promise.resolve({
@@ -503,5 +508,56 @@ describe("translate", () => {
       translatedPuzzle.grid,
     );
     expect(deduction.complete).toBe(true);
+  });
+
+  it("does not feed verdict_index_mismatch back into the translator prompt", async () => {
+    const translatorPrompts: string[] = [];
+    let validatorCallCount = 0;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string) => {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
+          validatorCallCount++;
+          if (validatorCallCount === 1) {
+            // First validator call: misordered verdicts.
+            return Promise.resolve({
+              clues: [
+                {
+                  index: 99,
+                  constraintType: "same_position",
+                  directionOk: true,
+                  numericOk: true,
+                  properNounsOk: true,
+                },
+                {
+                  index: 99,
+                  constraintType: "next_to",
+                  directionOk: true,
+                  numericOk: true,
+                  properNounsOk: true,
+                },
+                {
+                  index: 99,
+                  constraintType: "before",
+                  directionOk: true,
+                  numericOk: true,
+                  properNounsOk: true,
+                },
+              ],
+            } as T);
+          }
+          return Promise.resolve(allOkVerdict() as T);
+        }
+        translatorPrompts.push(prompt);
+        return Promise.resolve(VALID_TRANSLATION as T);
+      },
+    };
+
+    await translate({ puzzle: SAMPLE_PUZZLE, locale: "German", client });
+
+    expect(translatorPrompts.length).toBeGreaterThanOrEqual(2);
+    // Second translator prompt must NOT contain validator-only error
+    // messages — the translator can't act on them.
+    expect(translatorPrompts[1]).not.toContain("verdict with index");
+    expect(translatorPrompts[1]).not.toContain("Previous attempt had errors");
   });
 });

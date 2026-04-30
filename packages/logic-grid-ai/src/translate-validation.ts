@@ -40,6 +40,17 @@ const CONSTRAINT_TYPES: ConstraintType[] = [
 
 const ASYMMETRIC: Set<ConstraintType> = new Set(["before", "left_of"]);
 
+/** Per-clue length budget for translated clue text. */
+const MAX_CLUE_LENGTH = 500;
+
+/**
+ * Stable header that opens every validator prompt. Exported so tests
+ * (and consumers wiring multiple AI clients in front of `translate`) can
+ * dispatch translator vs validator calls without depending on the rest
+ * of the prompt copy, which may evolve.
+ */
+export const VALIDATOR_PROMPT_HEADER = "You are reviewing translated clues";
+
 interface ClueVerdict {
   index: number;
   constraintType: string;
@@ -113,11 +124,11 @@ export function checkTranslationStructure(
       continue;
     }
 
-    if (text.length > 500) {
+    if (text.length > MAX_CLUE_LENGTH) {
       errors.push(
         err(
           "long_translation",
-          `Clue ${pos} is too long (${text.length} chars, max 500).`,
+          `Clue ${pos} is too long (${text.length} chars, max ${MAX_CLUE_LENGTH}).`,
           { clueIndex: pos },
         ),
       );
@@ -279,7 +290,7 @@ function buildPrompt(
   translated: string[],
   locale: string,
 ): string {
-  let prompt = `You are reviewing translated clues for a logic-grid puzzle (English → ${locale}).
+  let prompt = `${VALIDATOR_PROMPT_HEADER} for a logic-grid puzzle (English → ${locale}).
 
 For each clue, parse the ${locale} sentence back to a constraint and verify:
 

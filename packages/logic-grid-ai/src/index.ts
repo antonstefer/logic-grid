@@ -1,6 +1,11 @@
 export { generateTheme, ThemeGenerationError } from "./theme";
 export { rewriteClues, RewriteCluesError } from "./rewrite";
-export { translate, TranslationError } from "./translate";
+export {
+  translate,
+  TranslationError,
+  TRANSLATOR_PROMPT_HEADER,
+} from "./translate";
+export { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
 export {
   createAnthropicClient,
   DEFAULT_ANTHROPIC_MODEL,

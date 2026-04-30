@@ -3,6 +3,7 @@ import type {
   TranslatedPuzzle,
   AIClient,
   JSONSchema,
+  TranslationValidationCode,
   TranslationValidationError,
 } from "./types";
 import { createAnthropicClient } from "./client";
@@ -12,6 +13,22 @@ import {
 } from "./translate-validation";
 
 const MAX_RETRIES = 3;
+
+/**
+ * Stable header that opens every translator prompt. Exported so tests
+ * (and consumers wiring multiple AI clients in front of `translate`) can
+ * dispatch translator vs validator calls without depending on the rest
+ * of the prompt copy, which may evolve.
+ */
+export const TRANSLATOR_PROMPT_HEADER =
+  "You are translating a logic-grid puzzle";
+
+/** Validator-side feedback codes that the translator can't act on; we
+ *  filter these out of the retry-feedback list so we don't waste tokens
+ *  feeding them into a prompt that has no influence over them. */
+const VALIDATOR_ONLY_CODES = new Set<TranslationValidationCode>([
+  "verdict_index_mismatch",
+]);
 
 /**
  * Thrown by {@link translate} when AI output fails validation on every retry.
@@ -78,7 +95,7 @@ function buildPrompt(
     )
     .join("\n");
 
-  let prompt = `You are translating a logic-grid puzzle from English to ${locale}.
+  let prompt = `${TRANSLATOR_PROMPT_HEADER} from English to ${locale}.
 
 GROUND TRUTH: For each clue, the JSON constraint defines the meaning. The
 English clue text is a stylistic reference — if it disagrees with the
@@ -186,9 +203,16 @@ export async function translate(
   let lastErrors: TranslationValidationError[] | undefined;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Only feed back errors the translator can actually act on. Validator-
+    // ordering issues (verdict_index_mismatch) are noise to the translator.
+    const translatorFeedback = lastErrors
+      ?.filter((e) => !VALIDATOR_ONLY_CODES.has(e.code))
+      .map((e) => e.message);
     const prompt = buildPrompt(
       options,
-      lastErrors?.map((e) => e.message),
+      translatorFeedback && translatorFeedback.length > 0
+        ? translatorFeedback
+        : undefined,
     );
     const raw = await translator.completeJSON<TranslateRawResult>(
       prompt,
