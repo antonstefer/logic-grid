@@ -3,7 +3,10 @@ import type { RequestHandler } from "./$types";
 import { translate } from "logic-grid-ai";
 import type { Puzzle } from "logic-grid";
 import { MissingEnvError } from "$lib/server/env";
-import { getAnthropicClient } from "$lib/server/anthropic";
+import {
+  getAnthropicClient,
+  getAnthropicValidator,
+} from "$lib/server/anthropic";
 
 function isValidPuzzleShape(p: unknown): p is Puzzle {
   if (typeof p !== "object" || p === null) return false;
@@ -40,16 +43,27 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!isValidPuzzleShape(puzzle)) {
     return json({ error: "Invalid puzzle" }, { status: 400 });
   }
-  if (typeof locale !== "string" || !locale.trim() || locale.length > 100) {
+  // Locale is interpolated into the AI prompt verbatim, so the format must
+  // be tight enough to prevent injection. Allow plain language names
+  // ("German", "Japanese") and BCP-47 codes ("de-DE", "zh-Hans"); reject
+  // anything with newlines, quotes, brackets, or punctuation that could
+  // break out of the prompt context. Letters, digits, hyphen, underscore,
+  // and single internal spaces only; cap at 50 chars (real locales never
+  // exceed ~30).
+  const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\-_ ]{0,49}$/;
+  if (typeof locale !== "string" || !LOCALE_RE.test(locale)) {
     return json({ error: "Invalid locale" }, { status: 400 });
   }
 
   try {
     const client = getAnthropicClient();
-    // Demo deliberately uses one Anthropic client for both translator and
-    // validator roles. Production AOT pipelines should pass a separate
-    // `validator` (different model) — see logic-grid-ai README for why.
-    const result = await translate({ puzzle, locale, client });
+    // Translator at the default temperature (0.8); validator at 0 for
+    // deterministic verdicts — matches the recommended pattern from the
+    // logic-grid-ai README. Production AOT pipelines should additionally
+    // back the validator with a *different model* than the translator to
+    // avoid correlated blind spots; the demo accepts that trade-off.
+    const validator = getAnthropicValidator();
+    const result = await translate({ puzzle, locale, client, validator });
     return json(result);
   } catch (e) {
     if (e instanceof MissingEnvError) {

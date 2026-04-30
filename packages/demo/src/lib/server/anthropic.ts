@@ -4,6 +4,7 @@ import type { AIClient } from "logic-grid-ai";
 import { requireEnv } from "./env";
 
 let cached: { key: string; client: AIClient } | undefined;
+let cachedValidator: { key: string; client: AIClient } | undefined;
 
 /**
  * Return a cached Anthropic AIClient, creating it on first call.
@@ -27,10 +28,28 @@ export function getAnthropicClient(): AIClient {
 }
 
 /**
- * @internal Test-only. Clears the cached client so tests can re-exercise the
- * env check or simulate key rotation. Not part of the public surface — do not
- * call from production code.
+ * Return a cached Anthropic AIClient configured for use as the `translate`
+ * validator: same model, but `temperature: 0` for deterministic verdicts —
+ * the recommended default in the logic-grid-ai README. Cached separately
+ * from the translator client because the configs differ.
+ */
+export function getAnthropicValidator(): AIClient {
+  const apiKey = requireEnv("ANTHROPIC_API_KEY", env.ANTHROPIC_API_KEY);
+  if (cachedValidator?.key !== apiKey) {
+    cachedValidator = {
+      key: apiKey,
+      client: createAnthropicClient(apiKey, { temperature: 0 }),
+    };
+  }
+  return cachedValidator.client;
+}
+
+/**
+ * @internal Test-only. Clears the cached clients so tests can re-exercise
+ * the env check or simulate key rotation. Not part of the public surface —
+ * do not call from production code.
  */
 export function _resetAnthropicClientCache(): void {
   cached = undefined;
+  cachedValidator = undefined;
 }
