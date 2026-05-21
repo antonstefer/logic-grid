@@ -22,7 +22,7 @@
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.2.8",
     "wrangler": "^4.0.0",
-    "@sveltejs/kit": "^2.55.0",
+    "@sveltejs/kit": "^2.60.1",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "eslint-plugin-svelte": "^3.16.0",
     "prettier-plugin-svelte": "^3.5.1",
