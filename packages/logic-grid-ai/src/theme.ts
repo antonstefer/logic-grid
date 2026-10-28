@@ -26,6 +26,13 @@ export class ThemeGenerationError extends Error {
 }
 
 function buildSchema(size: number, categories: number): JSONSchema {
+  const comparatorPair: JSONSchema = {
+    type: "array",
+    items: { type: "string" },
+    minItems: 2,
+    maxItems: 2,
+    description: "[forward, reverse] phrases",
+  };
   const categorySchema: JSONSchema = {
     type: "object",
     properties: {
@@ -45,6 +52,21 @@ function buildSchema(size: number, categories: number): JSONSchema {
         description:
           'Label noun for clue phrases. Empty string "" for the person category (bare name). E.g. "captain" → "the galleon captain".',
       },
+      // Optional properties follow the key order of the prompt's examples.
+      // Structured outputs write required keys first, then optional keys in
+      // declaration order, so a key the output has already passed can't
+      // come back: with `verb` declared before `subjectPriority`, a model
+      // writing the examples' order drops `verb`.
+      subjectPriority: {
+        type: "number",
+        description:
+          'Priority for sentence subject selection in same-position clues. Higher = more likely to be the subject. Use 2 for the person category, 1 for animate categories that act on things (drinker, player, owner), 0 for neutral categories, -1 for inanimate "describer" categories like Color whose values describe the position noun. Default: 0.',
+      },
+      lowercase: {
+        type: "boolean",
+        description:
+          'When true, values are lowercased in clue phrases. Use for adjective/common-noun categories where values like "Red" should render as "the red house" or "Cat" as "the cat owner". Do NOT set for categories with proper nouns (ship names, place names, brand names). Default: false.',
+      },
       verb: {
         type: "array",
         items: { type: "string" },
@@ -53,20 +75,10 @@ function buildSchema(size: number, categories: number): JSONSchema {
         description:
           'Optional [positive, negative] verb phrases for same-position clues. The verb is used when this category appears as the OBJECT: "{subject} {verb} {value}". Include "the" if needed: ["owns the", "does not own the"] → "Alice owns the cat". Use ["sails", "does not sail"] when the value already reads naturally without an article.',
       },
-      subjectPriority: {
-        type: "number",
-        description:
-          'Priority for sentence subject selection in same-position clues. Higher = more likely to be the subject. Use 2 for the person category, 1 for animate categories that act on things (drinker, player, owner), 0 for neutral categories, -1 for inanimate "describer" categories like Color whose values describe the position noun. Default: 0.',
-      },
       valueSuffix: {
         type: "string",
         description:
           'Optional noun appended to the value when it appears as an object. E.g. valueSuffix "strategy" makes "event-driven" render as "event-driven strategy" → "Alice uses the event-driven strategy". Use this when the value alone is an adjective or short label that needs a clarifying noun. Required for categories whose values describe the position noun (e.g. Color: valueSuffix "house" → "red house").',
-      },
-      lowercase: {
-        type: "boolean",
-        description:
-          'When true, values are lowercased in clue phrases. Use for adjective/common-noun categories where values like "Red" should render as "the red house" or "Cat" as "the cat owner". Do NOT set for categories with proper nouns (ship names, place names, brand names). Default: false.',
       },
       positionAdjective: {
         type: "array",
@@ -99,10 +111,31 @@ function buildSchema(size: number, categories: number): JSONSchema {
             description:
               'Singular and plural unit for distance clues, e.g. ["percentage point", "percentage points"] or ["year", "years"].',
           },
+          // Every key is declared rather than left as a free-form object:
+          // structured outputs require each object to list its properties.
+          // The shapes mirror logic-grid's ComparatorMap.
           comparators: {
             type: "object",
+            properties: {
+              before: comparatorPair,
+              left_of: comparatorPair,
+              next_to: { type: "string" },
+              not_next_to: { type: "string" },
+              between: { type: "string" },
+              not_between: { type: "string" },
+              exact_distance: { type: "string" },
+            },
+            required: [
+              "before",
+              "left_of",
+              "next_to",
+              "not_next_to",
+              "between",
+              "not_between",
+              "exact_distance",
+            ],
             description:
-              'Custom phrases for ordering constraints. Keys: "left_of", "before", "next_to", "not_next_to", "between", "not_between", "exact_distance". Each value is either a string (forward only) or a [forward, reverse] tuple for variety. The tuple form is recommended for "before" and "left_of": e.g. { "before": ["has a lower return than", "has a higher return than"] }. Symmetric constraints (next_to, not_next_to, between, not_between, exact_distance) MUST be a single string. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
+              'Custom phrases for ordering constraints. "before" and "left_of" are [forward, reverse] tuples for variety, e.g. { "before": ["has a lower return than", "has a higher return than"] }. Symmetric constraints (next_to, not_next_to, between, not_between, exact_distance) are a single string. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
           },
         },
         description:

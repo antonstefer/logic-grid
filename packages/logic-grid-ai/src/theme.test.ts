@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { generate } from "logic-grid";
 import { generateTheme, ThemeGenerationError } from "./theme";
-import type { AIClient, ThemeResult } from "./types";
+import type { AIClient, JSONSchema, ThemeResult } from "./types";
 import * as clientModule from "./client";
 
 function mockClient(result: ThemeResult): AIClient {
@@ -97,6 +97,62 @@ describe("generateTheme", () => {
     });
 
     expect(capturedPrompt).toContain("kid-friendly, educational");
+  });
+
+  it("declares schema keys in the prompt examples' order, comparators in full", async () => {
+    let capturedSchema: JSONSchema | undefined;
+    const client: AIClient = {
+      completeJSON: <T>(_prompt: string, schema: JSONSchema) => {
+        capturedSchema = schema;
+        return Promise.resolve(VALID_THEME as T);
+      },
+    };
+
+    await generateTheme({
+      theme: "pirate adventure",
+      size: 4,
+      categories: 4,
+      client,
+    });
+
+    // Structured outputs write optional keys in declaration order, so it
+    // has to match the order the prompt's examples teach.
+    const category = capturedSchema?.properties?.categories.items;
+    expect(Object.keys(category?.properties ?? {})).toEqual([
+      "name",
+      "values",
+      "noun",
+      "subjectPriority",
+      "lowercase",
+      "verb",
+      "valueSuffix",
+      "positionAdjective",
+      "ordered",
+      "numericValues",
+      "orderingPhrases",
+    ]);
+    const orderingPhrases = category?.properties?.orderingPhrases;
+    expect(Object.keys(orderingPhrases?.properties ?? {})).toEqual([
+      "unit",
+      "comparators",
+    ]);
+    expect(orderingPhrases?.required).toBeUndefined();
+    const comparators = orderingPhrases?.properties?.comparators;
+    expect(comparators?.required).toEqual([
+      "before",
+      "left_of",
+      "next_to",
+      "not_next_to",
+      "between",
+      "not_between",
+      "exact_distance",
+    ]);
+    expect(comparators?.properties?.before).toMatchObject({
+      type: "array",
+      minItems: 2,
+      maxItems: 2,
+    });
+    expect(comparators?.properties?.next_to).toEqual({ type: "string" });
   });
 
   it("retries on validation failure", async () => {

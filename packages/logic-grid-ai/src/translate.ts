@@ -1,3 +1,4 @@
+import type { Puzzle } from "logic-grid";
 import type {
   TranslateOptions,
   TranslatedPuzzle,
@@ -50,34 +51,44 @@ interface TranslateRawResult {
   valueLabels: Record<string, string>;
 }
 
-function buildSchema(clueCount: number): JSONSchema {
+/** Object schema whose keys are exactly `keys`, each mapped to a string. */
+function stringMapSchema(keys: string[], description: string): JSONSchema {
+  return {
+    type: "object",
+    properties: Object.fromEntries(
+      keys.map((key) => [key, { type: "string" }]),
+    ),
+    required: keys,
+    description,
+  };
+}
+
+function buildSchema(puzzle: Puzzle): JSONSchema {
+  const { categories } = puzzle.grid;
   return {
     type: "object",
     properties: {
       clues: {
         type: "array",
         items: { type: "string", minLength: 1 },
-        minItems: clueCount,
-        maxItems: clueCount,
+        minItems: puzzle.clues.length,
+        maxItems: puzzle.clues.length,
         description:
           "Translated clue texts, one per source clue, in the same order.",
       },
-      // categoryNames / valueLabels are typed as bare objects rather than
-      // schemas with explicit `properties`, because the required keys vary
-      // per puzzle (the source's category and value names) and JSON Schema
-      // can't be parameterized over a runtime key set without code-genning
-      // a schema per call. Key presence and shape are enforced by
-      // `checkTranslationStructure` on the returned output instead.
-      categoryNames: {
-        type: "object",
-        description:
-          "Map from each canonical category name (English) to its localized display name. Every category from the source puzzle must appear as a key.",
-      },
-      valueLabels: {
-        type: "object",
-        description:
-          "Map from each canonical category value (English) to its localized label. Every value from every category must appear as a key. Proper nouns (people, places, brands) map to themselves verbatim. Numeric/literal values (like '1972' or '8%') stay as the literal string.",
-      },
+      // categoryNames / valueLabels declare this puzzle's category names and
+      // values as their keys, so the schema is built per puzzle: structured
+      // outputs can't express a free-form map, since every object has to
+      // list its properties. `checkTranslationStructure` still checks the
+      // returned output for clients that don't enforce the schema.
+      categoryNames: stringMapSchema(
+        categories.map((c) => c.name),
+        "Map from each canonical category name (English) to its localized display name. Every category from the source puzzle must appear as a key.",
+      ),
+      valueLabels: stringMapSchema(
+        categories.flatMap((c) => c.values),
+        "Map from each canonical category value (English) to its localized label. Every value from every category must appear as a key. Proper nouns (people, places, brands) map to themselves verbatim. Numeric/literal values (like '1972' or '8%') stay as the literal string.",
+      ),
     },
     required: ["clues", "categoryNames", "valueLabels"],
   };
@@ -248,7 +259,7 @@ export async function translate(
     options.client ??
     createAnthropicClient(undefined, { temperature: 0 });
 
-  const schema = buildSchema(puzzle.clues.length);
+  const schema = buildSchema(puzzle);
 
   // Init as `[]` rather than undefined so the throw path below doesn't
   // need a non-null assertion. If MAX_RETRIES is ever lowered to 0, the

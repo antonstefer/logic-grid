@@ -6,7 +6,7 @@ import {
   TRANSLATOR_PROMPT_HEADER,
 } from "./translate";
 import { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
-import type { AIClient } from "./types";
+import type { AIClient, JSONSchema } from "./types";
 import type { Puzzle } from "logic-grid";
 import * as clientModule from "./client";
 
@@ -226,6 +226,37 @@ describe("translate", () => {
     expect(prompts[0]).toContain('"type":"same_position"');
     expect(prompts[0]).toContain('"type":"next_to"');
     expect(prompts[0]).toContain('"type":"before"');
+  });
+
+  it("lists the puzzle's category names and values as required schema keys", async () => {
+    let translatorSchema: JSONSchema | undefined;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string, schema: JSONSchema) => {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
+          return Promise.resolve(allOkVerdict() as T);
+        }
+        translatorSchema = schema;
+        return Promise.resolve(VALID_TRANSLATION as T);
+      },
+    };
+
+    await translate({ puzzle: SAMPLE_PUZZLE, locale: "German", client });
+
+    const categoryNames = translatorSchema?.properties?.categoryNames;
+    const valueLabels = translatorSchema?.properties?.valueLabels;
+    expect(categoryNames?.required).toEqual(["House", "Name", "Color"]);
+    expect(valueLabels?.required).toEqual([
+      "1",
+      "2",
+      "3",
+      "Alice",
+      "Bob",
+      "Carol",
+      "Red",
+      "Blue",
+      "Green",
+    ]);
+    expect(valueLabels?.properties?.Alice).toEqual({ type: "string" });
   });
 
   it("uses separate client and validator when both are provided", async () => {
