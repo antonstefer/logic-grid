@@ -68,7 +68,11 @@ export type AnthropicEffort = NonNullable<
 
 /** Optional knobs for the default Anthropic-backed client. */
 export interface AnthropicClientOptions {
-  /** Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. */
+  /**
+   * Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. The
+   * model must support structured outputs, as every model Anthropic still
+   * serves does.
+   */
   model?: string;
   /**
    * How much the model thinks before answering, sent as

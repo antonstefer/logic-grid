@@ -88,7 +88,7 @@ try {
 
 ### `createAnthropicClient(apiKey?, options?)`
 
-Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-5-5`):
+Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-5-5`); the model must support structured outputs, which every model Anthropic still serves does:
 
 ```typescript
 import { createAnthropicClient } from "logic-grid-ai";
