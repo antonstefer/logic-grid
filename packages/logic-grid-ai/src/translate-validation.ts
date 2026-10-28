@@ -438,10 +438,11 @@ export async function validateTranslation(
   const prompt = buildPrompt(sourceClues, raw.clues, locale);
   const result = await validator.completeJSON<ValidatorResult>(prompt, schema);
 
-  // Length guard before reading any verdict — the tools-API schema
-  // enforces `minItems`/`maxItems`, but enforcement is best-effort and a
-  // short array would otherwise crash with "Cannot read properties of
-  // undefined" instead of feeding into the retry loop.
+  // Length guard before reading any verdict — structured outputs don't
+  // enforce the schema's `minItems`/`maxItems` (they reach the model only
+  // as description text), and a custom AIClient may not enforce the schema
+  // at all, so a short array would otherwise crash with "Cannot read
+  // properties of undefined" instead of feeding into the retry loop.
   if (result.clues.length !== sourceClues.length) {
     return [
       {
@@ -452,8 +453,8 @@ export async function validateTranslation(
   }
 
   // Verify verdict order matches source clue order before we trust the
-  // per-clue judgements. The schema guarantees count and item shape but
-  // not that verdicts arrive in source order — a misordered batch would
+  // per-clue judgements. The guard above checks the count, but nothing
+  // guarantees that verdicts arrive in source order — a misordered batch would
   // silently misalign every check below. Bail early so the retry loop
   // gets fresh verdicts; partial per-clue results from a broken batch
   // would just confuse the feedback prompt.
