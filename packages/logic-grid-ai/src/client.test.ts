@@ -182,6 +182,23 @@ describe("createAnthropicClient", () => {
     expect(params).not.toHaveProperty("fallbacks");
   });
 
+  it("opts into fallback on other models that offer it", async () => {
+    respondWith(jsonResponse({}));
+
+    const client = createAnthropicClient(undefined, {
+      model: "claude-opus-5-5",
+    });
+    await client.completeJSON("test", { type: "object" });
+
+    expect(mockStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "claude-opus-5-5",
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+      }),
+    );
+  });
+
   it("sends effort only when the option is set", async () => {
     respondWith(jsonResponse({}));
     respondWith(jsonResponse({}));

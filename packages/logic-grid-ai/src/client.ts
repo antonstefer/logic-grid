@@ -5,6 +5,20 @@ import type { AIClient, JSONSchema } from "./types";
 /** Default model used when no `model` option is provided. */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5";
 
+/**
+ * Models that offer server-side refusal fallback. Requests to them opt in;
+ * other models don't send the beta parameter, since its behavior there
+ * isn't documented. Add models here as Anthropic documents fallback for
+ * them.
+ */
+const FALLBACK_MODELS = new Set([
+  "claude-sonnet-5-5",
+  "claude-opus-5-5",
+  "claude-opus-5",
+  "claude-fable-5-1",
+  "claude-fable-5",
+]);
+
 /** Effort levels accepted by {@link AnthropicClientOptions.effort}. */
 export type AnthropicEffort = NonNullable<
   Anthropic.Messages.OutputConfig["effort"]
@@ -41,10 +55,10 @@ export interface AnthropicClientOptions {
  * underlying Claude model (e.g. `claude-haiku-5-5` for cheaper/faster
  * generation).
  *
- * On {@link DEFAULT_ANTHROPIC_MODEL}, requests opt into server-side refusal
- * fallback (beta): a request its safety classifiers decline is retried on
- * the model Anthropic recommends for that refusal category, where one
- * exists. `completeJSON` throws when the request is still declined
+ * On models that offer it (Claude Sonnet 5.5, Opus 5.5, Opus 5, Fable 5.1
+ * and Fable 5), requests opt into server-side refusal fallback (beta): a
+ * request their safety classifiers decline is retried on the model
+ * Anthropic recommends for that refusal category, where one exists. `completeJSON` throws when the request is still declined
  * (`stop_reason: "refusal"`) or stops before the JSON is complete.
  */
 export function createAnthropicClient(
@@ -82,9 +96,7 @@ export function createAnthropicClient(
             },
             ...(options.effort && { effort: options.effort }),
           },
-          // Server-side fallback is only documented for current models, so it
-          // stays limited to the default rather than any model a caller picks.
-          ...(model === DEFAULT_ANTHROPIC_MODEL && {
+          ...(FALLBACK_MODELS.has(model) && {
             betas: ["server-side-fallback-2026-07-01"],
             fallbacks: "default",
           }),

@@ -97,7 +97,7 @@ const fast = createAnthropicClient(undefined, { model: "claude-haiku-5-5" });
 const explicit = createAnthropicClient("sk-ant-...");
 ```
 
-On the default model, requests opt into [server-side refusal fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) (beta): a request Claude's safety classifiers decline is retried on the model Anthropic recommends for that refusal category, where there is one. A refusal that stands makes `completeJSON` throw. Other models don't send the fallback parameter.
+On models that offer it (`claude-sonnet-5-5`, `claude-opus-5-5`, `claude-opus-5`, `claude-fable-5-1`, `claude-fable-5`), requests opt into [server-side refusal fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) (beta): a request Claude's safety classifiers decline is retried on the model Anthropic recommends for that refusal category, where there is one. A refusal that stands makes `completeJSON` throw. Other models don't send the fallback parameter.
 
 ### Custom AI Client
 
