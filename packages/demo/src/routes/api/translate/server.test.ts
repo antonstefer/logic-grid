@@ -26,6 +26,7 @@ const post = POST as unknown as Handler;
 beforeEach(() => {
   delete envProxy.ANTHROPIC_API_KEY;
   completeJSON.mockReset();
+  vi.mocked(createAnthropicClient).mockClear();
   _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -174,19 +175,9 @@ describe("POST /api/translate", () => {
     expect(body.categoryNames.House).toBe("Haus");
     expect(body.valueLabels.Red).toBe("Rot");
     expect(body.valueLabels.Alice).toBe("Alice");
-    // Translator client created with default temperature on the FIRST
-    // call; validator explicitly with temperature: 0 on the SECOND.
-    // Pinning by call order catches a regression where the translator
-    // would also pick up { temperature: 0 } — `toHaveBeenCalledWith`
-    // alone wouldn't.
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
-      1,
+    // One client, built from the env key, translates and validates.
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledExactlyOnceWith(
       "sk-test",
-    );
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
-      2,
-      "sk-test",
-      { temperature: 0 },
     );
   });
 

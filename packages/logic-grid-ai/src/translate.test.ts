@@ -179,7 +179,7 @@ describe("translate", () => {
     }
   });
 
-  it("uses default Anthropic clients when none provided", async () => {
+  it("uses one default Anthropic client when none provided", async () => {
     const spy = vi
       .spyOn(clientModule, "createAnthropicClient")
       .mockImplementation(() =>
@@ -191,12 +191,9 @@ describe("translate", () => {
       locale: "German",
     });
 
-    // First call is the translator (no args, default temperature);
-    // second is the validator with explicit { temperature: 0 }. Pin by
-    // call order so a regression that flipped them would actually fail.
-    expect(spy).toHaveBeenCalledTimes(2);
-    expect(spy).toHaveBeenNthCalledWith(1);
-    expect(spy).toHaveBeenNthCalledWith(2, undefined, { temperature: 0 });
+    // The default client translates and validates.
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith();
     expect(result.clues).toHaveLength(3);
     spy.mockRestore();
   });

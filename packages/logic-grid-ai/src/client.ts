@@ -1,37 +1,47 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { AIClient, JSONSchema } from "./types";
 
 /** Default model used when no `model` option is provided. */
 export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
-/** Default sampling temperature used when no `temperature` option is provided. */
-export const DEFAULT_ANTHROPIC_TEMPERATURE = 0.8;
+/** Effort levels accepted by {@link AnthropicClientOptions.effort}. */
+export type AnthropicEffort = NonNullable<
+  Anthropic.Messages.OutputConfig["effort"]
+>;
 
 /** Optional knobs for the default Anthropic-backed client. */
 export interface AnthropicClientOptions {
   /** Override the model. Defaults to {@link DEFAULT_ANTHROPIC_MODEL}. */
   model?: string;
   /**
-   * Override the sampling temperature. Defaults to
-   * {@link DEFAULT_ANTHROPIC_TEMPERATURE}. Use 0 for low-variance (greedy
-   * decoding, near-deterministic — minor cross-run variance still possible)
-   * verdicts
-   * (e.g. validator clients in `translate`).
+   * How much the model thinks before answering, sent as
+   * `output_config.effort`. Higher levels trade latency and output tokens
+   * for more deliberate answers (e.g. for a validator client in
+   * `translate`). Omit it to use the model's default. Not every model
+   * accepts every level, and Claude Haiku 4.5 accepts none.
    */
-  temperature?: number;
+  effort?: AnthropicEffort;
 }
 
 /**
  * Create an AIClient backed by the Anthropic SDK.
  *
- * Uses Claude's tool_use feature for structured JSON output. The Anthropic SDK
- * already retries transport-level errors (429s, 5xx, network) with exponential
- * backoff internally — `generateTheme`'s and `rewriteClues`' own retries only
- * cover semantic validation failures.
+ * Uses structured outputs (`output_config.format`), so the response is JSON
+ * matching the schema. Keywords the API can't enforce (such as `maxItems`,
+ * `minLength`, or `minItems` above 1) move into the field descriptions; the
+ * package's validators still check them. The Anthropic SDK already retries
+ * transport-level errors (429s, 5xx, network) with exponential backoff
+ * internally — `generateTheme`'s and `rewriteClues`' own retries only cover
+ * semantic validation failures.
  *
- * If no apiKey is provided, the SDK reads from `ANTHROPIC_API_KEY`. Pass a
- * `model` option to swap the underlying Claude model (e.g. `claude-haiku-4-5`
- * for cheaper/faster generation).
+ * If no apiKey is provided, the SDK resolves credentials from the
+ * environment, `ANTHROPIC_API_KEY` first. Pass a `model` option to swap the
+ * underlying Claude model (e.g. `claude-haiku-4-5` for cheaper/faster
+ * generation).
+ *
+ * `completeJSON` throws when the model declines the request
+ * (`stop_reason: "refusal"`) or stops before the JSON is complete.
  */
 export function createAnthropicClient(
   apiKey?: string,
@@ -39,40 +49,51 @@ export function createAnthropicClient(
 ): AIClient {
   const client = new Anthropic({ apiKey });
   const model = options.model ?? DEFAULT_ANTHROPIC_MODEL;
-  const temperature = options.temperature ?? DEFAULT_ANTHROPIC_TEMPERATURE;
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
       const response = await client.messages.create({
         model,
-        // 8192 tokens covers the heaviest output we produce — a
-        // `translate` call on an 8×8 puzzle returns ~56 clues + 64
-        // value labels + 8 category names in one structured JSON. In
-        // verbose locales (German is roughly 1.5× English) this can
-        // approach 4096; a truncated tool_use block returns malformed
-        // JSON that doesn't surface as a clean validation failure.
-        // Output tokens are billed on actual use, so a higher cap
-        // doesn't cost more — it just removes the truncation risk.
-        max_tokens: 8192,
-        temperature,
+        // 16000 tokens covers thinking plus the heaviest output we
+        // produce — a `translate` call on an 8×8 puzzle returns ~56 clues +
+        // 64 value labels + 8 category names in one structured JSON. In
+        // verbose locales (German is roughly 1.5× English) that alone can
+        // approach 4096, and on models that think by default the thinking
+        // counts toward the cap too. Output tokens are billed on actual
+        // use, so a higher cap doesn't cost more. The SDK refuses
+        // non-streaming requests above ~21K, so stay below that.
+        max_tokens: 16000,
         messages: [{ role: "user", content: prompt }],
-        tools: [
-          {
-            name: "respond",
-            description: "Provide the structured JSON result",
-            input_schema: schema as Anthropic.Messages.Tool.InputSchema,
+        output_config: {
+          format: {
+            type: "json_schema",
+            // The SDK helper adapts the schema to what structured outputs
+            // accept: `additionalProperties: false` on every object, and
+            // unsupported keywords moved into descriptions. The package's
+            // schemas are all objects at the top level.
+            schema: jsonSchemaOutputFormat(schema as { type: "object" }).schema,
           },
-        ],
-        tool_choice: { type: "tool", name: "respond" },
+          ...(options.effort && { effort: options.effort }),
+        },
       });
 
-      const toolBlock = response.content.find(
-        (block) => block.type === "tool_use",
+      if (response.stop_reason === "refusal") {
+        throw new Error(
+          `AI declined the request (refusal category: ${response.stop_details?.category ?? "unspecified"})`,
+        );
+      }
+      if (response.stop_reason !== "end_turn") {
+        throw new Error(
+          `AI stopped before completing the JSON (stop_reason: ${response.stop_reason})`,
+        );
+      }
+      const textBlock = response.content.find(
+        (block): block is Anthropic.TextBlock => block.type === "text",
       );
-      if (!toolBlock || toolBlock.type !== "tool_use") {
+      if (!textBlock) {
         throw new Error("AI did not return structured output");
       }
-      return toolBlock.input as T;
+      return JSON.parse(textBlock.text) as T;
     },
   };
 }

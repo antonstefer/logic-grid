@@ -133,15 +133,11 @@ export interface TranslateOptions {
    * Fallback rules:
    *  - If you pass `validator` explicitly, it's used as-is.
    *  - If you pass `client` but no `validator`, the validator reuses
-   *    `client` (including its temperature). The package can't auto-spin
-   *    a "matching" temperature-0 validator from an opaque AIClient, so
-   *    if you want low-variance verdicts AND a custom translator, pass
-   *    both explicitly.
-   *  - If you pass neither, the package creates two default Anthropic
-   *    clients: translator at the default temperature, validator at
-   *    `temperature: 0` for low-variance (near-deterministic — Anthropic
-   *    has no seed parameter so minor cross-run variance is still
-   *    possible) verdicts.
+   *    `client`.
+   *  - If you pass neither, one default Anthropic client serves as both
+   *    translator and validator. To give verdicts more deliberation than
+   *    translations, pass e.g. `createAnthropicClient(apiKey, { effort:
+   *    "high" })` as the validator.
    */
   validator?: AIClient;
 }

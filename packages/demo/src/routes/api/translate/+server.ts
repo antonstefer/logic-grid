@@ -3,10 +3,7 @@ import type { RequestHandler } from "./$types";
 import { translate, LOCALE_RE } from "logic-grid-ai";
 import type { Puzzle } from "logic-grid";
 import { MissingEnvError } from "$lib/server/env";
-import {
-  getAnthropicClient,
-  getAnthropicValidator,
-} from "$lib/server/anthropic";
+import { getAnthropicClient } from "$lib/server/anthropic";
 
 /**
  * Hard caps applied at the HTTP boundary, before any AI call. Each cap
@@ -109,18 +106,13 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   try {
-    const client = getAnthropicClient();
-    // Translator at the default temperature (0.8); validator at 0 for
-    // deterministic verdicts — matches the recommended pattern from the
-    // logic-grid-ai README. Production AOT pipelines should additionally
+    // One client translates and validates. Production AOT pipelines should
     // back the validator with a *different model* than the translator to
     // avoid correlated blind spots; the demo accepts that trade-off.
-    const validator = getAnthropicValidator();
     const result = await translate({
       puzzle,
       locale: cleanLocale,
-      client,
-      validator,
+      client: getAnthropicClient(),
     });
     return json(result);
   } catch (e) {

@@ -254,10 +254,7 @@ export async function translate(
   };
 
   const translator: AIClient = options.client ?? createAnthropicClient();
-  const validator: AIClient =
-    options.validator ??
-    options.client ??
-    createAnthropicClient(undefined, { temperature: 0 });
+  const validator: AIClient = options.validator ?? translator;
 
   const schema = buildSchema(puzzle);
 

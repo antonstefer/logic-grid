@@ -88,7 +88,7 @@ try {
 
 ### `createAnthropicClient(apiKey?, options?)`
 
-Create the default AI client backed by the Anthropic SDK. If no key is provided, reads from `ANTHROPIC_API_KEY`. Pass `{ model }` to override the default model (`claude-sonnet-4-6`):
+Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-4-6`):
 
 ```typescript
 import { createAnthropicClient } from "logic-grid-ai";
@@ -192,14 +192,12 @@ const localized = await translate({
   client: createAnthropicClient(undefined, { model: "claude-sonnet-4-6" }),
   validator: createAnthropicClient(undefined, {
     model: "claude-opus-4-5",
-    temperature: 0,
+    effort: "high",
   }),
 });
 ```
 
-> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for low-variance (near-deterministic — Anthropic has no seed, so minor cross-run variance is still possible) verdicts.
->
-> **Footgun:** if you pass `client` but not `validator`, the validator reuses your `client` as-is — including its temperature. The temperature-0 default fires only when **both** are omitted. If you want low-variance verdicts AND a custom translator, pass both explicitly (e.g. `validator: createAnthropicClient(apiKey, { temperature: 0 })`).
+> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When `validator` is omitted, `client` also validates (one default client does both when both are omitted). To give verdicts more deliberation than translations, set a higher `effort` on the validator client, as above.
 
 > **Proper nouns stay verbatim.** People names, place names, brand names, and numeric/unit literals (`1972`, `8%`, `7am`) map to themselves in `valueLabels` and remain unchanged in clue text. Descriptive words (colors, animals, common-noun categories) translate, with grammatical inflection in clue text expected (`yellow` → bare label `gelb`, inflected forms `gelben` / `gelbe` are correct in clue context).
 
@@ -247,18 +245,20 @@ try {
 - **`valueLabels` is checked structurally only — semantic validation is on clue text.** The proper-noun-preservation check covers the translated clue text. If the AI mistranslates a proper noun in `valueLabels` (e.g. `"Alice" → "Alise"`) but uses it correctly in clue text, the structural validator can't distinguish a faithful from a drifted label, and the semantic validator never sees the labels. In practice every value tends to appear in at least one clue (so clue-text checks catch drift), but a value that's only ever shown via `valueLabels` (in the grid header) and never referenced by a clue is a blind spot.
 - **`Category.noun` / `verb` / `valueSuffix` / `orderingPhrases` stay English on the canonical grid.** Translation rewrites clue text and provides display-label maps; it doesn't deeply translate the renderer-side metadata used by `renderClue` / `rewriteClues`. Downstream calls to those functions on a translated puzzle will regenerate English clues from the English category fields, overwriting the translation. Plan accordingly: translate as the last step of an AOT pipeline.
 
-### `createAnthropicClient(apiKey?, options?)` temperature option
+### `createAnthropicClient(apiKey?, options?)` effort option
 
-`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for low-variance responses (greedy decoding — near-deterministic, but Anthropic doesn't expose a seed so minor cross-run variance can still occur) — typically the right default for validator clients in `translate()`:
+`AnthropicClientOptions` accepts an optional `effort` (`"low"`, `"medium"`, `"high"`, `"xhigh"` or `"max"`), sent as `output_config.effort`: how much the model thinks before answering. Higher levels trade latency and output tokens for more deliberate answers, for example on a validator client in `translate()`. Omit it to use the model's default. Not every model accepts every level, and Claude Haiku 4.5 accepts none.
 
 ```typescript
-const validator = createAnthropicClient(undefined, { temperature: 0 });
+const validator = createAnthropicClient(undefined, { effort: "high" });
 ```
+
+There is no `temperature` option: the API version the SDK uses (`2026-10-21`) rejects sampling parameters on every model.
 
 ## How It Works
 
 1. A detailed prompt describes the puzzle structure, category contract, and ordering semantics
-2. The AI responds via tool_use with structured JSON matching a strict schema
+2. The AI responds with structured output: JSON constrained to the schema
 3. The response is validated (category count, value uniqueness, noun consistency, ordered category presence, comparator completeness, etc.)
 4. If validation fails, errors are fed back to the AI for up to 3 retries
 

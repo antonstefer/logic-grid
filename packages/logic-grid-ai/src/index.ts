@@ -10,8 +10,8 @@ export { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
 export {
   createAnthropicClient,
   DEFAULT_ANTHROPIC_MODEL,
-  DEFAULT_ANTHROPIC_TEMPERATURE,
   type AnthropicClientOptions,
+  type AnthropicEffort,
 } from "./client";
 export { validateThemeResult } from "./validation";
 export { validateRewrittenClues } from "./clue-validation";
