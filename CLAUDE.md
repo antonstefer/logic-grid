@@ -32,4 +32,4 @@ Releases are driven by release-please from Conventional Commits, strictly: only 
 - Triggers a release (and shows in CHANGELOG): `feat:` (minor), `fix:` / `perf:` / `revert:` (patch). Major requires `!` after the type or a `BREAKING CHANGE:` footer.
 - Internal hygiene (no release, no CHANGELOG entry): `refactor`, `docs`, `deps`, `chore`, `test`, `ci`, `build`, `style`. Use these freely; they don't propose Release PRs.
 - Path-scoped: a commit only triggers a Release PR for the package whose files it touches (e.g. `packages/logic-grid/**` → `logic-grid` PR). Commits touching both packages trigger both.
-- After a `logic-grid` major release, bump `logic-grid-ai`'s peerDep with a follow-up commit that includes `BREAKING CHANGE:` so a corresponding `logic-grid-ai` major is cut.
+- Before merging a `logic-grid` major Release PR, widen `logic-grid-ai`'s peerDep to include the new major (e.g. `^2.0.0 || ^3.0.0`) — otherwise `npm ci` fails with `ERESOLVE` on main and the publish job breaks. Dropping the old major from the range later is breaking: include `BREAKING CHANGE:` so a `logic-grid-ai` major is cut.
