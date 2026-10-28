@@ -158,7 +158,8 @@ function err(
  * such entries, an entry without a string `canonical`, an entry for a key
  * the puzzle doesn't have, and a second entry for the same key are all
  * reported and left out of the map, so a client returning another shape
- * gets a retry, not a crash.
+ * gets a retry, not a crash. Unreadable entries are reported under the
+ * surface's "missing" code, since the labels they held are missing too.
  */
 export function collectLabels(
   entries: unknown,
@@ -172,16 +173,14 @@ export function collectLabels(
       ? categories.map((c) => c.name)
       : categories.flatMap((c) => c.values),
   );
-  const malformed = isCategory
-    ? "malformed_category_name"
-    : "malformed_value_label";
+  const missing = isCategory ? "missing_category_name" : "missing_value_label";
   const labels = new Map<string, unknown>();
   const errors: TranslationValidationError[] = [];
 
   if (!Array.isArray(entries)) {
     errors.push(
       err(
-        malformed,
+        missing,
         `${surface} must be a list of { canonical, localized } entries.`,
       ),
     );
@@ -196,7 +195,7 @@ export function collectLabels(
     if (typeof canonical !== "string") {
       errors.push(
         err(
-          malformed,
+          missing,
           `${surface} entry ${i + 1} isn't a { canonical, localized } object with a string canonical.`,
         ),
       );

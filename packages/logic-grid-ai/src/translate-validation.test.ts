@@ -169,7 +169,11 @@ describe("collectLabels", () => {
       );
       expect(labels).toEqual({});
       expect(errors).toEqual([
-        expect.objectContaining({ code: "malformed_category_name" }),
+        expect.objectContaining({
+          code: "missing_category_name",
+          message:
+            "categoryNames must be a list of { canonical, localized } entries.",
+        }),
       ]);
     }
   });
@@ -187,11 +191,13 @@ describe("collectLabels", () => {
     );
     expect(labels).toEqual({ Blue: "Blau" });
     expect(errors.map((e) => e.code)).toEqual([
-      "malformed_value_label",
-      "malformed_value_label",
-      "malformed_value_label",
+      "missing_value_label",
+      "missing_value_label",
+      "missing_value_label",
     ]);
-    expect(errors[2].message).toContain("entry 3");
+    expect(errors[2].message).toBe(
+      "valueLabels entry 3 isn't a { canonical, localized } object with a string canonical.",
+    );
   });
 
   it("reports and drops entries for keys the puzzle doesn't have", () => {

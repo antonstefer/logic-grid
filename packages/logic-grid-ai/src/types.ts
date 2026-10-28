@@ -171,8 +171,8 @@ export interface TranslatedPuzzle {
  *
  * Codes split into two tiers:
  * - Structural (cheap, deterministic): wrong counts, non-strings, empties,
- *   over-length, duplicates, missing keys, and label entries that are
- *   malformed or name unknown or repeated keys.
+ *   over-length, duplicates, missing or unreadable keys, and label entries
+ *   for unknown or repeated keys.
  * - Semantic (AI-driven): constraint type drift incl. polarity, direction
  *   flip on asymmetric comparators, numeric / unit drift, proper-noun drop.
  */
@@ -186,14 +186,12 @@ export type TranslationValidationCode =
   | "empty_category_name"
   | "long_category_name"
   | "duplicate_category_name"
-  | "malformed_category_name"
   | "unknown_category_name"
   | "repeated_category_name"
   | "missing_value_label"
   | "empty_value_label"
   | "long_value_label"
   | "duplicate_value_label"
-  | "malformed_value_label"
   | "unknown_value_label"
   | "repeated_value_label"
   | "verdict_index_mismatch"

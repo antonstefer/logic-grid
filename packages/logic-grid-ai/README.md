@@ -205,33 +205,31 @@ const localized = await translate({
 
 If validation fails on every attempt, `translate` throws a `TranslationError` carrying structured `errors` with stable codes:
 
-| Code                       | Surface        | Meaning                                                                                                    |
-| -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                                                    |
-| `non_string_clue`          | clues          | A clue entry is not a string                                                                               |
-| `empty_translation`        | clues          | A clue is empty or whitespace-only                                                                         |
-| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                                                  |
-| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                                                 |
-| `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`                                       |
-| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                                                             |
-| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                                                |
-| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive)                                 |
-| `malformed_category_name`  | categoryNames  | `categoryNames` isn't a list of `{ canonical, localized }` entries, or an entry lacks a string `canonical` |
-| `unknown_category_name`    | categoryNames  | An entry names a category the source puzzle doesn't have                                                   |
-| `repeated_category_name`   | categoryNames  | Two entries name the same canonical category                                                               |
-| `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`                                            |
-| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                                                               |
-| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                                                  |
-| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)                                    |
-| `malformed_value_label`    | valueLabels    | `valueLabels` isn't a list of `{ canonical, localized }` entries, or an entry lacks a string `canonical`   |
-| `unknown_value_label`      | valueLabels    | An entry names a value the source puzzle doesn't have                                                      |
-| `repeated_value_label`     | valueLabels    | Two entries name the same canonical value                                                                  |
-| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues                                     |
-| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint                                      |
-| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                                                               |
-| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer                                              |
-| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                                                          |
-| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                                                        |
+| Code                       | Surface        | Meaning                                                                                                                                  |
+| -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                                                                                  |
+| `non_string_clue`          | clues          | A clue entry is not a string                                                                                                             |
+| `empty_translation`        | clues          | A clue is empty or whitespace-only                                                                                                       |
+| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                                                                                |
+| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                                                                               |
+| `missing_category_name`    | categoryNames  | A canonical category from the source has no readable entry in `categoryNames` (or it isn't a list of `{ canonical, localized }` entries) |
+| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                                                                                           |
+| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                                                                              |
+| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive)                                                               |
+| `unknown_category_name`    | categoryNames  | An entry names a category the source puzzle doesn't have                                                                                 |
+| `repeated_category_name`   | categoryNames  | Two entries name the same canonical category                                                                                             |
+| `missing_value_label`      | valueLabels    | A canonical value from the source has no readable entry in `valueLabels` (or it isn't a list of `{ canonical, localized }` entries)      |
+| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                                                                                             |
+| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                                                                                |
+| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)                                                                  |
+| `unknown_value_label`      | valueLabels    | An entry names a value the source puzzle doesn't have                                                                                    |
+| `repeated_value_label`     | valueLabels    | Two entries name the same canonical value                                                                                                |
+| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues                                                                   |
+| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint                                                                    |
+| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                                                                                             |
+| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer                                                                            |
+| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                                                                                        |
+| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                                                                                      |
 
 ```typescript
 import { translate, TranslationError } from "logic-grid-ai";
