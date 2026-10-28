@@ -135,7 +135,7 @@ function buildSchema(size: number, categories: number): JSONSchema {
               "exact_distance",
             ],
             description:
-              'Custom phrases for ordering constraints. "before" and "left_of" are [forward, reverse] tuples for variety, e.g. { "before": ["has a lower return than", "has a higher return than"] }. Symmetric constraints (next_to, not_next_to, between, not_between, exact_distance) are a single string. Only set on the position category — these phrases describe the positional axis and apply to all ordering clues in the puzzle.',
+              'Custom phrases for ordering constraints. "before" and "left_of" are [forward, reverse] tuples for variety, e.g. { "before": ["has a lower return than", "has a higher return than"] }. Symmetric constraints (next_to, not_next_to, between, not_between, exact_distance) are a single string. Required on every ordered category: these phrases describe ordering along that category\'s axis.',
           },
         },
         description:

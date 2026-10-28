@@ -68,8 +68,8 @@ describe("POST /api/theme", () => {
           ordered: true,
           orderingPhrases: {
             comparators: {
-              before: "is before",
-              left_of: "is right before",
+              before: ["is before", "is after"],
+              left_of: ["is right before", "is right after"],
               next_to: "is right next to",
               not_next_to: "is not right next to",
               between: "is between",
