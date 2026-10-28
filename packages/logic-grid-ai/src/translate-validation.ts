@@ -145,11 +145,12 @@ function err(
 
 /**
  * Collapse the translator's `{ canonical, localized }` entries for one label
- * surface into the canonical → localized map {@link checkTranslationStructure}
- * checks. An entry for a key the puzzle doesn't have, or for a key already
- * seen, is reported and left out of the map. Anything that isn't a list of
- * such entries adds nothing, so the structural check reports the keys as
- * missing: a client returning another shape gets a retry, not a crash.
+ * surface into the canonical → localized map that
+ * {@link checkTranslationStructure} checks. A value that isn't a list of
+ * such entries, an entry without a string `canonical`, an entry for a key
+ * the puzzle doesn't have, and a second entry for the same key are all
+ * reported and left out of the map, so a client returning another shape
+ * gets a retry, not a crash.
  */
 export function collectLabels(
   entries: unknown,
@@ -163,16 +164,36 @@ export function collectLabels(
       ? categories.map((c) => c.name)
       : categories.flatMap((c) => c.values),
   );
+  const malformed = isCategory
+    ? "malformed_category_name"
+    : "malformed_value_label";
   const labels = new Map<string, unknown>();
   const errors: TranslationValidationError[] = [];
 
-  for (const entry of Array.isArray(entries) ? entries : []) {
-    if (typeof entry !== "object" || entry === null) continue;
-    const { canonical, localized } = entry as {
-      canonical?: unknown;
-      localized?: unknown;
-    };
-    if (typeof canonical !== "string") continue;
+  if (!Array.isArray(entries)) {
+    errors.push(
+      err(
+        malformed,
+        `${surface} must be a list of { canonical, localized } entries.`,
+      ),
+    );
+    return { labels: {}, errors };
+  }
+
+  const list: unknown[] = entries;
+  for (const [i, entry] of list.entries()) {
+    const { canonical, localized } = (
+      typeof entry === "object" && entry !== null ? entry : {}
+    ) as { canonical?: unknown; localized?: unknown };
+    if (typeof canonical !== "string") {
+      errors.push(
+        err(
+          malformed,
+          `${surface} entry ${i + 1} isn't a { canonical, localized } object with a string canonical.`,
+        ),
+      );
+      continue;
+    }
     if (!expected.has(canonical)) {
       errors.push(
         err(
@@ -511,8 +532,8 @@ export async function validateTranslation(
 
   // Verify verdict order matches source clue order before we trust the
   // per-clue judgements. The guard above checks the count, but nothing
-  // guarantees that verdicts arrive in source order — a misordered batch would
-  // silently misalign every check below. Bail early so the retry loop
+  // guarantees that verdicts arrive in source order — a misordered batch
+  // would silently misalign every check below. Bail early so the retry loop
   // gets fresh verdicts; partial per-clue results from a broken batch
   // would just confuse the feedback prompt.
   for (let i = 0; i < sourceClues.length; i++) {

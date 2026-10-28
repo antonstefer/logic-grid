@@ -159,24 +159,39 @@ describe("collectLabels", () => {
     expect(errors).toEqual([]);
   });
 
-  it("adds nothing for a value that isn't a list of entries", () => {
+  it("reports a value that isn't a list of entries", () => {
     // e.g. a custom client still returning the old { House: "Haus" } map
     for (const entries of [{ House: "Haus" }, undefined]) {
-      expect(collectLabels(entries, "categoryNames", SAMPLE_PUZZLE)).toEqual({
-        labels: {},
-        errors: [],
-      });
+      const { labels, errors } = collectLabels(
+        entries,
+        "categoryNames",
+        SAMPLE_PUZZLE,
+      );
+      expect(labels).toEqual({});
+      expect(errors).toEqual([
+        expect.objectContaining({ code: "malformed_category_name" }),
+      ]);
     }
   });
 
-  it("skips entries that aren't objects with a string canonical key", () => {
+  it("reports entries that aren't objects with a string canonical key", () => {
     const { labels, errors } = collectLabels(
-      ["Red", null, { canonical: 7, localized: "Sieben" }],
+      [
+        "Red",
+        null,
+        { canonical: 7, localized: "Sieben" },
+        { canonical: "Blue", localized: "Blau" },
+      ],
       "valueLabels",
       SAMPLE_PUZZLE,
     );
-    expect(labels).toEqual({});
-    expect(errors).toEqual([]);
+    expect(labels).toEqual({ Blue: "Blau" });
+    expect(errors.map((e) => e.code)).toEqual([
+      "malformed_value_label",
+      "malformed_value_label",
+      "malformed_value_label",
+    ]);
+    expect(errors[2].message).toContain("entry 3");
   });
 
   it("reports and drops entries for keys the puzzle doesn't have", () => {
