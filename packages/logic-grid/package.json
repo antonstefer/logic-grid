@@ -37,7 +37,7 @@
     "prepublishOnly": "npm run check && npm run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "keywords": [
     "logic-grid",

@@ -44,7 +44,7 @@
     "prepublishOnly": "npm run check && npm run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "author": "Anton Stefer (https://github.com/antonstefer)",
   "license": "MIT",
