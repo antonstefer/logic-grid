@@ -104,10 +104,18 @@ const VALID_VALUE_LABELS = {
   Green: "Grün",
 };
 
+/** The translator's raw `{ canonical, localized }` pairs for a label map. */
+function toPairs(labels: Record<string, string>) {
+  return Object.entries(labels).map(([canonical, localized]) => ({
+    canonical,
+    localized,
+  }));
+}
+
 const VALID_TRANSLATION = {
   clues: VALID_CLUE_TEXT,
-  categoryNames: VALID_CATEGORY_NAMES,
-  valueLabels: VALID_VALUE_LABELS,
+  categoryNames: toPairs(VALID_CATEGORY_NAMES),
+  valueLabels: toPairs(VALID_VALUE_LABELS),
 };
 
 interface ClueVerdict {
@@ -225,7 +233,7 @@ describe("translate", () => {
     expect(prompts[0]).toContain('"type":"before"');
   });
 
-  it("lists the puzzle's category names and values as required schema keys", async () => {
+  it("asks for label pairs sized to the puzzle", async () => {
     let translatorSchema: JSONSchema | undefined;
     const client: AIClient = {
       completeJSON: <T>(prompt: string, schema: JSONSchema) => {
@@ -241,19 +249,24 @@ describe("translate", () => {
 
     const categoryNames = translatorSchema?.properties?.categoryNames;
     const valueLabels = translatorSchema?.properties?.valueLabels;
-    expect(categoryNames?.required).toEqual(["House", "Name", "Color"]);
-    expect(valueLabels?.required).toEqual([
-      "1",
-      "2",
-      "3",
-      "Alice",
-      "Bob",
-      "Carol",
-      "Red",
-      "Blue",
-      "Green",
-    ]);
-    expect(valueLabels?.properties?.Alice).toEqual({ type: "string" });
+    expect(categoryNames).toMatchObject({
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+    });
+    expect(valueLabels).toMatchObject({
+      type: "array",
+      minItems: 9,
+      maxItems: 9,
+    });
+    expect(valueLabels?.items).toEqual({
+      type: "object",
+      properties: {
+        canonical: { type: "string" },
+        localized: { type: "string" },
+      },
+      required: ["canonical", "localized"],
+    });
   });
 
   it("uses separate client and validator when both are provided", async () => {
@@ -315,11 +328,11 @@ describe("translate", () => {
         translatorCalls++;
         if (translatorCalls < 3) {
           // Drop one valueLabels entry to fail structural check
-          const { Carol: _carol, ...partial } = VALID_VALUE_LABELS;
-          void _carol;
           return Promise.resolve({
             ...VALID_TRANSLATION,
-            valueLabels: partial,
+            valueLabels: VALID_TRANSLATION.valueLabels.filter(
+              (p) => p.canonical !== "Carol",
+            ),
           } as T);
         }
         return Promise.resolve(VALID_TRANSLATION as T);
@@ -562,8 +575,8 @@ describe("translate", () => {
         }
         return Promise.resolve({
           clues: translatedClues,
-          categoryNames,
-          valueLabels,
+          categoryNames: toPairs(categoryNames),
+          valueLabels: toPairs(valueLabels),
         } as T);
       },
     };

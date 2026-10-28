@@ -101,18 +101,23 @@ const SAMPLE_PUZZLE = {
 
 const VALID_TRANSLATION = {
   clues: ["Alice wohnt im roten Haus.", "Bob wohnt neben dem grünen Haus."],
-  categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
-  valueLabels: {
-    "1": "1",
-    "2": "2",
-    "3": "3",
-    Alice: "Alice",
-    Bob: "Bob",
-    Carol: "Carol",
-    Red: "Rot",
-    Blue: "Blau",
-    Green: "Grün",
-  },
+  // The translator returns label maps as { canonical, localized } pairs.
+  categoryNames: [
+    { canonical: "House", localized: "Haus" },
+    { canonical: "Name", localized: "Name" },
+    { canonical: "Color", localized: "Farbe" },
+  ],
+  valueLabels: [
+    { canonical: "1", localized: "1" },
+    { canonical: "2", localized: "2" },
+    { canonical: "3", localized: "3" },
+    { canonical: "Alice", localized: "Alice" },
+    { canonical: "Bob", localized: "Bob" },
+    { canonical: "Carol", localized: "Carol" },
+    { canonical: "Red", localized: "Rot" },
+    { canonical: "Blue", localized: "Blau" },
+    { canonical: "Green", localized: "Grün" },
+  ],
 };
 
 const VALID_VERDICT = {
