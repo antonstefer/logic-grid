@@ -362,6 +362,20 @@ describe("checkTranslationStructure", () => {
     );
   });
 
+  it("reports a value named like an inherited property as missing", () => {
+    const puzzle = JSON.parse(JSON.stringify(SAMPLE_PUZZLE)) as Puzzle;
+    puzzle.grid.categories[2].values[2] = "constructor";
+    const raw = validRaw();
+    delete raw.valueLabels.Green;
+    const errors = checkTranslationStructure(raw, puzzle);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        code: "missing_value_label",
+        key: "constructor",
+      }),
+    ]);
+  });
+
   it("rejects empty valueLabels value", () => {
     const raw = validRaw();
     raw.valueLabels.Red = "";

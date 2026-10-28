@@ -132,6 +132,14 @@ interface RawTranslation {
   valueLabels: Record<string, unknown>;
 }
 
+/**
+ * `map[key]` if `map` has its own `key`, else undefined, so a value named
+ * like an inherited property ("constructor") isn't mistaken for present.
+ */
+function ownValue(map: Record<string, unknown>, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 function err(
   code: TranslationValidationCode,
   message: string,
@@ -292,7 +300,7 @@ export function checkTranslationStructure(
   // mapping to the same display string would render as identical headers.
   const seenCategoryLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
-    const localized = raw.categoryNames[cat.name];
+    const localized = ownValue(raw.categoryNames, cat.name);
     if (localized === undefined) {
       errors.push(
         err(
@@ -344,7 +352,7 @@ export function checkTranslationStructure(
   const seenValueLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
     for (const value of cat.values) {
-      const localized = raw.valueLabels[value];
+      const localized = ownValue(raw.valueLabels, value);
       if (localized === undefined) {
         errors.push(
           err(
