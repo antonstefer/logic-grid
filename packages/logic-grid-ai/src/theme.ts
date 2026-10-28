@@ -295,6 +295,10 @@ Generate themed categories for: "${theme}"
  * @throws {RangeError} If size or categories is outside 3-8.
  * @throws {ThemeGenerationError} If generation fails after all retry attempts.
  *   Inspect `error.errors` for the structured validation failures.
+ * @throws {Error} Whatever the AI client throws, unchanged and without using
+ *   the remaining attempts. The default Anthropic client throws when the
+ *   model declines the request, the response is cut off, or its JSON
+ *   doesn't parse.
  */
 export async function generateTheme(
   options: ThemeOptions,

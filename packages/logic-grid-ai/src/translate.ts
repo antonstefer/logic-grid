@@ -247,6 +247,10 @@ export const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\- ]{0,49}$/;
  *   retry attempts. Inspect `error.errors` for the structured failures.
  * @throws {Error} If `locale` is empty or contains characters that aren't
  *   safe to interpolate into the AI prompt.
+ * @throws {Error} Whatever the translator or validator client throws,
+ *   unchanged and without using the remaining attempts. The default
+ *   Anthropic client throws when the model declines the request, the
+ *   response is cut off, or its JSON doesn't parse.
  */
 export async function translate(
   options: TranslateOptions,

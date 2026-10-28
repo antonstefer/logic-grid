@@ -84,7 +84,7 @@ try {
 }
 ```
 
-> Transport-level retries (429s, 5xx, network errors) are already handled inside the Anthropic SDK with exponential backoff — they don't consume one of the 3 semantic-retry attempts.
+> Transport-level retries (429s, 5xx, network errors) are already handled inside the Anthropic SDK with exponential backoff — they don't consume one of the 3 semantic-retry attempts. Errors from the AI client itself propagate right away without using the remaining attempts; with the default client, that's a declined request (`stop_reason: "refusal"`), a cut-off response, or JSON that doesn't parse.
 
 ### `createAnthropicClient(apiKey?, options?)`
 
