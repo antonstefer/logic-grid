@@ -35,4 +35,4 @@ Releases are driven by release-please from Conventional Commits, strictly: only 
 - A `logic-grid` major needs a matching `logic-grid-ai` peerDep by the time its Release PR merges, or `npm ci` fails with `ERESOLVE` on main and the publish job breaks:
   - Widen the range to include the new major (e.g. `^2.0.0 || ^3.0.0`) only if the `logic-grid` types `logic-grid-ai` imports are unchanged — nothing tests against the old major.
   - Commit it as `feat:` or `fix:` so it ships, and release `logic-grid-ai` before the `logic-grid` major; otherwise npm's latest `logic-grid-ai` rejects the new `logic-grid`.
-  - If the imported types changed, don't widen: the narrowed range (with `BREAKING CHANGE:`) has to land in the same merge as the `logic-grid` version bump.
+  - If the imported types changed, don't widen: the narrowed range (with `BREAKING CHANGE:`) has to land in the same merge as the `logic-grid` version bump. That bump only exists on release-please's PR branch, which release-please rewrites whenever it updates the PR, so push the narrowing commit there as the very last step before merging.
