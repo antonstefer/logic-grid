@@ -1,6 +1,6 @@
 # logic-grid-ai
 
-AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 4.6 by default) to turn a theme description into fully structured puzzle categories.
+AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 5.5 by default) to turn a theme description into fully structured puzzle categories.
 
 [![npm](https://img.shields.io/npm/v/logic-grid-ai)](https://www.npmjs.com/package/logic-grid-ai)
 [![license](https://img.shields.io/npm/l/logic-grid-ai)](../../LICENSE)
@@ -88,14 +88,16 @@ try {
 
 ### `createAnthropicClient(apiKey?, options?)`
 
-Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-4-6`):
+Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-5-5`):
 
 ```typescript
 import { createAnthropicClient } from "logic-grid-ai";
 
-const fast = createAnthropicClient(undefined, { model: "claude-haiku-4-5" });
+const fast = createAnthropicClient(undefined, { model: "claude-haiku-5-5" });
 const explicit = createAnthropicClient("sk-ant-...");
 ```
+
+On the default model, requests opt into [server-side refusal fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) (beta): a request Claude's safety classifiers decline is retried on the model Anthropic recommends for that refusal category, where there is one. A refusal that stands makes `completeJSON` throw. Other models don't send the fallback parameter.
 
 ### Custom AI Client
 
@@ -189,9 +191,9 @@ The function runs a two-stage AI flow:
 const localized = await translate({
   puzzle,
   locale: "ja-JP",
-  client: createAnthropicClient(undefined, { model: "claude-sonnet-4-6" }),
+  client: createAnthropicClient(undefined, { model: "claude-sonnet-5-5" }),
   validator: createAnthropicClient(undefined, {
-    model: "claude-opus-4-5",
+    model: "claude-opus-5-5",
     effort: "high",
   }),
 });

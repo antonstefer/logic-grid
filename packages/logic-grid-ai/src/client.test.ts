@@ -4,12 +4,14 @@ import { createAnthropicClient } from "./client";
 
 const mockCreate =
   vi.fn<
-    (params: Anthropic.MessageCreateParamsNonStreaming) => Promise<unknown>
+    (
+      params: Anthropic.Beta.Messages.MessageCreateParamsNonStreaming,
+    ) => Promise<unknown>
   >();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
-    readonly messages = { create: mockCreate };
+    readonly beta = { messages: { create: mockCreate } };
   },
 }));
 
@@ -46,7 +48,7 @@ describe("createAnthropicClient", () => {
 
     expect(result).toEqual({ answer: 42 });
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5-5",
       max_tokens: 16000,
       messages: [{ role: "user", content: "test prompt" }],
       output_config: {
@@ -59,7 +61,32 @@ describe("createAnthropicClient", () => {
           },
         },
       },
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     });
+  });
+
+  it("reads the JSON after a fallback block", async () => {
+    mockCreate.mockResolvedValueOnce({
+      stop_reason: "end_turn",
+      stop_details: null,
+      // A request the default model declined, served by its fallback.
+      content: [
+        {
+          type: "fallback",
+          from: { model: "claude-sonnet-5-5" },
+          to: { model: "claude-sonnet-5" },
+        },
+        { type: "text", text: '{"answer":42}' },
+      ],
+    });
+
+    const client = createAnthropicClient();
+    const result = await client.completeJSON<{ answer: number }>("test", {
+      type: "object",
+    });
+
+    expect(result).toEqual({ answer: 42 });
   });
 
   it("keeps keywords structured outputs reject out of the request", async () => {
@@ -135,7 +162,7 @@ describe("createAnthropicClient", () => {
     ).rejects.toThrow("AI did not return structured output");
   });
 
-  it("uses overridden model when passed via options", async () => {
+  it("uses overridden model, without fallbacks, when passed via options", async () => {
     mockCreate.mockResolvedValueOnce(jsonResponse({}));
 
     const client = createAnthropicClient(undefined, {
@@ -143,9 +170,10 @@ describe("createAnthropicClient", () => {
     });
     await client.completeJSON("test", { type: "object" });
 
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "claude-haiku-4-5" }),
-    );
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.model).toBe("claude-haiku-4-5");
+    expect(params).not.toHaveProperty("betas");
+    expect(params).not.toHaveProperty("fallbacks");
   });
 
   it("sends effort only when the option is set", async () => {

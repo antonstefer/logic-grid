@@ -3,7 +3,7 @@ import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { AIClient, JSONSchema } from "./types";
 
 /** Default model used when no `model` option is provided. */
-export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-5-5";
 
 /** Effort levels accepted by {@link AnthropicClientOptions.effort}. */
 export type AnthropicEffort = NonNullable<
@@ -37,10 +37,13 @@ export interface AnthropicClientOptions {
  *
  * If no apiKey is provided, the SDK resolves credentials from the
  * environment, `ANTHROPIC_API_KEY` first. Pass a `model` option to swap the
- * underlying Claude model (e.g. `claude-haiku-4-5` for cheaper/faster
+ * underlying Claude model (e.g. `claude-haiku-5-5` for cheaper/faster
  * generation).
  *
- * `completeJSON` throws when the model declines the request
+ * On {@link DEFAULT_ANTHROPIC_MODEL}, requests opt into server-side refusal
+ * fallback (beta): a request its safety classifiers decline is retried on
+ * the model Anthropic recommends for that refusal category, where one
+ * exists. `completeJSON` throws when the request is still declined
  * (`stop_reason: "refusal"`) or stops before the JSON is complete.
  */
 export function createAnthropicClient(
@@ -52,7 +55,7 @@ export function createAnthropicClient(
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
-      const response = await client.messages.create({
+      const response = await client.beta.messages.create({
         model,
         // 16000 tokens covers thinking plus the heaviest output we
         // produce — a `translate` call on an 8×8 puzzle returns ~56 clues +
@@ -75,6 +78,12 @@ export function createAnthropicClient(
           },
           ...(options.effort && { effort: options.effort }),
         },
+        // Server-side fallback is only documented for current models, so it
+        // stays limited to the default rather than any model a caller picks.
+        ...(model === DEFAULT_ANTHROPIC_MODEL && {
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+        }),
       });
 
       if (response.stop_reason === "refusal") {
@@ -88,7 +97,7 @@ export function createAnthropicClient(
         );
       }
       const textBlock = response.content.find(
-        (block): block is Anthropic.TextBlock => block.type === "text",
+        (block): block is Anthropic.Beta.BetaTextBlock => block.type === "text",
       );
       if (!textBlock) {
         throw new Error("AI did not return structured output");
