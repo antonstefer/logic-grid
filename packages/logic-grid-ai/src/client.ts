@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import type { AIClient, JSONSchema } from "./types";
 
 /** Default model used when no `model` option is provided. */
@@ -18,6 +17,49 @@ const FALLBACK_MODELS = new Set([
   "claude-fable-5-1",
   "claude-fable-5",
 ]);
+
+/**
+ * Adapt one of the package's schemas to what structured outputs accept.
+ * Every object gets `additionalProperties: false`, and the limits the API
+ * doesn't enforce (`minLength`, `maxItems`, `minItems` above 1) move into
+ * the description, so the model still sees them and the package's
+ * validators still check them. Unlike the SDK's JSON-schema helper, this
+ * keeps `enum`, which the API does enforce.
+ */
+function toStructuredOutputSchema(schema: JSONSchema): Record<string, unknown> {
+  const {
+    properties,
+    items,
+    minItems,
+    maxItems,
+    minLength,
+    description,
+    ...rest
+  } = schema;
+  const result: Record<string, unknown> = { ...rest };
+  const limits: string[] = [];
+  if (minItems !== undefined) {
+    if (minItems <= 1) result.minItems = minItems;
+    else limits.push(`minItems: ${minItems}`);
+  }
+  if (maxItems !== undefined) limits.push(`maxItems: ${maxItems}`);
+  if (minLength !== undefined) limits.push(`minLength: ${minLength}`);
+  const notes = [description, limits.length > 0 && `{${limits.join(", ")}}`]
+    .filter(Boolean)
+    .join("\n\n");
+  if (notes) result.description = notes;
+  if (properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(properties).map(([key, value]) => [
+        key,
+        toStructuredOutputSchema(value),
+      ]),
+    );
+  }
+  if (items) result.items = toStructuredOutputSchema(items);
+  if (schema.type === "object") result.additionalProperties = false;
+  return result;
+}
 
 /** Effort levels accepted by {@link AnthropicClientOptions.effort}. */
 export type AnthropicEffort = NonNullable<
@@ -58,8 +100,10 @@ export interface AnthropicClientOptions {
  * On models that offer it (Claude Sonnet 5.5, Opus 5.5, Opus 5, Fable 5.1
  * and Fable 5), requests opt into server-side refusal fallback (beta): a
  * request their safety classifiers decline is retried on the model
- * Anthropic recommends for that refusal category, where one exists. `completeJSON` throws when the request is still declined
- * (`stop_reason: "refusal"`) or stops before the JSON is complete.
+ * Anthropic recommends for that refusal category, where one exists.
+ * `completeJSON` throws when the request is still declined
+ * (`stop_reason: "refusal"`), stops before the JSON is complete, or returns
+ * JSON that doesn't parse.
  */
 export function createAnthropicClient(
   apiKey?: string,
@@ -77,22 +121,19 @@ export function createAnthropicClient(
           model,
           // 64000 tokens leaves room for thinking, which counts toward the
           // cap and grows with `effort`, on top of the heaviest output we
-          // produce — a `translate` call on an 8×8 puzzle returns ~56 clues +
-          // 64 value labels + 8 category names in one structured JSON, which
-          // in verbose locales (German is roughly 1.5× English) can approach
-          // 4096 tokens on its own. Output tokens are billed on actual use,
-          // so a higher cap doesn't cost more.
+          // produce — a `translate` call on an 8×8 puzzle returns ~56
+          // clues + 64 value labels + 8 category names in one structured
+          // JSON, which in verbose locales (German is roughly 1.5× English)
+          // can approach 4096 tokens on its own. Every model still served
+          // accepts 64000 (Opus 4.1, at 32K, retired in August 2026).
+          // Output tokens are billed on actual use, so a higher cap doesn't
+          // cost more.
           max_tokens: 64000,
           messages: [{ role: "user", content: prompt }],
           output_config: {
             format: {
               type: "json_schema",
-              // The SDK helper adapts the schema to what structured outputs
-              // accept: `additionalProperties: false` on every object, and
-              // unsupported keywords moved into descriptions. The package's
-              // schemas are all objects at the top level.
-              schema: jsonSchemaOutputFormat(schema as { type: "object" })
-                .schema,
+              schema: toStructuredOutputSchema(schema),
             },
             ...(options.effort && { effort: options.effort }),
           },

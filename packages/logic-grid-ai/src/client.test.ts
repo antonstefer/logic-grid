@@ -117,6 +117,54 @@ describe("createAnthropicClient", () => {
     expect(sent).not.toContain('"maxItems"');
   });
 
+  it("adapts the schema for structured outputs, keeping enum", async () => {
+    respondWith(jsonResponse({ verdicts: [] }));
+
+    await createAnthropicClient().completeJSON("test", {
+      type: "object",
+      description: "Verdicts",
+      properties: {
+        verdicts: {
+          type: "array",
+          minItems: 1,
+          maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              kind: { type: "string", enum: ["before", "not_between"] },
+              note: { type: "string", minLength: 1, description: "Why" },
+            },
+            required: ["kind"],
+          },
+        },
+      },
+      required: ["verdicts"],
+    });
+
+    expect(mockStream.mock.calls[0][0].output_config?.format?.schema).toEqual({
+      type: "object",
+      description: "Verdicts",
+      additionalProperties: false,
+      properties: {
+        verdicts: {
+          type: "array",
+          minItems: 1,
+          description: "{maxItems: 3}",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              kind: { type: "string", enum: ["before", "not_between"] },
+              note: { type: "string", description: "Why\n\n{minLength: 1}" },
+            },
+            required: ["kind"],
+          },
+        },
+      },
+      required: ["verdicts"],
+    });
+  });
+
   it("throws when the model declines the request", async () => {
     respondWith({
       stop_reason: "refusal",
