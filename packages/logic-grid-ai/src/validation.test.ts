@@ -2,6 +2,19 @@ import { describe, it, expect } from "vitest";
 import { validateThemeResult } from "./validation";
 import { hasCode } from "./test-utils";
 
+/** All 7 comparators, in the shapes logic-grid renders. */
+function comparators() {
+  return {
+    before: ["is before", "is after"],
+    left_of: ["is right before", "is right after"],
+    next_to: "is right next to",
+    not_next_to: "is not right next to",
+    between: "is between",
+    not_between: "is not between",
+    exact_distance: "is exactly",
+  };
+}
+
 function validResult() {
   return {
     categories: [
@@ -16,17 +29,7 @@ function validResult() {
         noun: "chef",
         verb: ["prepares the", "does not prepare the"] as [string, string],
         ordered: true,
-        orderingPhrases: {
-          comparators: {
-            before: "is before",
-            left_of: "is right before",
-            next_to: "is right next to",
-            not_next_to: "is not right next to",
-            between: "is between",
-            not_between: "is not between",
-            exact_distance: "is exactly",
-          },
-        },
+        orderingPhrases: { comparators: comparators() },
       },
       {
         name: "Tool",
@@ -202,7 +205,7 @@ describe("validateThemeResult", () => {
     (r.categories[1] as Record<string, unknown>).numericValues = [1, 2, 3];
     (r.categories[1] as Record<string, unknown>).orderingPhrases = {
       unit: ["point", "points"],
-      comparators: { before: "scores higher than" },
+      comparators: comparators(),
     };
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
@@ -217,6 +220,9 @@ describe("validateThemeResult", () => {
   it("accepts multiple ordered categories", () => {
     const r = validResult();
     (r.categories[2] as Record<string, unknown>).ordered = true;
+    (r.categories[2] as Record<string, unknown>).orderingPhrases = {
+      comparators: comparators(),
+    };
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
   });
 
@@ -251,8 +257,57 @@ describe("validateThemeResult", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).orderingPhrases = {
       unit: ["point", "points"],
+      comparators: comparators(),
     };
     expect(validateThemeResult(r, 3, 3)).toEqual([]);
+  });
+
+  it("requires comparators on every ordered category", () => {
+    const r = validResult();
+    delete (r.categories[1] as Record<string, unknown>).orderingPhrases;
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors.map((e) => e.message)).toEqual([
+      'Category "Dish" is ordered, so orderingPhrases.comparators must set all 7 comparators.',
+    ]);
+  });
+
+  it("rejects a directional comparator that isn't a pair of phrases", () => {
+    for (const before of ["is before", ["is before"], ["is before", " "]]) {
+      const r = validResult();
+      (r.categories[1] as Record<string, unknown>).orderingPhrases = {
+        comparators: { ...comparators(), before },
+      };
+      const errors = validateThemeResult(r, 3, 3);
+      expect(errors.map((e) => e.message)).toEqual([
+        'Category "Dish" comparator "before" must be a [forward, reverse] pair of non-empty strings.',
+      ]);
+    }
+  });
+
+  it("rejects a missing or empty symmetric comparator", () => {
+    const r = validResult();
+    const { between: _between, ...rest } = comparators();
+    void _between;
+    (r.categories[1] as Record<string, unknown>).orderingPhrases = {
+      comparators: { ...rest, exact_distance: " " },
+    };
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors.map((e) => e.message)).toEqual([
+      'Category "Dish" comparator "between" must be a non-empty string.',
+      'Category "Dish" comparator "exact_distance" must be a non-empty string.',
+    ]);
+  });
+
+  it("rejects a unit that isn't a pair of phrases", () => {
+    const r = validResult();
+    (r.categories[1] as Record<string, unknown>).orderingPhrases = {
+      unit: ["point"],
+      comparators: comparators(),
+    };
+    const errors = validateThemeResult(r, 3, 3);
+    expect(errors.map((e) => e.message)).toEqual([
+      'Category "Dish" orderingPhrases.unit must be a [singular, plural] pair of non-empty strings.',
+    ]);
   });
 
   it("rejects null orderingPhrases", () => {
@@ -314,18 +369,11 @@ describe("validateThemeResult", () => {
   it("rejects symmetric comparator as tuple", () => {
     const r = validResult();
     (r.categories[1] as Record<string, unknown>).orderingPhrases = {
-      comparators: { next_to: ["fwd", "rev"] },
+      comparators: { ...comparators(), next_to: ["fwd", "rev"] },
     };
     const errors = validateThemeResult(r, 3, 3);
-    expect(hasCode(errors, "symmetric_comparator_tuple")).toBe(true);
-  });
-
-  it("accepts directional comparator as tuple", () => {
-    const r = validResult();
-    (r.categories[1] as Record<string, unknown>).orderingPhrases = {
-      comparators: { before: ["has a lower X than", "has a higher X than"] },
-    };
-    expect(validateThemeResult(r, 3, 3)).toEqual([]);
+    // Reported once, as a tuple, not again as a missing string.
+    expect(errors.map((e) => e.code)).toEqual(["symmetric_comparator_tuple"]);
   });
 
   it("rejects non-number subjectPriority", () => {

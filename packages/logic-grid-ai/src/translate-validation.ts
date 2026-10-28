@@ -23,7 +23,8 @@ import type {
  *
  * The structural pre-check covers clue counts, empties, duplicates, and
  * the completeness of `categoryNames` / `valueLabels` (every canonical key
- * from the source puzzle must appear with a non-empty translation).
+ * from the source puzzle must appear with a non-empty translation), after
+ * `collectLabels` has rejected label entries for unknown or repeated keys.
  */
 
 /**
@@ -131,6 +132,14 @@ interface RawTranslation {
   valueLabels: Record<string, unknown>;
 }
 
+/**
+ * `map[key]` if `map` has its own `key`, else undefined, so a value named
+ * like an inherited property ("constructor") isn't mistaken for present.
+ */
+function ownValue(map: Record<string, unknown>, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 function err(
   code: TranslationValidationCode,
   message: string,
@@ -140,6 +149,82 @@ function err(
   if (opts.clueIndex !== undefined) e.clueIndex = opts.clueIndex;
   if (opts.key !== undefined) e.key = opts.key;
   return e;
+}
+
+/**
+ * Collapse the translator's `{ canonical, localized }` entries for one label
+ * surface into the canonical → localized map that
+ * {@link checkTranslationStructure} checks. A value that isn't a list of
+ * such entries, an entry without a string `canonical`, an entry for a key
+ * the puzzle doesn't have, and a second entry for the same key are all
+ * reported and left out of the map, so a client returning another shape
+ * gets a retry, not a crash. Unreadable entries are reported under the
+ * surface's "missing" code, since the labels they held are missing too.
+ */
+export function collectLabels(
+  entries: unknown,
+  surface: "categoryNames" | "valueLabels",
+  puzzle: Puzzle,
+): { labels: Record<string, unknown>; errors: TranslationValidationError[] } {
+  const { categories } = puzzle.grid;
+  const isCategory = surface === "categoryNames";
+  const expected = new Set(
+    isCategory
+      ? categories.map((c) => c.name)
+      : categories.flatMap((c) => c.values),
+  );
+  const missing = isCategory ? "missing_category_name" : "missing_value_label";
+  const labels = new Map<string, unknown>();
+  const errors: TranslationValidationError[] = [];
+
+  if (!Array.isArray(entries)) {
+    errors.push(
+      err(
+        missing,
+        `${surface} must be a list of { canonical, localized } entries.`,
+      ),
+    );
+    return { labels: {}, errors };
+  }
+
+  const list: unknown[] = entries;
+  for (const [i, entry] of list.entries()) {
+    const { canonical, localized } = (
+      typeof entry === "object" && entry !== null ? entry : {}
+    ) as { canonical?: unknown; localized?: unknown };
+    if (typeof canonical !== "string") {
+      errors.push(
+        err(
+          missing,
+          `${surface} entry ${i + 1} isn't a { canonical, localized } object with a string canonical.`,
+        ),
+      );
+      continue;
+    }
+    if (!expected.has(canonical)) {
+      errors.push(
+        err(
+          isCategory ? "unknown_category_name" : "unknown_value_label",
+          `${surface} has an entry for "${canonical}", which isn't ${isCategory ? "a category" : "a value"} in the puzzle.`,
+          { key: canonical },
+        ),
+      );
+      continue;
+    }
+    if (labels.has(canonical)) {
+      errors.push(
+        err(
+          isCategory ? "repeated_category_name" : "repeated_value_label",
+          `${surface} has more than one entry for "${canonical}".`,
+          { key: canonical },
+        ),
+      );
+      continue;
+    }
+    labels.set(canonical, localized);
+  }
+
+  return { labels: Object.fromEntries(labels), errors };
 }
 
 /**
@@ -214,7 +299,7 @@ export function checkTranslationStructure(
   // mapping to the same display string would render as identical headers.
   const seenCategoryLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
-    const localized = raw.categoryNames[cat.name];
+    const localized = ownValue(raw.categoryNames, cat.name);
     if (localized === undefined) {
       errors.push(
         err(
@@ -266,7 +351,7 @@ export function checkTranslationStructure(
   const seenValueLabels = new Map<string, string>();
   for (const cat of puzzle.grid.categories) {
     for (const value of cat.values) {
-      const localized = raw.valueLabels[value];
+      const localized = ownValue(raw.valueLabels, value);
       if (localized === undefined) {
         errors.push(
           err(
@@ -438,10 +523,11 @@ export async function validateTranslation(
   const prompt = buildPrompt(sourceClues, raw.clues, locale);
   const result = await validator.completeJSON<ValidatorResult>(prompt, schema);
 
-  // Length guard before reading any verdict — the tools-API schema
-  // enforces `minItems`/`maxItems`, but enforcement is best-effort and a
-  // short array would otherwise crash with "Cannot read properties of
-  // undefined" instead of feeding into the retry loop.
+  // Length guard before reading any verdict — structured outputs don't
+  // enforce the schema's `minItems`/`maxItems` (they reach the model only
+  // as description text), and a custom AIClient may not enforce the schema
+  // at all, so a short array would otherwise crash with "Cannot read
+  // properties of undefined" instead of feeding into the retry loop.
   if (result.clues.length !== sourceClues.length) {
     return [
       {
@@ -452,9 +538,9 @@ export async function validateTranslation(
   }
 
   // Verify verdict order matches source clue order before we trust the
-  // per-clue judgements. The schema guarantees count and item shape but
-  // not that verdicts arrive in source order — a misordered batch would
-  // silently misalign every check below. Bail early so the retry loop
+  // per-clue judgements. The guard above checks the count, but nothing
+  // guarantees that verdicts arrive in source order — a misordered batch
+  // would silently misalign every check below. Bail early so the retry loop
   // gets fresh verdicts; partial per-clue results from a broken batch
   // would just confuse the feedback prompt.
   for (let i = 0; i < sourceClues.length; i++) {

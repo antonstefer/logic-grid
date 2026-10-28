@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   checkTranslationStructure,
+  collectLabels,
   validateTranslation,
 } from "./translate-validation";
 import { hasCode } from "./test-utils";
@@ -144,6 +145,112 @@ function mockValidator(verdicts: { clues: ClueVerdict[] }): AIClient {
   };
 }
 
+describe("collectLabels", () => {
+  it("maps each entry's canonical key to its localized label", () => {
+    const { labels, errors } = collectLabels(
+      [
+        { canonical: "House", localized: "Haus" },
+        { canonical: "Color", localized: "Farbe" },
+      ],
+      "categoryNames",
+      SAMPLE_PUZZLE,
+    );
+    expect(labels).toEqual({ House: "Haus", Color: "Farbe" });
+    expect(errors).toEqual([]);
+  });
+
+  it("reports a value that isn't a list of entries", () => {
+    // e.g. a custom client still returning the old { House: "Haus" } map
+    for (const entries of [{ House: "Haus" }, undefined]) {
+      const { labels, errors } = collectLabels(
+        entries,
+        "categoryNames",
+        SAMPLE_PUZZLE,
+      );
+      expect(labels).toEqual({});
+      expect(errors).toEqual([
+        expect.objectContaining({
+          code: "missing_category_name",
+          message:
+            "categoryNames must be a list of { canonical, localized } entries.",
+        }),
+      ]);
+    }
+  });
+
+  it("reports entries that aren't objects with a string canonical key", () => {
+    const { labels, errors } = collectLabels(
+      [
+        "Red",
+        null,
+        { canonical: 7, localized: "Sieben" },
+        { canonical: "Blue", localized: "Blau" },
+      ],
+      "valueLabels",
+      SAMPLE_PUZZLE,
+    );
+    expect(labels).toEqual({ Blue: "Blau" });
+    expect(errors.map((e) => e.code)).toEqual([
+      "missing_value_label",
+      "missing_value_label",
+      "missing_value_label",
+    ]);
+    expect(errors[2].message).toBe(
+      "valueLabels entry 3 isn't a { canonical, localized } object with a string canonical.",
+    );
+  });
+
+  it("reports and drops entries for keys the puzzle doesn't have", () => {
+    const names = collectLabels(
+      [{ canonical: "Pet", localized: "Haustier" }],
+      "categoryNames",
+      SAMPLE_PUZZLE,
+    );
+    expect(names.labels).toEqual({});
+    expect(names.errors).toEqual([
+      expect.objectContaining({ code: "unknown_category_name", key: "Pet" }),
+    ]);
+
+    const values = collectLabels(
+      [{ canonical: "Purple", localized: "Lila" }],
+      "valueLabels",
+      SAMPLE_PUZZLE,
+    );
+    expect(values.labels).toEqual({});
+    expect(values.errors).toEqual([
+      expect.objectContaining({ code: "unknown_value_label", key: "Purple" }),
+    ]);
+  });
+
+  it("reports repeated keys and keeps the first entry", () => {
+    const names = collectLabels(
+      [
+        { canonical: "House", localized: "Haus" },
+        { canonical: "House", localized: "Gebäude" },
+      ],
+      "categoryNames",
+      SAMPLE_PUZZLE,
+    );
+    expect(names.labels).toEqual({ House: "Haus" });
+    expect(names.errors).toEqual([
+      expect.objectContaining({ code: "repeated_category_name", key: "House" }),
+    ]);
+
+    const values = collectLabels(
+      [
+        { canonical: "Red", localized: "Rot" },
+        { canonical: "Red", localized: "Rötlich" },
+      ],
+      "valueLabels",
+      SAMPLE_PUZZLE,
+    );
+    expect(values.labels).toEqual({ Red: "Rot" });
+    expect(values.errors).toEqual([
+      expect.objectContaining({ code: "repeated_value_label", key: "Red" }),
+    ]);
+  });
+});
+
 describe("checkTranslationStructure", () => {
   it("accepts valid output", () => {
     expect(checkTranslationStructure(validRaw(), SAMPLE_PUZZLE)).toEqual([]);
@@ -259,6 +366,20 @@ describe("checkTranslationStructure", () => {
     expect(errors.find((e) => e.code === "missing_value_label")?.key).toBe(
       "Carol",
     );
+  });
+
+  it("reports a value named like an inherited property as missing", () => {
+    const puzzle = JSON.parse(JSON.stringify(SAMPLE_PUZZLE)) as Puzzle;
+    puzzle.grid.categories[2].values[2] = "constructor";
+    const raw = validRaw();
+    delete raw.valueLabels.Green;
+    const errors = checkTranslationStructure(raw, puzzle);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        code: "missing_value_label",
+        key: "constructor",
+      }),
+    ]);
   });
 
   it("rejects empty valueLabels value", () => {

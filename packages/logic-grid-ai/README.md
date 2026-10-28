@@ -1,6 +1,6 @@
 # logic-grid-ai
 
-AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 4.6 by default) to turn a theme description into fully structured puzzle categories.
+AI-powered themed category generation for [logic-grid](https://www.npmjs.com/package/logic-grid) puzzles. Uses the Anthropic API (Claude Sonnet 5.5 by default) to turn a theme description into fully structured puzzle categories.
 
 [![npm](https://img.shields.io/npm/v/logic-grid-ai)](https://www.npmjs.com/package/logic-grid-ai)
 [![license](https://img.shields.io/npm/l/logic-grid-ai)](../../LICENSE)
@@ -84,18 +84,20 @@ try {
 }
 ```
 
-> Transport-level retries (429s, 5xx, network errors) are already handled inside the Anthropic SDK with exponential backoff — they don't consume one of the 3 semantic-retry attempts.
+> Transport-level retries (429s, 5xx, network errors) are already handled inside the Anthropic SDK with exponential backoff — they don't consume one of the 3 semantic-retry attempts. Errors from the AI client itself propagate right away without using the remaining attempts; with the default client, that's a declined request (`stop_reason: "refusal"`), a cut-off response, or JSON that doesn't parse.
 
 ### `createAnthropicClient(apiKey?, options?)`
 
-Create the default AI client backed by the Anthropic SDK. If no key is provided, reads from `ANTHROPIC_API_KEY`. Pass `{ model }` to override the default model (`claude-sonnet-4-6`):
+Create the default AI client backed by the Anthropic SDK. It requests [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), so the response is JSON matching the schema, and throws if the model declines the request (`stop_reason: "refusal"`) or stops before the JSON is complete. If no key is provided, the SDK resolves credentials from the environment, `ANTHROPIC_API_KEY` first. Pass `{ model }` to override the default model (`claude-sonnet-5-5`); the model must support structured outputs, which every model Anthropic still serves does:
 
 ```typescript
 import { createAnthropicClient } from "logic-grid-ai";
 
-const fast = createAnthropicClient(undefined, { model: "claude-haiku-4-5" });
+const fast = createAnthropicClient(undefined, { model: "claude-haiku-5-5" });
 const explicit = createAnthropicClient("sk-ant-...");
 ```
+
+On models that offer it (`claude-sonnet-5-5`, `claude-opus-5-5`, `claude-opus-5`, `claude-fable-5-1`, `claude-fable-5`), requests opt into [server-side refusal fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback) (beta): a request Claude's safety classifiers decline is retried on the model Anthropic recommends for that refusal category, where there is one. A refusal that stands makes `completeJSON` throw. Other models don't send the fallback parameter.
 
 ### Custom AI Client
 
@@ -189,43 +191,45 @@ The function runs a two-stage AI flow:
 const localized = await translate({
   puzzle,
   locale: "ja-JP",
-  client: createAnthropicClient(undefined, { model: "claude-sonnet-4-6" }),
+  client: createAnthropicClient(undefined, { model: "claude-sonnet-5-5" }),
   validator: createAnthropicClient(undefined, {
-    model: "claude-opus-4-5",
-    temperature: 0,
+    model: "claude-opus-5-5",
+    effort: "high",
   }),
 });
 ```
 
-> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When both `client` and `validator` are omitted, the package creates two default Anthropic clients with `validator` at `temperature: 0` for low-variance (near-deterministic — Anthropic has no seed, so minor cross-run variance is still possible) verdicts.
->
-> **Footgun:** if you pass `client` but not `validator`, the validator reuses your `client` as-is — including its temperature. The temperature-0 default fires only when **both** are omitted. If you want low-variance verdicts AND a custom translator, pass both explicitly (e.g. `validator: createAnthropicClient(apiKey, { temperature: 0 })`).
+> **Validator best practice.** Single-model validation has correlated blind spots — the validator's mistakes overlap with the translator's. For production AOT pipelines, pass a `validator` client backed by a _different model_ than the translator. When `validator` is omitted, `client` also validates (one default client does both when both are omitted). To give verdicts more deliberation than translations, set a higher `effort` on the validator client, as above.
 
 > **Proper nouns stay verbatim.** People names, place names, brand names, and numeric/unit literals (`1972`, `8%`, `7am`) map to themselves in `valueLabels` and remain unchanged in clue text. Descriptive words (colors, animals, common-noun categories) translate, with grammatical inflection in clue text expected (`yellow` → bare label `gelb`, inflected forms `gelben` / `gelbe` are correct in clue context).
 
 If validation fails on every attempt, `translate` throws a `TranslationError` carrying structured `errors` with stable codes:
 
-| Code                       | Surface        | Meaning                                                                    |
-| -------------------------- | -------------- | -------------------------------------------------------------------------- |
-| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                    |
-| `non_string_clue`          | clues          | A clue entry is not a string                                               |
-| `empty_translation`        | clues          | A clue is empty or whitespace-only                                         |
-| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                  |
-| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                 |
-| `missing_category_name`    | categoryNames  | A canonical category from the source has no entry in `categoryNames`       |
-| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                             |
-| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                |
-| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive) |
-| `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
-| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
-| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                  |
-| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
-| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
-| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
-| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |
-| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer              |
-| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                          |
-| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                        |
+| Code                       | Surface        | Meaning                                                                                                                                  |
+| -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `wrong_clue_count`         | clues          | AI returned a different number of clues than the source                                                                                  |
+| `non_string_clue`          | clues          | A clue entry is not a string                                                                                                             |
+| `empty_translation`        | clues          | A clue is empty or whitespace-only                                                                                                       |
+| `long_translation`         | clues          | A clue exceeds the per-clue length budget                                                                                                |
+| `duplicate_translation`    | clues          | Two clues are identical (case-insensitive)                                                                                               |
+| `missing_category_name`    | categoryNames  | A canonical category from the source has no readable entry in `categoryNames` (or it isn't a list of `{ canonical, localized }` entries) |
+| `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                                                                                           |
+| `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                                                                              |
+| `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive)                                                               |
+| `unknown_category_name`    | categoryNames  | An entry names a category the source puzzle doesn't have                                                                                 |
+| `repeated_category_name`   | categoryNames  | Two entries name the same canonical category                                                                                             |
+| `missing_value_label`      | valueLabels    | A canonical value from the source has no readable entry in `valueLabels` (or it isn't a list of `{ canonical, localized }` entries)      |
+| `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                                                                                             |
+| `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                                                                                |
+| `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)                                                                  |
+| `unknown_value_label`      | valueLabels    | An entry names a value the source puzzle doesn't have                                                                                    |
+| `repeated_value_label`     | valueLabels    | Two entries name the same canonical value                                                                                                |
+| `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues                                                                   |
+| `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint                                                                    |
+| `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                                                                                             |
+| `between_middle_swapped`   | clue semantics | `between` / `not_between` middle entity swapped with an outer                                                                            |
+| `numeric_changed`          | clue semantics | Numbers or units in a clue differ from the source                                                                                        |
+| `proper_noun_dropped`      | clue semantics | A proper noun in a clue was changed                                                                                                      |
 
 ```typescript
 import { translate, TranslationError } from "logic-grid-ai";
@@ -247,18 +251,20 @@ try {
 - **`valueLabels` is checked structurally only — semantic validation is on clue text.** The proper-noun-preservation check covers the translated clue text. If the AI mistranslates a proper noun in `valueLabels` (e.g. `"Alice" → "Alise"`) but uses it correctly in clue text, the structural validator can't distinguish a faithful from a drifted label, and the semantic validator never sees the labels. In practice every value tends to appear in at least one clue (so clue-text checks catch drift), but a value that's only ever shown via `valueLabels` (in the grid header) and never referenced by a clue is a blind spot.
 - **`Category.noun` / `verb` / `valueSuffix` / `orderingPhrases` stay English on the canonical grid.** Translation rewrites clue text and provides display-label maps; it doesn't deeply translate the renderer-side metadata used by `renderClue` / `rewriteClues`. Downstream calls to those functions on a translated puzzle will regenerate English clues from the English category fields, overwriting the translation. Plan accordingly: translate as the last step of an AOT pipeline.
 
-### `createAnthropicClient(apiKey?, options?)` temperature option
+### `createAnthropicClient(apiKey?, options?)` effort option
 
-`AnthropicClientOptions` accepts an optional `temperature` (default `0.8`). Use `0` for low-variance responses (greedy decoding — near-deterministic, but Anthropic doesn't expose a seed so minor cross-run variance can still occur) — typically the right default for validator clients in `translate()`:
+`AnthropicClientOptions` accepts an optional `effort` (`"low"`, `"medium"`, `"high"`, `"xhigh"` or `"max"`), sent as `output_config.effort`: how much the model thinks before answering. Higher levels trade latency and output tokens for more deliberate answers, for example on a validator client in `translate()`. Omit it to use the model's default. Not every model accepts every level, and Claude Haiku 4.5 accepts none.
 
 ```typescript
-const validator = createAnthropicClient(undefined, { temperature: 0 });
+const validator = createAnthropicClient(undefined, { effort: "high" });
 ```
+
+There is no `temperature` option: the API version the SDK uses (`2026-10-21`) rejects sampling parameters on every model.
 
 ## How It Works
 
 1. A detailed prompt describes the puzzle structure, category contract, and ordering semantics
-2. The AI responds via tool_use with structured JSON matching a strict schema
+2. The AI responds with structured output: JSON constrained to the schema
 3. The response is validated (category count, value uniqueness, noun consistency, ordered category presence, comparator completeness, etc.)
 4. If validation fails, errors are fed back to the AI for up to 3 retries
 

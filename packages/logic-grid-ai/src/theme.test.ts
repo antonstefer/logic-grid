@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { generate } from "logic-grid";
 import { generateTheme, ThemeGenerationError } from "./theme";
-import type { AIClient, ThemeResult } from "./types";
+import type { AIClient, JSONSchema, ThemeResult } from "./types";
 import * as clientModule from "./client";
 
 function mockClient(result: ThemeResult): AIClient {
@@ -97,6 +97,96 @@ describe("generateTheme", () => {
     });
 
     expect(capturedPrompt).toContain("kid-friendly, educational");
+  });
+
+  it("writes the prompt's example categories in schema key order", async () => {
+    let capturedPrompt = "";
+    let capturedSchema: JSONSchema | undefined;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string, schema: JSONSchema) => {
+        capturedPrompt = prompt;
+        capturedSchema = schema;
+        return Promise.resolve(VALID_THEME as T);
+      },
+    };
+
+    await generateTheme({
+      theme: "pirate adventure",
+      size: 4,
+      categories: 4,
+      client,
+    });
+
+    // Structured outputs write optional keys only in declaration order, so
+    // an example that orders keys differently teaches the model an order
+    // the grammar can't follow, and it drops keys (every `verb`, once).
+    const order = Object.keys(
+      capturedSchema?.properties?.categories.items?.properties ?? {},
+    );
+    const examples = capturedPrompt.match(/\{ "name": [^\n]*/g) ?? [];
+    expect(examples.length).toBeGreaterThan(0);
+    for (const example of examples) {
+      const positions = [...example.matchAll(/"(\w+)":/g)]
+        .map((m) => order.indexOf(m[1]))
+        .filter((i) => i >= 0);
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    }
+  });
+
+  it("declares schema keys in the prompt examples' order, comparators in full", async () => {
+    let capturedSchema: JSONSchema | undefined;
+    const client: AIClient = {
+      completeJSON: <T>(_prompt: string, schema: JSONSchema) => {
+        capturedSchema = schema;
+        return Promise.resolve(VALID_THEME as T);
+      },
+    };
+
+    await generateTheme({
+      theme: "pirate adventure",
+      size: 4,
+      categories: 4,
+      client,
+    });
+
+    // Structured outputs write optional keys in declaration order, so it
+    // has to match the order the prompt's examples teach.
+    const category = capturedSchema?.properties?.categories.items;
+    expect(Object.keys(category?.properties ?? {})).toEqual([
+      "name",
+      "values",
+      "noun",
+      "subjectPriority",
+      "lowercase",
+      "verb",
+      "valueSuffix",
+      "positionAdjective",
+      "ordered",
+      "numericValues",
+      "orderingPhrases",
+    ]);
+    const orderingPhrases = category?.properties?.orderingPhrases;
+    expect(Object.keys(orderingPhrases?.properties ?? {})).toEqual([
+      "unit",
+      "comparators",
+    ]);
+    expect(orderingPhrases?.required).toBeUndefined();
+    const comparators = orderingPhrases?.properties?.comparators;
+    expect(comparators?.required).toEqual([
+      "before",
+      "left_of",
+      "next_to",
+      "not_next_to",
+      "between",
+      "not_between",
+      "exact_distance",
+    ]);
+    expect(comparators?.properties?.before).toMatchObject({
+      type: "array",
+      minItems: 2,
+      maxItems: 2,
+    });
+    expect(comparators?.properties?.next_to).toEqual({ type: "string" });
   });
 
   it("retries on validation failure", async () => {

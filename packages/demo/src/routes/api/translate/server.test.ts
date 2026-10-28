@@ -26,6 +26,7 @@ const post = POST as unknown as Handler;
 beforeEach(() => {
   delete envProxy.ANTHROPIC_API_KEY;
   completeJSON.mockReset();
+  vi.mocked(createAnthropicClient).mockClear();
   _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -100,18 +101,23 @@ const SAMPLE_PUZZLE = {
 
 const VALID_TRANSLATION = {
   clues: ["Alice wohnt im roten Haus.", "Bob wohnt neben dem grünen Haus."],
-  categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
-  valueLabels: {
-    "1": "1",
-    "2": "2",
-    "3": "3",
-    Alice: "Alice",
-    Bob: "Bob",
-    Carol: "Carol",
-    Red: "Rot",
-    Blue: "Blau",
-    Green: "Grün",
-  },
+  // The translator returns label maps as { canonical, localized } pairs.
+  categoryNames: [
+    { canonical: "House", localized: "Haus" },
+    { canonical: "Name", localized: "Name" },
+    { canonical: "Color", localized: "Farbe" },
+  ],
+  valueLabels: [
+    { canonical: "1", localized: "1" },
+    { canonical: "2", localized: "2" },
+    { canonical: "3", localized: "3" },
+    { canonical: "Alice", localized: "Alice" },
+    { canonical: "Bob", localized: "Bob" },
+    { canonical: "Carol", localized: "Carol" },
+    { canonical: "Red", localized: "Rot" },
+    { canonical: "Blue", localized: "Blau" },
+    { canonical: "Green", localized: "Grün" },
+  ],
 };
 
 const VALID_VERDICT = {
@@ -174,19 +180,9 @@ describe("POST /api/translate", () => {
     expect(body.categoryNames.House).toBe("Haus");
     expect(body.valueLabels.Red).toBe("Rot");
     expect(body.valueLabels.Alice).toBe("Alice");
-    // Translator client created with default temperature on the FIRST
-    // call; validator explicitly with temperature: 0 on the SECOND.
-    // Pinning by call order catches a regression where the translator
-    // would also pick up { temperature: 0 } — `toHaveBeenCalledWith`
-    // alone wouldn't.
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
-      1,
+    // One client, built from the env key, translates and validates.
+    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledExactlyOnceWith(
       "sk-test",
-    );
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenNthCalledWith(
-      2,
-      "sk-test",
-      { temperature: 0 },
     );
   });
 

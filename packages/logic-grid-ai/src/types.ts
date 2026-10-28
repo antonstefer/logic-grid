@@ -133,15 +133,11 @@ export interface TranslateOptions {
    * Fallback rules:
    *  - If you pass `validator` explicitly, it's used as-is.
    *  - If you pass `client` but no `validator`, the validator reuses
-   *    `client` (including its temperature). The package can't auto-spin
-   *    a "matching" temperature-0 validator from an opaque AIClient, so
-   *    if you want low-variance verdicts AND a custom translator, pass
-   *    both explicitly.
-   *  - If you pass neither, the package creates two default Anthropic
-   *    clients: translator at the default temperature, validator at
-   *    `temperature: 0` for low-variance (near-deterministic — Anthropic
-   *    has no seed parameter so minor cross-run variance is still
-   *    possible) verdicts.
+   *    `client`.
+   *  - If you pass neither, one default Anthropic client serves as both
+   *    translator and validator. To give verdicts more deliberation than
+   *    translations, pass e.g. `createAnthropicClient(apiKey, { effort:
+   *    "high" })` as the validator.
    */
   validator?: AIClient;
 }
@@ -175,7 +171,8 @@ export interface TranslatedPuzzle {
  *
  * Codes split into two tiers:
  * - Structural (cheap, deterministic): wrong counts, non-strings, empties,
- *   over-length, duplicates, missing keys.
+ *   over-length, duplicates, missing or unreadable keys, and label entries
+ *   for unknown or repeated keys.
  * - Semantic (AI-driven): constraint type drift incl. polarity, direction
  *   flip on asymmetric comparators, numeric / unit drift, proper-noun drop.
  */
@@ -189,10 +186,14 @@ export type TranslationValidationCode =
   | "empty_category_name"
   | "long_category_name"
   | "duplicate_category_name"
+  | "unknown_category_name"
+  | "repeated_category_name"
   | "missing_value_label"
   | "empty_value_label"
   | "long_value_label"
   | "duplicate_value_label"
+  | "unknown_value_label"
+  | "repeated_value_label"
   | "verdict_index_mismatch"
   | "constraint_type_mismatch"
   | "direction_flip"

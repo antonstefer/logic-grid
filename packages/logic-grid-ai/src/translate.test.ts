@@ -6,7 +6,7 @@ import {
   TRANSLATOR_PROMPT_HEADER,
 } from "./translate";
 import { VALIDATOR_PROMPT_HEADER } from "./translate-validation";
-import type { AIClient } from "./types";
+import type { AIClient, JSONSchema } from "./types";
 import type { Puzzle } from "logic-grid";
 import * as clientModule from "./client";
 
@@ -104,10 +104,18 @@ const VALID_VALUE_LABELS = {
   Green: "Grün",
 };
 
+/** The translator's raw `{ canonical, localized }` pairs for a label map. */
+function toPairs(labels: Record<string, string>) {
+  return Object.entries(labels).map(([canonical, localized]) => ({
+    canonical,
+    localized,
+  }));
+}
+
 const VALID_TRANSLATION = {
   clues: VALID_CLUE_TEXT,
-  categoryNames: VALID_CATEGORY_NAMES,
-  valueLabels: VALID_VALUE_LABELS,
+  categoryNames: toPairs(VALID_CATEGORY_NAMES),
+  valueLabels: toPairs(VALID_VALUE_LABELS),
 };
 
 interface ClueVerdict {
@@ -179,7 +187,7 @@ describe("translate", () => {
     }
   });
 
-  it("uses default Anthropic clients when none provided", async () => {
+  it("uses one default Anthropic client when none provided", async () => {
     const spy = vi
       .spyOn(clientModule, "createAnthropicClient")
       .mockImplementation(() =>
@@ -191,12 +199,9 @@ describe("translate", () => {
       locale: "German",
     });
 
-    // First call is the translator (no args, default temperature);
-    // second is the validator with explicit { temperature: 0 }. Pin by
-    // call order so a regression that flipped them would actually fail.
-    expect(spy).toHaveBeenCalledTimes(2);
-    expect(spy).toHaveBeenNthCalledWith(1);
-    expect(spy).toHaveBeenNthCalledWith(2, undefined, { temperature: 0 });
+    // The default client translates and validates.
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith();
     expect(result.clues).toHaveLength(3);
     spy.mockRestore();
   });
@@ -226,6 +231,42 @@ describe("translate", () => {
     expect(prompts[0]).toContain('"type":"same_position"');
     expect(prompts[0]).toContain('"type":"next_to"');
     expect(prompts[0]).toContain('"type":"before"');
+  });
+
+  it("asks for label pairs sized to the puzzle", async () => {
+    let translatorSchema: JSONSchema | undefined;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string, schema: JSONSchema) => {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
+          return Promise.resolve(allOkVerdict() as T);
+        }
+        translatorSchema = schema;
+        return Promise.resolve(VALID_TRANSLATION as T);
+      },
+    };
+
+    await translate({ puzzle: SAMPLE_PUZZLE, locale: "German", client });
+
+    const categoryNames = translatorSchema?.properties?.categoryNames;
+    const valueLabels = translatorSchema?.properties?.valueLabels;
+    expect(categoryNames).toMatchObject({
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+    });
+    expect(valueLabels).toMatchObject({
+      type: "array",
+      minItems: 9,
+      maxItems: 9,
+    });
+    expect(valueLabels?.items).toEqual({
+      type: "object",
+      properties: {
+        canonical: { type: "string" },
+        localized: { type: "string" },
+      },
+      required: ["canonical", "localized"],
+    });
   });
 
   it("uses separate client and validator when both are provided", async () => {
@@ -287,11 +328,11 @@ describe("translate", () => {
         translatorCalls++;
         if (translatorCalls < 3) {
           // Drop one valueLabels entry to fail structural check
-          const { Carol: _carol, ...partial } = VALID_VALUE_LABELS;
-          void _carol;
           return Promise.resolve({
             ...VALID_TRANSLATION,
-            valueLabels: partial,
+            valueLabels: VALID_TRANSLATION.valueLabels.filter(
+              (p) => p.canonical !== "Carol",
+            ),
           } as T);
         }
         return Promise.resolve(VALID_TRANSLATION as T);
@@ -306,6 +347,35 @@ describe("translate", () => {
 
     expect(translatorCalls).toBe(3);
     expect(result.valueLabels).toEqual(VALID_VALUE_LABELS);
+  });
+
+  it("retries, rather than crashing, when labels come back in another shape", async () => {
+    let translatorCalls = 0;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string) => {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
+          return Promise.resolve(allOkVerdict() as T);
+        }
+        translatorCalls++;
+        if (translatorCalls === 1) {
+          // The pre-pairs map shape a custom client might still return.
+          return Promise.resolve({
+            ...VALID_TRANSLATION,
+            categoryNames: VALID_CATEGORY_NAMES,
+          } as T);
+        }
+        return Promise.resolve(VALID_TRANSLATION as T);
+      },
+    };
+
+    const result = await translate({
+      puzzle: SAMPLE_PUZZLE,
+      locale: "German",
+      client,
+    });
+
+    expect(translatorCalls).toBe(2);
+    expect(result.categoryNames).toEqual(VALID_CATEGORY_NAMES);
   });
 
   it("retries on semantic failure (constraint type mismatch)", async () => {
@@ -534,8 +604,8 @@ describe("translate", () => {
         }
         return Promise.resolve({
           clues: translatedClues,
-          categoryNames,
-          valueLabels,
+          categoryNames: toPairs(categoryNames),
+          valueLabels: toPairs(valueLabels),
         } as T);
       },
     };

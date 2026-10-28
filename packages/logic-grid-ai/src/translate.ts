@@ -1,3 +1,4 @@
+import type { Puzzle } from "logic-grid";
 import type {
   TranslateOptions,
   TranslatedPuzzle,
@@ -9,6 +10,7 @@ import type {
 import { createAnthropicClient } from "./client";
 import {
   checkTranslationStructure,
+  collectLabels,
   validateTranslation,
 } from "./translate-validation";
 
@@ -44,40 +46,64 @@ export class TranslationError extends Error {
   }
 }
 
-interface TranslateRawResult {
-  clues: string[];
-  categoryNames: Record<string, string>;
-  valueLabels: Record<string, string>;
+/** One canonical → localized entry as the translator returns it. */
+interface LabelPair {
+  canonical: string;
+  localized: string;
 }
 
-function buildSchema(clueCount: number): JSONSchema {
+interface TranslateRawResult {
+  clues: string[];
+  categoryNames: LabelPair[];
+  valueLabels: LabelPair[];
+}
+
+/** Array schema of `count` `{ canonical, localized }` string pairs. */
+function labelPairsSchema(count: number, description: string): JSONSchema {
+  return {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        canonical: { type: "string" },
+        localized: { type: "string" },
+      },
+      required: ["canonical", "localized"],
+    },
+    minItems: count,
+    maxItems: count,
+    description,
+  };
+}
+
+function buildSchema(puzzle: Puzzle): JSONSchema {
+  const { categories } = puzzle.grid;
   return {
     type: "object",
     properties: {
       clues: {
         type: "array",
         items: { type: "string", minLength: 1 },
-        minItems: clueCount,
-        maxItems: clueCount,
+        minItems: puzzle.clues.length,
+        maxItems: puzzle.clues.length,
         description:
           "Translated clue texts, one per source clue, in the same order.",
       },
-      // categoryNames / valueLabels are typed as bare objects rather than
-      // schemas with explicit `properties`, because the required keys vary
-      // per puzzle (the source's category and value names) and JSON Schema
-      // can't be parameterized over a runtime key set without code-genning
-      // a schema per call. Key presence and shape are enforced by
-      // `checkTranslationStructure` on the returned output instead.
-      categoryNames: {
-        type: "object",
-        description:
-          "Map from each canonical category name (English) to its localized display name. Every category from the source puzzle must appear as a key.",
-      },
-      valueLabels: {
-        type: "object",
-        description:
-          "Map from each canonical category value (English) to its localized label. Every value from every category must appear as a key. Proper nouns (people, places, brands) map to themselves verbatim. Numeric/literal values (like '1972' or '8%') stay as the literal string.",
-      },
+      // categoryNames / valueLabels come back as { canonical, localized }
+      // pairs rather than objects keyed by canonical name: structured
+      // outputs can't express a free-form map, and declaring every key as
+      // a property makes the compiled grammar too large for an 8×8 puzzle.
+      // `collectLabels` turns the pairs back into maps, rejecting unknown or
+      // repeated keys, and `checkTranslationStructure` checks that every
+      // key is there.
+      categoryNames: labelPairsSchema(
+        categories.length,
+        "One entry per canonical category name (English): `canonical` is the name exactly as listed, `localized` its localized display name. Every category from the source puzzle must appear.",
+      ),
+      valueLabels: labelPairsSchema(
+        categories.reduce((n, c) => n + c.values.length, 0),
+        "One entry per canonical category value (English): `canonical` is the value exactly as listed, `localized` its localized label. Every value from every category must appear. Proper nouns (people, places, brands) map to themselves verbatim. Numeric/literal values (like '1972' or '8%') stay as the literal string.",
+      ),
     },
     required: ["clues", "categoryNames", "valueLabels"],
   };
@@ -114,10 +140,11 @@ constraint, follow the constraint.
 You must produce three things:
 
 A. Localized clue text, one per source clue, in order.
-B. \`categoryNames\`: a map from each canonical category name to its localized
-   display name. ALL category names listed below must appear as keys.
-C. \`valueLabels\`: a map from each canonical category value to its localized
-   label. ALL values listed below must appear as keys.
+B. \`categoryNames\`: one { canonical, localized } entry per canonical category
+   name, giving its localized display name. ALL category names listed below
+   must appear.
+C. \`valueLabels\`: one { canonical, localized } entry per canonical category
+   value, giving its localized label. ALL values listed below must appear.
 
 ## Translation rules
 
@@ -139,7 +166,8 @@ C. \`valueLabels\`: a map from each canonical category value to its localized
    - People names (Alice, Bob, Carol).
    - Place names, brand names, ship names, fund names.
    - Numeric or unit literals like "1972", "8%", "7am".
-   In \`valueLabels\`, these map to themselves: \`{ "Alice": "Alice" }\`.
+   In \`valueLabels\`, these map to themselves:
+   \`{ "canonical": "Alice", "localized": "Alice" }\`.
 5. **Descriptive words and adjectives translate** in both surfaces. Color
    names, animal names, common-noun categories. Inflections in clue text
    are expected (e.g. "yellow" → "gelb" in the bare label, "gelben" /
@@ -219,6 +247,10 @@ export const LOCALE_RE = /^[A-Za-z][A-Za-z0-9\- ]{0,49}$/;
  *   retry attempts. Inspect `error.errors` for the structured failures.
  * @throws {Error} If `locale` is empty or contains characters that aren't
  *   safe to interpolate into the AI prompt.
+ * @throws {Error} Whatever the translator or validator client throws,
+ *   unchanged and without using the remaining attempts. The default
+ *   Anthropic client throws when the model declines the request, the
+ *   response is cut off, or its JSON doesn't parse.
  */
 export async function translate(
   options: TranslateOptions,
@@ -243,12 +275,9 @@ export async function translate(
   };
 
   const translator: AIClient = options.client ?? createAnthropicClient();
-  const validator: AIClient =
-    options.validator ??
-    options.client ??
-    createAnthropicClient(undefined, { temperature: 0 });
+  const validator: AIClient = options.validator ?? translator;
 
-  const schema = buildSchema(puzzle.clues.length);
+  const schema = buildSchema(puzzle);
 
   // Init as `[]` rather than undefined so the throw path below doesn't
   // need a non-null assertion. If MAX_RETRIES is ever lowered to 0, the
@@ -270,8 +299,23 @@ export async function translate(
       prompt,
       schema,
     );
+    const categoryNames = collectLabels(
+      raw.categoryNames,
+      "categoryNames",
+      puzzle,
+    );
+    const valueLabels = collectLabels(raw.valueLabels, "valueLabels", puzzle);
+    const translation = {
+      clues: raw.clues,
+      categoryNames: categoryNames.labels,
+      valueLabels: valueLabels.labels,
+    };
 
-    const structural = checkTranslationStructure(raw, puzzle);
+    const structural = [
+      ...categoryNames.errors,
+      ...valueLabels.errors,
+      ...checkTranslationStructure(translation, puzzle),
+    ];
     if (structural.length > 0) {
       lastErrors = structural;
       continue;
@@ -279,18 +323,19 @@ export async function translate(
 
     const semantic = await validateTranslation(
       puzzle,
-      raw,
+      translation,
       cleanLocale,
       validator,
     );
     if (semantic.length === 0) {
       return {
-        clues: raw.clues.map((text, i) => ({
+        clues: translation.clues.map((text, i) => ({
           constraint: puzzle.clues[i].constraint,
           text,
         })),
-        categoryNames: raw.categoryNames,
-        valueLabels: raw.valueLabels,
+        // checkTranslationStructure has verified every label is a string.
+        categoryNames: translation.categoryNames as Record<string, string>,
+        valueLabels: translation.valueLabels as Record<string, string>,
       };
     }
 

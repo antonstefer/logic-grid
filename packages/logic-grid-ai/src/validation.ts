@@ -36,6 +36,19 @@ const SYMMETRIC_COMPARATORS = new Set([
   "exact_distance",
 ]);
 
+/** Comparators logic-grid renders from a [forward, reverse] pair. */
+const DIRECTIONAL_COMPARATORS = ["before", "left_of"];
+
+/** A non-empty phrase, as logic-grid inserts it into clue text. */
+function isPhrase(value: unknown): boolean {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+/** A two-phrase pair, which logic-grid reads by index. */
+function isPhrasePair(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 2 && value.every(isPhrase);
+}
+
 function err(
   code: ThemeValidationCode,
   message: string,
@@ -285,6 +298,55 @@ export function validateThemeResult(
           );
         }
       }
+    }
+    // logic-grid needs all 7 comparators on every ordered category, and
+    // reads the directional ones and `unit` by index. Structured outputs
+    // can't enforce the pair length, so a short pair or a missing key would
+    // otherwise render "undefined" or crash on the first ordering clue.
+    if (cat.ordered === true) {
+      if (!comps || typeof comps !== "object") {
+        errors.push(
+          err(
+            "invalid_ordering_phrases",
+            `Category "${name}" is ordered, so orderingPhrases.comparators must set all 7 comparators.`,
+            name,
+          ),
+        );
+      } else {
+        for (const type of DIRECTIONAL_COMPARATORS) {
+          if (!isPhrasePair(comps[type])) {
+            errors.push(
+              err(
+                "invalid_ordering_phrases",
+                `Category "${name}" comparator "${type}" must be a [forward, reverse] pair of non-empty strings.`,
+                name,
+              ),
+            );
+          }
+        }
+        for (const type of SYMMETRIC_COMPARATORS) {
+          // A tuple here is already reported as symmetric_comparator_tuple.
+          if (!Array.isArray(comps[type]) && !isPhrase(comps[type])) {
+            errors.push(
+              err(
+                "invalid_ordering_phrases",
+                `Category "${name}" comparator "${type}" must be a non-empty string.`,
+                name,
+              ),
+            );
+          }
+        }
+      }
+    }
+    const unit = cat.orderingPhrases?.unit;
+    if (unit !== undefined && !isPhrasePair(unit)) {
+      errors.push(
+        err(
+          "invalid_ordering_phrases",
+          `Category "${name}" orderingPhrases.unit must be a [singular, plural] pair of non-empty strings.`,
+          name,
+        ),
+      );
     }
 
     // valueSuffix / positionAdjective

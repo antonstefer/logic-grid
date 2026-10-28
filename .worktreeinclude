@@ -1,0 +1,3 @@
+# Gitignored files to copy into each new worktree, so the demo's AI
+# endpoints work there without setting up the key by hand.
+packages/demo/.env
