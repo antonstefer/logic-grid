@@ -33,7 +33,8 @@ export interface AnthropicClientOptions {
  * package's validators still check them. The Anthropic SDK already retries
  * transport-level errors (429s, 5xx, network) with exponential backoff
  * internally — `generateTheme`'s and `rewriteClues`' own retries only cover
- * semantic validation failures.
+ * semantic validation failures. Requests stream with a 64K `max_tokens`, so
+ * thinking has room at any `effort`; every current model accepts that cap.
  *
  * If no apiKey is provided, the SDK resolves credentials from the
  * environment, `ANTHROPIC_API_KEY` first. Pass a `model` option to swap the
@@ -55,36 +56,40 @@ export function createAnthropicClient(
 
   return {
     async completeJSON<T>(prompt: string, schema: JSONSchema): Promise<T> {
-      const response = await client.beta.messages.create({
-        model,
-        // 16000 tokens covers thinking plus the heaviest output we
-        // produce — a `translate` call on an 8×8 puzzle returns ~56 clues +
-        // 64 value labels + 8 category names in one structured JSON. In
-        // verbose locales (German is roughly 1.5× English) that alone can
-        // approach 4096, and on models that think by default the thinking
-        // counts toward the cap too. Output tokens are billed on actual
-        // use, so a higher cap doesn't cost more. The SDK refuses
-        // non-streaming requests above ~21K, so stay below that.
-        max_tokens: 16000,
-        messages: [{ role: "user", content: prompt }],
-        output_config: {
-          format: {
-            type: "json_schema",
-            // The SDK helper adapts the schema to what structured outputs
-            // accept: `additionalProperties: false` on every object, and
-            // unsupported keywords moved into descriptions. The package's
-            // schemas are all objects at the top level.
-            schema: jsonSchemaOutputFormat(schema as { type: "object" }).schema,
+      // Streamed, so the generous cap below doesn't run into the SDK's
+      // limit for non-streaming requests (~21K tokens).
+      const response = await client.beta.messages
+        .stream({
+          model,
+          // 64000 tokens leaves room for thinking, which counts toward the
+          // cap and grows with `effort`, on top of the heaviest output we
+          // produce — a `translate` call on an 8×8 puzzle returns ~56 clues +
+          // 64 value labels + 8 category names in one structured JSON, which
+          // in verbose locales (German is roughly 1.5× English) can approach
+          // 4096 tokens on its own. Output tokens are billed on actual use,
+          // so a higher cap doesn't cost more.
+          max_tokens: 64000,
+          messages: [{ role: "user", content: prompt }],
+          output_config: {
+            format: {
+              type: "json_schema",
+              // The SDK helper adapts the schema to what structured outputs
+              // accept: `additionalProperties: false` on every object, and
+              // unsupported keywords moved into descriptions. The package's
+              // schemas are all objects at the top level.
+              schema: jsonSchemaOutputFormat(schema as { type: "object" })
+                .schema,
+            },
+            ...(options.effort && { effort: options.effort }),
           },
-          ...(options.effort && { effort: options.effort }),
-        },
-        // Server-side fallback is only documented for current models, so it
-        // stays limited to the default rather than any model a caller picks.
-        ...(model === DEFAULT_ANTHROPIC_MODEL && {
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        }),
-      });
+          // Server-side fallback is only documented for current models, so it
+          // stays limited to the default rather than any model a caller picks.
+          ...(model === DEFAULT_ANTHROPIC_MODEL && {
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+          }),
+        })
+        .finalMessage();
 
       if (response.stop_reason === "refusal") {
         throw new Error(
