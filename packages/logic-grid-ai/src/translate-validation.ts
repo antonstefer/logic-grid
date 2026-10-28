@@ -23,7 +23,8 @@ import type {
  *
  * The structural pre-check covers clue counts, empties, duplicates, and
  * the completeness of `categoryNames` / `valueLabels` (every canonical key
- * from the source puzzle must appear with a non-empty translation).
+ * from the source puzzle must appear with a non-empty translation), after
+ * `collectLabels` has rejected label entries for unknown or repeated keys.
  */
 
 /**
@@ -140,6 +141,62 @@ function err(
   if (opts.clueIndex !== undefined) e.clueIndex = opts.clueIndex;
   if (opts.key !== undefined) e.key = opts.key;
   return e;
+}
+
+/**
+ * Collapse the translator's `{ canonical, localized }` entries for one label
+ * surface into the canonical → localized map {@link checkTranslationStructure}
+ * checks. An entry for a key the puzzle doesn't have, or for a key already
+ * seen, is reported and left out of the map. Anything that isn't a list of
+ * such entries adds nothing, so the structural check reports the keys as
+ * missing: a client returning another shape gets a retry, not a crash.
+ */
+export function collectLabels(
+  entries: unknown,
+  surface: "categoryNames" | "valueLabels",
+  puzzle: Puzzle,
+): { labels: Record<string, unknown>; errors: TranslationValidationError[] } {
+  const { categories } = puzzle.grid;
+  const isCategory = surface === "categoryNames";
+  const expected = new Set(
+    isCategory
+      ? categories.map((c) => c.name)
+      : categories.flatMap((c) => c.values),
+  );
+  const labels = new Map<string, unknown>();
+  const errors: TranslationValidationError[] = [];
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const { canonical, localized } = entry as {
+      canonical?: unknown;
+      localized?: unknown;
+    };
+    if (typeof canonical !== "string") continue;
+    if (!expected.has(canonical)) {
+      errors.push(
+        err(
+          isCategory ? "unknown_category_name" : "unknown_value_label",
+          `${surface} has an entry for "${canonical}", which isn't ${isCategory ? "a category" : "a value"} in the puzzle.`,
+          { key: canonical },
+        ),
+      );
+      continue;
+    }
+    if (labels.has(canonical)) {
+      errors.push(
+        err(
+          isCategory ? "repeated_category_name" : "repeated_value_label",
+          `${surface} has more than one entry for "${canonical}".`,
+          { key: canonical },
+        ),
+      );
+      continue;
+    }
+    labels.set(canonical, localized);
+  }
+
+  return { labels: Object.fromEntries(labels), errors };
 }
 
 /**

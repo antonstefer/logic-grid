@@ -349,6 +349,35 @@ describe("translate", () => {
     expect(result.valueLabels).toEqual(VALID_VALUE_LABELS);
   });
 
+  it("retries, rather than crashing, when labels come back in another shape", async () => {
+    let translatorCalls = 0;
+    const client: AIClient = {
+      completeJSON: <T>(prompt: string) => {
+        if (prompt.includes(VALIDATOR_PROMPT_HEADER)) {
+          return Promise.resolve(allOkVerdict() as T);
+        }
+        translatorCalls++;
+        if (translatorCalls === 1) {
+          // The pre-pairs map shape a custom client might still return.
+          return Promise.resolve({
+            ...VALID_TRANSLATION,
+            categoryNames: VALID_CATEGORY_NAMES,
+          } as T);
+        }
+        return Promise.resolve(VALID_TRANSLATION as T);
+      },
+    };
+
+    const result = await translate({
+      puzzle: SAMPLE_PUZZLE,
+      locale: "German",
+      client,
+    });
+
+    expect(translatorCalls).toBe(2);
+    expect(result.categoryNames).toEqual(VALID_CATEGORY_NAMES);
+  });
+
   it("retries on semantic failure (constraint type mismatch)", async () => {
     let translatorCalls = 0;
     const client: AIClient = {

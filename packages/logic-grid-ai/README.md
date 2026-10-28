@@ -216,10 +216,14 @@ If validation fails on every attempt, `translate` throws a `TranslationError` ca
 | `empty_category_name`      | categoryNames  | A `categoryNames` entry is empty or non-string                             |
 | `long_category_name`       | categoryNames  | A `categoryNames` entry exceeds the per-label length budget                |
 | `duplicate_category_name`  | categoryNames  | Two canonical categories map to the same localized name (case-insensitive) |
+| `unknown_category_name`    | categoryNames  | An entry names a category the source puzzle doesn't have                   |
+| `repeated_category_name`   | categoryNames  | Two entries name the same canonical category                               |
 | `missing_value_label`      | valueLabels    | A canonical value from the source has no entry in `valueLabels`            |
 | `empty_value_label`        | valueLabels    | A `valueLabels` entry is empty or non-string                               |
 | `long_value_label`         | valueLabels    | A `valueLabels` entry exceeds the per-label length budget                  |
 | `duplicate_value_label`    | valueLabels    | Two canonical values map to the same localized label (case-insensitive)    |
+| `unknown_value_label`      | valueLabels    | An entry names a value the source puzzle doesn't have                      |
+| `repeated_value_label`     | valueLabels    | Two entries name the same canonical value                                  |
 | `verdict_index_mismatch`   | validator      | Validator returned verdicts in a different order than the source clues     |
 | `constraint_type_mismatch` | clue semantics | Validator round-trip parsed the translation as a different constraint      |
 | `direction_flip`           | clue semantics | `before` / `left_of` subject/object reversed                               |

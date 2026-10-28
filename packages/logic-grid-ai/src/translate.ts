@@ -10,6 +10,7 @@ import type {
 import { createAnthropicClient } from "./client";
 import {
   checkTranslationStructure,
+  collectLabels,
   validateTranslation,
 } from "./translate-validation";
 
@@ -75,11 +76,6 @@ function labelPairsSchema(count: number, description: string): JSONSchema {
   };
 }
 
-/** Collapse the translator's label pairs into a canonical → localized map. */
-function toLabelMap(pairs: LabelPair[]): Record<string, string> {
-  return Object.fromEntries(pairs.map((p) => [p.canonical, p.localized]));
-}
-
 function buildSchema(puzzle: Puzzle): JSONSchema {
   const { categories } = puzzle.grid;
   return {
@@ -97,8 +93,9 @@ function buildSchema(puzzle: Puzzle): JSONSchema {
       // pairs rather than objects keyed by canonical name: structured
       // outputs can't express a free-form map, and declaring every key as
       // a property makes the compiled grammar too large for an 8×8 puzzle.
-      // `translate` turns the pairs back into maps, and
-      // `checkTranslationStructure` checks that every key is there.
+      // `collectLabels` turns the pairs back into maps, rejecting unknown or
+      // repeated keys, and `checkTranslationStructure` checks that every
+      // key is there.
       categoryNames: labelPairsSchema(
         categories.length,
         "One entry per canonical category name (English): `canonical` is the name exactly as listed, `localized` its localized display name. Every category from the source puzzle must appear.",
@@ -298,13 +295,23 @@ export async function translate(
       prompt,
       schema,
     );
+    const categoryNames = collectLabels(
+      raw.categoryNames,
+      "categoryNames",
+      puzzle,
+    );
+    const valueLabels = collectLabels(raw.valueLabels, "valueLabels", puzzle);
     const translation = {
       clues: raw.clues,
-      categoryNames: toLabelMap(raw.categoryNames),
-      valueLabels: toLabelMap(raw.valueLabels),
+      categoryNames: categoryNames.labels,
+      valueLabels: valueLabels.labels,
     };
 
-    const structural = checkTranslationStructure(translation, puzzle);
+    const structural = [
+      ...categoryNames.errors,
+      ...valueLabels.errors,
+      ...checkTranslationStructure(translation, puzzle),
+    ];
     if (structural.length > 0) {
       lastErrors = structural;
       continue;
@@ -322,8 +329,9 @@ export async function translate(
           constraint: puzzle.clues[i].constraint,
           text,
         })),
-        categoryNames: translation.categoryNames,
-        valueLabels: translation.valueLabels,
+        // checkTranslationStructure has verified every label is a string.
+        categoryNames: translation.categoryNames as Record<string, string>,
+        valueLabels: translation.valueLabels as Record<string, string>,
       };
     }
 
