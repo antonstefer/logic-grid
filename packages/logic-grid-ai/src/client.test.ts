@@ -155,6 +155,19 @@ describe("createAnthropicClient", () => {
     );
   });
 
+  it("throws a descriptive error when the JSON doesn't parse", async () => {
+    respondWith({
+      stop_reason: "end_turn",
+      stop_details: null,
+      content: [{ type: "text", text: "{not json" }],
+    });
+
+    const client = createAnthropicClient();
+    await expect(
+      client.completeJSON("test", { type: "object" }),
+    ).rejects.toThrow("AI returned malformed JSON: SyntaxError");
+  });
+
   it("throws when the response has no text block", async () => {
     respondWith({
       stop_reason: "end_turn",

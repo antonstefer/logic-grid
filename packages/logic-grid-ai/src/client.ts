@@ -119,7 +119,11 @@ export function createAnthropicClient(
       if (!textBlock) {
         throw new Error("AI did not return structured output");
       }
-      return JSON.parse(textBlock.text) as T;
+      try {
+        return JSON.parse(textBlock.text) as T;
+      } catch (error) {
+        throw new Error(`AI returned malformed JSON: ${String(error)}`);
+      }
     },
   };
 }
