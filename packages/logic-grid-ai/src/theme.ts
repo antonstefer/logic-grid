@@ -201,8 +201,8 @@ The puzzle has ${size} positions. Clues are generated mechanically from categori
 At least one category must have \`ordered: true\` so comparative constraints can reference it. Use ordered categories when the values have a canonical sequence (sorted returns, years, times, prices, house numbers). Ordered categories can carry:
 - numericValues: strictly ascending numbers matching the values, enabling value-based distance clues like "exactly 11 years apart"
 - orderingPhrases.unit: [singular, plural] for distance clues
-- orderingPhrases.comparators: full-phrase overrides describing the ordering. Keys: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. Each is either a string (forward only) or a [forward, reverse] tuple. Symmetric comparators (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) MUST be a single string.
-- For directional comparators (\`before\` and \`left_of\`), prefer the tuple form for phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\`.
+- orderingPhrases.comparators: full-phrase overrides describing the ordering. Keys: \`before\`, \`left_of\`, \`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`. The directional comparators (\`before\`, \`left_of\`) are [forward, reverse] tuples; the symmetric ones (\`next_to\`, \`not_next_to\`, \`between\`, \`not_between\`, \`exact_distance\`) are single strings.
+- A directional tuple gives phrasing variety: e.g. \`["has a lower return than", "has a higher return than"]\`.
 
 **HOW COMPARATORS RENDER:** Each comparator phrase is inserted verbatim into \`"{Subject} {comparator} {Object}."\` For example: \`"has a lower return than"\` → "Alice has a lower return than Bob."
 
