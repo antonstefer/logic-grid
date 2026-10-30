@@ -27,12 +27,19 @@ updates:
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
     # Groups hold dev dependencies only, so a runtime bump gets its own PR and
-    # changelog entry. Majors stay separate so they can't block the rest.
+    # changelog entry. Majors stay out of the shared groups so they can't
+    # block the rest.
     groups:
       minor-and-patch:
         patterns: ["*"]
         dependency-type: development
         update-types: [minor, patch]
+      # @vitest/coverage-v8 pins its vitest peer exactly, so their majors have
+      # to land in one PR. Groups whose update-types don't overlap share
+      # dependencies, so minor and patch bumps stay in minor-and-patch.
+      vitest-major:
+        patterns: ["vitest", "@vitest/*"]
+        update-types: [major]
       security:
         applies-to: security-updates
         patterns: ["*"]
