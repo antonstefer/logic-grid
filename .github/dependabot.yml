@@ -1,7 +1,5 @@
 version: 2
 
-# Commit types stay hidden in release-please-config.json, so dependency
-# updates never propose a Release PR or show up in a CHANGELOG.
 updates:
   # The root manifest covers every workspace under packages/.
   - package-ecosystem: npm
@@ -9,16 +7,37 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    # Runtime dependencies (logic-grid-ai's @anthropic-ai/sdk) get fix(deps)
+    # commits, so release-please ships them. Dev dependencies get
+    # chore(deps-dev), which release-please-config.json hides.
     commit-message:
-      prefix: chore
+      prefix: fix
+      prefix-development: chore
       include: scope
+    # Majors that need a manual migration, so they can't hold open-PR slots.
+    # Ignore rules cover security updates too.
+    ignore:
+      # SvelteKit 3 and adapter-cloudflare 8 land together by hand; drop
+      # both entries in that PR.
+      - dependency-name: "@sveltejs/kit"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@sveltejs/adapter-cloudflare"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint supports TypeScript < 6.1, so majors go by hand.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    # Groups hold dev dependencies only, so a runtime bump gets its own PR and
+    # changelog entry. Majors stay separate so they can't block the rest.
     groups:
       minor-and-patch:
         patterns: ["*"]
+        dependency-type: development
         update-types: [minor, patch]
       security:
         applies-to: security-updates
         patterns: ["*"]
+        dependency-type: development
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
@@ -31,3 +50,4 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+        update-types: [minor, patch]
