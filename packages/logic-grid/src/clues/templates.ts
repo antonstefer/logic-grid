@@ -50,11 +50,7 @@ function objectValue(value: string, grid: Grid): string {
 function symmetricComp(
   grid: Grid,
   type:
-    | "next_to"
-    | "not_next_to"
-    | "between"
-    | "not_between"
-    | "exact_distance",
+    "next_to" | "not_next_to" | "between" | "not_between" | "exact_distance",
   axisName: string,
 ): string {
   return resolveAxis(grid, axisName).orderingPhrases.comparators[type];

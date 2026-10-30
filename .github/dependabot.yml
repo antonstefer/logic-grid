@@ -1,0 +1,60 @@
+version: 2
+
+updates:
+  # The root manifest covers every workspace under packages/.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    # Runtime dependencies (logic-grid-ai's @anthropic-ai/sdk) get fix(deps)
+    # commits, so release-please ships them. Dev dependencies get
+    # chore(deps-dev), which release-please-config.json hides.
+    commit-message:
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    # Majors that need a manual migration, so they can't hold open-PR slots.
+    # Ignore rules cover security updates too.
+    ignore:
+      # SvelteKit 3 and adapter-cloudflare 8 land together by hand; drop
+      # both entries in that PR.
+      - dependency-name: "@sveltejs/kit"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@sveltejs/adapter-cloudflare"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint supports TypeScript < 6.1, so majors go by hand.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    # Groups hold dev dependencies only, so a runtime bump gets its own PR and
+    # changelog entry. Majors stay out of the shared groups so they can't
+    # block the rest.
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        dependency-type: development
+        update-types: [minor, patch]
+      # @vitest/coverage-v8 pins its vitest peer exactly, so their majors have
+      # to land in one PR. Groups whose update-types don't overlap share
+      # dependencies, so minor and patch bumps stay in minor-and-patch.
+      vitest-major:
+        patterns: ["vitest", "@vitest/*"]
+        update-types: [major]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]

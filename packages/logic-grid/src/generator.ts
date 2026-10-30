@@ -225,9 +225,9 @@ function sliceCategory(c: Category, size: number): Category {
       ...sliced,
       numericValues: sliced.numericValues?.slice(0, size),
       displayLabels: sliced.displayLabels?.slice(0, size),
-    } as Category; // spread loses union discrimination
+    };
   }
-  return sliced as Category;
+  return sliced;
 }
 
 function randomSolution(grid: Grid, rng: () => number): Solution {
