@@ -1,6 +1,6 @@
 {
   "name": "logic-grid",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Generate and solve logic grid puzzles (zebra puzzles / Einstein's riddles)",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
