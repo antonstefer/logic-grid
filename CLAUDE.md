@@ -24,6 +24,7 @@ Monorepo for logic grid puzzle generation and solving.
 - Throw on errors — never silently swallow or use fallback values
 - Prefer simple solutions — don't over-engineer
 - Never add Co-Authored-By lines or any AI/Claude references to commits or outputs
+- Rank-adjacency comparators (`next_to`, `not_next_to`, `left_of`) mean adjacent in rank, not close in value: phrase them as "right before or after" or "the next higher", never "closest", "nearest", "adjacent", "within N" or "exactly one X before". Only `exact_distance` (with `numericValues`) may state value gaps. This covers demo presets as well as the theme prompt in `packages/logic-grid-ai/src/theme.ts`, which gives the model the same rule for `next_to` and `left_of`.
 
 ## Commit conventions
 
@@ -46,3 +47,4 @@ Merging a Release PR tags the release and creates the GitHub release, and the Re
 - release-please only rebuilds an open Release PR when its description would change, so a Release PR can fall behind main, or conflict with it on `.release-please-manifest.json` after another package's Release PR merges. To rebuild it from main, change its description (e.g. add `<!-- refresh -->`) and run the Release workflow on main (`gh workflow run release.yml`); release-please restores the description.
 - To fix release notes that come from a squash-merged PR, add a `BEGIN_COMMIT_OVERRIDE` … `END_COMMIT_OVERRIDE` block with the corrected commit message to that PR's description, then run the Release workflow on main. Write `BREAKING CHANGE:` notes against the last published version, not against main before the PR.
 - After a publish, npm can take a few minutes to list the new version.
+- release-please writes `CHANGELOG.md` in its own style, so each released package's `.prettierignore` lists it. Add the same entry for any new package release-please manages.

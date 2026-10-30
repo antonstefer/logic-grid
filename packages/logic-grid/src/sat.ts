@@ -50,7 +50,25 @@ function litIdx(lit: number): number {
   return lit > 0 ? lit * 2 : -lit * 2 + 1;
 }
 
-/** Base class for watched-literal DPLL solvers with flat Int32Array storage. */
+/**
+ * Base class for watched-literal DPLL solvers with flat Int32Array storage.
+ *
+ * These were benchmarked end to end on grids from 6×6 up to 50×4, beyond the
+ * 3–8 sizes supported now, and were no faster, so don't retry them:
+ * - CDCL: conflict analysis and learned-clause cleanup between incremental
+ *   `isUniqueUnder` calls cost more than backjumping saves on these small
+ *   search trees.
+ * - Ladder AMO encoding (instead of the pairwise one in encoding.ts): its
+ *   auxiliary variables cost more than the binary clauses it removes.
+ * - Static VSIDS-like variable ordering: the indirect lookups cost more than
+ *   taking the first unassigned variable.
+ * - Phase saving: no effect, since each incremental call has different
+ *   constraints active.
+ * - A literal-indexed value array to drop the sign branches in propagation:
+ *   V8 predicts those branches well, and the doubled array needs two writes
+ *   per assignment.
+ * To speed up generation, make fewer SAT calls rather than faster ones.
+ */
 class SATBase {
   protected readonly numVars: number;
   protected readonly values: Uint8Array;

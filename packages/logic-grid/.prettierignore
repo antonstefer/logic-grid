@@ -1,3 +1,4 @@
 dist
 coverage
+# release-please writes CHANGELOG.md in its own style; formatting it would fail format:check on every Release PR
 CHANGELOG.md
