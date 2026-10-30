@@ -14,16 +14,16 @@
     "format:check": "npm run format:check --workspaces --if-present"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
-    "@vitest/coverage-v8": "^4.1.2",
-    "eslint": "^10.1.0",
+    "@types/node": "^25.9.9",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "@vitest/coverage-v8": "^4.1.12",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.1",
-    "tsup": "^8.0.0",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^8.57.2",
-    "vitest": "^4.1.2"
+    "prettier": "^3.9.10",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
   }
 }
