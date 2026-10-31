@@ -8,5 +8,5 @@
       "logic-grid-ai": ["../logic-grid-ai/src/index.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "aliases.ts", "vite.config.ts", "vitest.config.ts"]
 }

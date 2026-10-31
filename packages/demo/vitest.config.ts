@@ -1,12 +1,12 @@
 import { defineConfig } from "vitest/config";
 import { sveltekit } from "@sveltejs/kit/vite";
-import viteConfig from "./vite.config.ts";
+import { alias } from "./aliases.ts";
 
 export default defineConfig({
   // No adapter: adapter-cloudflare's dev hooks start a local Workers runtime,
   // which unit tests don't need.
   plugins: [sveltekit()],
-  resolve: viteConfig.resolve,
+  resolve: { alias },
   test: {
     include: ["src/**/*.test.ts"],
     coverage: {

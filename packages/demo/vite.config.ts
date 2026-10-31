@@ -3,6 +3,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import path from "path";
 import fs from "fs";
+import { alias } from "./aliases.ts";
 
 // Walk up from this config until we find a `node_modules/@sveltejs/kit` —
 // handles both the main repo and git worktrees (which share the main repo's
@@ -27,20 +28,7 @@ function findDepsRoot(start: string): string {
 
 export default defineConfig({
   plugins: [sveltekit({ adapter: adapter() })],
-  resolve: {
-    alias: {
-      // Resolve to source, so the demo needs no library build and hot reloads
-      // library changes. The `paths` in tsconfig.json mirror these.
-      "logic-grid": path.resolve(
-        import.meta.dirname,
-        "../logic-grid/src/index.ts",
-      ),
-      "logic-grid-ai": path.resolve(
-        import.meta.dirname,
-        "../logic-grid-ai/src/index.ts",
-      ),
-    },
-  },
+  resolve: { alias },
   server: {
     fs: {
       allow: [
