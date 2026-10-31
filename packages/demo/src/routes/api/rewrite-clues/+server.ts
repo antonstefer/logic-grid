@@ -1,16 +1,15 @@
-import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { rewriteClues } from "logic-grid-ai";
 import type { Clue } from "logic-grid";
-import { MissingEnvError } from "$lib/server/env";
-import { getAnthropicClient } from "$lib/server/anthropic";
+import { MissingEnvError } from "#lib/server/env.js";
+import { getAnthropicClient } from "#lib/server/anthropic.js";
 
 export const POST: RequestHandler = async ({ request }) => {
   let clues: unknown, style: unknown;
   try {
     ({ clues, style } = await request.json());
   } catch {
-    return json({ error: "Invalid JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   if (
@@ -26,10 +25,10 @@ export const POST: RequestHandler = async ({ request }) => {
         typeof (c as Record<string, unknown>).constraint === "object",
     )
   ) {
-    return json({ error: "Invalid clues" }, { status: 400 });
+    return Response.json({ error: "Invalid clues" }, { status: 400 });
   }
   if (typeof style !== "string" || !style.trim() || style.length > 100) {
-    return json({ error: "Invalid style" }, { status: 400 });
+    return Response.json({ error: "Invalid style" }, { status: 400 });
   }
 
   try {
@@ -39,11 +38,11 @@ export const POST: RequestHandler = async ({ request }) => {
       style,
       client,
     });
-    return json({ clues: result });
+    return Response.json({ clues: result });
   } catch (e) {
     if (e instanceof MissingEnvError) {
       console.error(`${e.variable} is not configured`);
-      return json(
+      return Response.json(
         {
           error:
             "AI clue rewriting is unavailable: the server is missing required configuration.",
@@ -53,6 +52,6 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
     console.error("Clue rewriting failed:", e);
-    return json({ error: "Clue rewriting failed" }, { status: 500 });
+    return Response.json({ error: "Clue rewriting failed" }, { status: 500 });
   }
 };

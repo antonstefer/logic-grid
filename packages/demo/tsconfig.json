@@ -1,14 +1,12 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
+  "extends": "$app/tsconfig",
   "compilerOptions": {
-    "allowJs": true,
-    "checkJs": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "moduleResolution": "bundler"
-  }
+    "paths": {
+      "logic-grid": ["../logic-grid/src/index.ts"],
+      "logic-grid-ai": ["../logic-grid-ai/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
 }
