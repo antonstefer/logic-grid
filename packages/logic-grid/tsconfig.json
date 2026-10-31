@@ -11,8 +11,7 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "declaration": true,
-    "declarationMap": true,
-    "types": ["node"]
+    "declarationMap": true
   },
   "include": ["src", "bench", "scripts"]
 }
