@@ -1,26 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { init } from "./hooks.server";
-
-const { envProxy } = vi.hoisted(() => ({
-  envProxy: {} as { ANTHROPIC_API_KEY?: string },
-}));
-
-vi.mock("$app/env/private", () => ({
-  get ANTHROPIC_API_KEY() {
-    return envProxy.ANTHROPIC_API_KEY;
-  },
-}));
-
-beforeEach(() => {
-  delete envProxy.ANTHROPIC_API_KEY;
-});
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { importWithApiKey } from "./test-helpers";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("hooks.server init", () => {
-  it("warns when ANTHROPIC_API_KEY is missing", async () => {
+  it("warns when ANTHROPIC_API_KEY is unset", async () => {
+    const { init } = await importWithApiKey(
+      undefined,
+      () => import("./hooks.server"),
+    );
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await init();
     expect(warn).toHaveBeenCalledWith(
@@ -29,7 +19,10 @@ describe("hooks.server init", () => {
   });
 
   it("stays quiet when the key is set", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-ant-test";
+    const { init } = await importWithApiKey(
+      "sk-ant-test",
+      () => import("./hooks.server"),
+    );
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await init();
     expect(warn).not.toHaveBeenCalled();

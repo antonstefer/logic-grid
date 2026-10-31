@@ -18,6 +18,7 @@ export default defineConfig({
         "src/**/*.svelte",
         "src/**/*.svelte.ts",
         "src/**/*.test.ts",
+        "src/test-helpers.ts",
         "src/routes/+layout.ts",
         "src/routes/**/$types.d.ts",
       ],

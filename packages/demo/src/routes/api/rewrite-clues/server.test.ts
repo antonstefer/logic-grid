@@ -1,35 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { POST } from "./+server";
-import { createAnthropicClient, validateRewrittenClues } from "logic-grid-ai";
-import { _resetAnthropicClientCache } from "#lib/server/anthropic.js";
+import { validateRewrittenClues } from "logic-grid-ai";
+import { importWithApiKey } from "../../../test-helpers";
 
-const { envProxy, completeJSON } = vi.hoisted(() => ({
-  envProxy: {} as { ANTHROPIC_API_KEY?: string },
-  completeJSON: vi.fn(),
-}));
-
-vi.mock("$app/env/private", () => ({
-  get ANTHROPIC_API_KEY() {
-    return envProxy.ANTHROPIC_API_KEY;
-  },
-}));
-
-vi.mock("logic-grid-ai", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("logic-grid-ai")>();
+const { completeJSON, createAnthropicClient } = vi.hoisted(() => {
+  const completeJSON = vi.fn();
   return {
-    ...orig,
+    completeJSON,
     createAnthropicClient: vi.fn(() => ({ completeJSON })),
   };
 });
 
-type Handler = (event: { request: Request }) => Promise<Response>;
-const post = POST as unknown as Handler;
+vi.mock("logic-grid-ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("logic-grid-ai")>()),
+  createAnthropicClient,
+}));
 
-beforeEach(() => {
-  delete envProxy.ANTHROPIC_API_KEY;
+type Handler = (event: { request: Request }) => Promise<Response>;
+
+/** Imports the route's POST handler with `key` as the API key. */
+async function loadPost(key?: string): Promise<Handler> {
+  const { POST } = await importWithApiKey(key, () => import("./+server"));
+  return POST as unknown as Handler;
+}
+
+let post: Handler;
+
+beforeEach(async () => {
   completeJSON.mockReset();
-  _resetAnthropicClientCache();
+  createAnthropicClient.mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  post = await loadPost();
 });
 
 afterEach(() => {
@@ -69,7 +69,7 @@ describe("POST /api/rewrite-clues", () => {
   });
 
   it("returns 200 with rewritten clues on success", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    post = await loadPost("sk-test");
     const cluesFixture = {
       clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
     };
@@ -88,7 +88,7 @@ describe("POST /api/rewrite-clues", () => {
     expect(body.clues[0].text).toBe("Alice keeps the cat.");
     expect(body.clues[1].text).toBe("Bob is next to the dog owner.");
     // The env key actually flowed through to the Anthropic client factory.
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
+    expect(createAnthropicClient).toHaveBeenCalledWith("sk-test");
   });
 
   it("returns 400 on invalid JSON", async () => {
@@ -112,7 +112,7 @@ describe("POST /api/rewrite-clues", () => {
   });
 
   it("returns generic 500 when rewriting throws a non-MissingEnvError", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
+    post = await loadPost("sk-test");
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
     const res = await post({
