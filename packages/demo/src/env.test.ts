@@ -10,6 +10,10 @@ describe("env variables", () => {
     expect(validate(undefined)).toEqual({ value: undefined });
   });
 
+  it("treats an empty ANTHROPIC_API_KEY as unset", () => {
+    expect(validate("")).toEqual({ value: undefined });
+  });
+
   it("passes ANTHROPIC_API_KEY through unchanged", () => {
     expect(validate("sk-ant-test")).toEqual({ value: "sk-ant-test" });
   });

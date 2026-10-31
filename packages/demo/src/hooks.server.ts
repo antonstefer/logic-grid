@@ -10,7 +10,7 @@ import { ANTHROPIC_API_KEY } from "$app/env/private";
  * endpoints will return 503 with a clear "missing_api_key" code on demand.
  */
 export const init: ServerInit = () => {
-  if (!ANTHROPIC_API_KEY) {
+  if (ANTHROPIC_API_KEY === undefined) {
     console.warn(
       "ANTHROPIC_API_KEY is not configured — AI theme generation, clue rewriting and translation will return 503. " +
         "Plain puzzle generation continues to work.",

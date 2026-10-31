@@ -35,11 +35,6 @@ describe("getAnthropicClient", () => {
     expect(() => getAnthropicClient()).toThrow(MissingEnvError);
   });
 
-  it("throws MissingEnvError when ANTHROPIC_API_KEY is empty", () => {
-    envProxy.ANTHROPIC_API_KEY = "";
-    expect(() => getAnthropicClient()).toThrow(MissingEnvError);
-  });
-
   it("creates a client when key is set", () => {
     envProxy.ANTHROPIC_API_KEY = "sk-ant-test";
     const client = getAnthropicClient();

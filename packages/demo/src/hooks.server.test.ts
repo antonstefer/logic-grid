@@ -28,13 +28,6 @@ describe("hooks.server init", () => {
     );
   });
 
-  it("warns when ANTHROPIC_API_KEY is empty", async () => {
-    envProxy.ANTHROPIC_API_KEY = "";
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    await init();
-    expect(warn).toHaveBeenCalledTimes(1);
-  });
-
   it("stays quiet when the key is set", async () => {
     envProxy.ANTHROPIC_API_KEY = "sk-ant-test";
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
