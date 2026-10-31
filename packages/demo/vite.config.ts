@@ -26,13 +26,7 @@ function findDepsRoot(start: string): string {
 }
 
 export default defineConfig({
-  plugins: [
-    sveltekit({
-      adapter: adapter(),
-      // SvelteKit throws at startup unless this is "" or a root-relative path.
-      paths: { base: (process.env.BASE_PATH || "") as "" | `/${string}` },
-    }),
-  ],
+  plugins: [sveltekit({ adapter: adapter() })],
   resolve: {
     alias: {
       // Resolve to source, so the demo needs no library build and hot reloads
