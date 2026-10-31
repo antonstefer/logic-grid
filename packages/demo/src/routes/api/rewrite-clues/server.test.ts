@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { validateRewrittenClues } from "logic-grid-ai";
 import { importWithApiKey } from "../../../test-helpers";
 
@@ -23,13 +31,19 @@ async function loadPost(key?: string): Promise<Handler> {
   return POST as unknown as Handler;
 }
 
+// One handler per key, each loaded once. The tests that use the key share
+// its client, as an isolate's requests do.
 let post: Handler;
+let postWithKey: Handler;
 
-beforeEach(async () => {
-  completeJSON.mockReset();
-  createAnthropicClient.mockClear();
-  vi.spyOn(console, "error").mockImplementation(() => {});
+beforeAll(async () => {
   post = await loadPost();
+  postWithKey = await loadPost("sk-test");
+});
+
+beforeEach(() => {
+  completeJSON.mockReset();
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -69,7 +83,6 @@ describe("POST /api/rewrite-clues", () => {
   });
 
   it("returns 200 with rewritten clues on success", async () => {
-    post = await loadPost("sk-test");
     const cluesFixture = {
       clues: ["Alice keeps the cat.", "Bob is next to the dog owner."],
     };
@@ -78,7 +91,7 @@ describe("POST /api/rewrite-clues", () => {
     expect(validateRewrittenClues(cluesFixture, 2)).toEqual([]);
     completeJSON.mockResolvedValue(cluesFixture);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ clues: SAMPLE_CLUES, style: "pirate" }),
     });
 
@@ -112,10 +125,9 @@ describe("POST /api/rewrite-clues", () => {
   });
 
   it("returns generic 500 when rewriting throws a non-MissingEnvError", async () => {
-    post = await loadPost("sk-test");
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ clues: SAMPLE_CLUES, style: "pirate" }),
     });
 

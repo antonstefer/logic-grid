@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { VALIDATOR_PROMPT_HEADER } from "logic-grid-ai";
 import { importWithApiKey } from "../../../test-helpers";
 
@@ -23,13 +31,19 @@ async function loadPost(key?: string): Promise<Handler> {
   return POST as unknown as Handler;
 }
 
+// One handler per key, each loaded once. The tests that use the key share
+// its client, as an isolate's requests do.
 let post: Handler;
+let postWithKey: Handler;
 
-beforeEach(async () => {
-  completeJSON.mockReset();
-  createAnthropicClient.mockClear();
-  vi.spyOn(console, "error").mockImplementation(() => {});
+beforeAll(async () => {
   post = await loadPost();
+  postWithKey = await loadPost("sk-test");
+});
+
+beforeEach(() => {
+  completeJSON.mockReset();
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -163,10 +177,9 @@ describe("POST /api/translate", () => {
   });
 
   it("returns 200 with translated puzzle on success", async () => {
-    post = await loadPost("sk-test");
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
@@ -186,10 +199,9 @@ describe("POST /api/translate", () => {
   });
 
   it("trims whitespace around the locale before passing to translate", async () => {
-    post = await loadPost("sk-test");
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "  German  " }),
     });
 
@@ -478,20 +490,18 @@ describe("POST /api/translate", () => {
   });
 
   it("accepts BCP-47 locale codes", async () => {
-    post = await loadPost("sk-test");
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "de-DE" }),
     });
     expect(res.status).toBe(200);
   });
 
   it("returns generic 500 when translation throws a non-MissingEnvError", async () => {
-    post = await loadPost("sk-test");
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
