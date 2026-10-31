@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# A newer commit on a PR or Release PR branch cancels CI for the one it replaces.
+# Runs on main each get their own group, so they're never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:

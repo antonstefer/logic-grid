@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +18,8 @@ jobs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       logic_grid_released: ${{ steps.release.outputs['packages/logic-grid--release_created'] }}
       logic_grid_ai_released: ${{ steps.release.outputs['packages/logic-grid-ai--release_created'] }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      prs: ${{ steps.release.outputs.prs }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -24,6 +27,26 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Pushes and PRs made with GITHUB_TOKEN don't trigger workflows, so Release PRs
+  # would get no CI. workflow_dispatch is the one exception. It runs CI on the
+  # branch itself rather than its merge with main, which is enough because branch
+  # protection requires PRs to be up to date with main before they merge.
+  # This is a job of its own so that a failure here can't stop a publish.
+  release-pr-ci:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.prs_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PRS: ${{ needs.release-please.outputs.prs }}
+        run: |
+          for branch in $(jq -r '.[].headBranchName' <<< "$PRS"); do
+            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
+          done
 
   publish:
     needs: release-please

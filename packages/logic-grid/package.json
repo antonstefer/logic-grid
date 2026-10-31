@@ -53,7 +53,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/antonstefer/logic-grid.git",
+    "url": "git+https://github.com/antonstefer/logic-grid.git",
     "directory": "packages/logic-grid"
   },
   "bugs": "https://github.com/antonstefer/logic-grid/issues",
