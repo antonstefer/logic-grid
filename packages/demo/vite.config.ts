@@ -37,13 +37,22 @@ export default defineConfig({
     alias: {
       // Resolve to source, so the demo needs no library build and hot reloads
       // library changes. The `paths` in tsconfig.json mirror these.
-      "logic-grid": path.resolve(__dirname, "../logic-grid/src/index.ts"),
-      "logic-grid-ai": path.resolve(__dirname, "../logic-grid-ai/src/index.ts"),
+      "logic-grid": path.resolve(
+        import.meta.dirname,
+        "../logic-grid/src/index.ts",
+      ),
+      "logic-grid-ai": path.resolve(
+        import.meta.dirname,
+        "../logic-grid-ai/src/index.ts",
+      ),
     },
   },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, "../.."), findDepsRoot(__dirname)],
+      allow: [
+        path.resolve(import.meta.dirname, "../.."),
+        findDepsRoot(import.meta.dirname),
+      ],
     },
   },
 });

@@ -1,6 +1,6 @@
 /**
  * Regression assertions for puzzle generation. Runs as part of `npm run bench`
- * (vitest.bench.ts config), not the main test suite — exercising 50+ puzzles
+ * (vitest.bench.mts config), not the main test suite — exercising 50+ puzzles
  * per (size, difficulty) is too slow for the standard `check` loop.
  *
  * Three layers:
