@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Category, Difficulty } from "logic-grid";
-  import PuzzleGrid from "$lib/PuzzleGrid.svelte";
-  import ClueList from "$lib/ClueList.svelte";
-  import { createPuzzleState } from "$lib/puzzle-state.svelte";
+  import PuzzleGrid from "#lib/PuzzleGrid.svelte";
+  import ClueList from "#lib/ClueList.svelte";
+  import { createPuzzleState } from "#lib/puzzle-state.svelte.js";
 
   const puzzleState = createPuzzleState();
 

@@ -1,33 +1,48 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { POST } from "./+server";
-import { createAnthropicClient, VALIDATOR_PROMPT_HEADER } from "logic-grid-ai";
-import { _resetAnthropicClientCache } from "$lib/server/anthropic";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
+import { VALIDATOR_PROMPT_HEADER } from "logic-grid-ai";
+import { importWithApiKey } from "../../../test-helpers";
 
-const { envProxy, completeJSON } = vi.hoisted(() => ({
-  envProxy: {} as { ANTHROPIC_API_KEY?: string },
-  completeJSON: vi.fn(),
-}));
-
-vi.mock("$env/dynamic/private", () => ({
-  env: envProxy,
-}));
-
-vi.mock("logic-grid-ai", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("logic-grid-ai")>();
+const { completeJSON, createAnthropicClient } = vi.hoisted(() => {
+  const completeJSON = vi.fn();
   return {
-    ...orig,
+    completeJSON,
     createAnthropicClient: vi.fn(() => ({ completeJSON })),
   };
 });
 
+vi.mock("logic-grid-ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("logic-grid-ai")>()),
+  createAnthropicClient,
+}));
+
 type Handler = (event: { request: Request }) => Promise<Response>;
-const post = POST as unknown as Handler;
+
+/** Imports the route's POST handler with `key` as the API key. */
+async function loadPost(key?: string): Promise<Handler> {
+  const { POST } = await importWithApiKey(key, () => import("./+server"));
+  return POST as unknown as Handler;
+}
+
+// One handler per key, each loaded once. The tests that use the key share
+// its client, as an isolate's requests do.
+let post: Handler;
+let postWithKey: Handler;
+
+beforeAll(async () => {
+  post = await loadPost();
+  postWithKey = await loadPost("sk-test");
+});
 
 beforeEach(() => {
-  delete envProxy.ANTHROPIC_API_KEY;
   completeJSON.mockReset();
-  vi.mocked(createAnthropicClient).mockClear();
-  _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -162,10 +177,9 @@ describe("POST /api/translate", () => {
   });
 
   it("returns 200 with translated puzzle on success", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 
@@ -181,16 +195,13 @@ describe("POST /api/translate", () => {
     expect(body.valueLabels.Red).toBe("Rot");
     expect(body.valueLabels.Alice).toBe("Alice");
     // One client, built from the env key, translates and validates.
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledExactlyOnceWith(
-      "sk-test",
-    );
+    expect(createAnthropicClient).toHaveBeenCalledExactlyOnceWith("sk-test");
   });
 
   it("trims whitespace around the locale before passing to translate", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "  German  " }),
     });
 
@@ -479,20 +490,18 @@ describe("POST /api/translate", () => {
   });
 
   it("accepts BCP-47 locale codes", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     dispatchByPrompt(VALID_TRANSLATION, VALID_VERDICT);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "de-DE" }),
     });
     expect(res.status).toBe(200);
   });
 
   it("returns generic 500 when translation throws a non-MissingEnvError", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ puzzle: SAMPLE_PUZZLE, locale: "German" }),
     });
 

@@ -10,7 +10,7 @@ From the repo root:
 npm run -w packages/demo dev
 ```
 
-The AI-themed category and clue-rewrite endpoints (`/api/theme`, `/api/rewrite-clues`) need `ANTHROPIC_API_KEY` in the env. Plain puzzle generation works without it.
+The AI endpoints for themed categories, clue rewriting and translation (`/api/theme`, `/api/rewrite-clues`, `/api/translate`) need `ANTHROPIC_API_KEY` in the env. Plain puzzle generation works without it.
 
 ## Deployment
 

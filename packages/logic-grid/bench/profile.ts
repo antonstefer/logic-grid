@@ -191,8 +191,3 @@ export function runDiversity(): void {
     }
   }
 }
-
-// Auto-run when executed directly (node), not when imported (vitest)
-const isDirectRun =
-  typeof process !== "undefined" && process.argv[1]?.includes("profile");
-if (isDirectRun) runBench();

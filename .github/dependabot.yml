@@ -17,12 +17,6 @@ updates:
     # Majors that need a manual migration, so they can't hold open-PR slots.
     # Ignore rules cover security updates too.
     ignore:
-      # SvelteKit 3 and adapter-cloudflare 8 land together by hand; drop
-      # both entries in that PR.
-      - dependency-name: "@sveltejs/kit"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@sveltejs/adapter-cloudflare"
-        update-types: ["version-update:semver-major"]
       # typescript-eslint supports TypeScript < 6.1, so majors go by hand.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]

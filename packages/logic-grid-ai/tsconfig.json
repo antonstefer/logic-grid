@@ -10,6 +10,7 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "outDir": "dist",
+    "rootDir": "..",
     "declaration": true,
     "declarationMap": true,
     "paths": {

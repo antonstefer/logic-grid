@@ -1,32 +1,48 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { POST } from "./+server";
-import { createAnthropicClient, validateThemeResult } from "logic-grid-ai";
-import { _resetAnthropicClientCache } from "$lib/server/anthropic";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
+import { validateThemeResult } from "logic-grid-ai";
+import { importWithApiKey } from "../../../test-helpers";
 
-const { envProxy, completeJSON } = vi.hoisted(() => ({
-  envProxy: {} as { ANTHROPIC_API_KEY?: string },
-  completeJSON: vi.fn(),
-}));
-
-vi.mock("$env/dynamic/private", () => ({
-  env: envProxy,
-}));
-
-vi.mock("logic-grid-ai", async (importOriginal) => {
-  const orig = await importOriginal<typeof import("logic-grid-ai")>();
+const { completeJSON, createAnthropicClient } = vi.hoisted(() => {
+  const completeJSON = vi.fn();
   return {
-    ...orig,
+    completeJSON,
     createAnthropicClient: vi.fn(() => ({ completeJSON })),
   };
 });
 
+vi.mock("logic-grid-ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("logic-grid-ai")>()),
+  createAnthropicClient,
+}));
+
 type Handler = (event: { request: Request }) => Promise<Response>;
-const post = POST as unknown as Handler;
+
+/** Imports the route's POST handler with `key` as the API key. */
+async function loadPost(key?: string): Promise<Handler> {
+  const { POST } = await importWithApiKey(key, () => import("./+server"));
+  return POST as unknown as Handler;
+}
+
+// One handler per key, each loaded once. The tests that use the key share
+// its client, as an isolate's requests do.
+let post: Handler;
+let postWithKey: Handler;
+
+beforeAll(async () => {
+  post = await loadPost();
+  postWithKey = await loadPost("sk-test");
+});
 
 beforeEach(() => {
-  delete envProxy.ANTHROPIC_API_KEY;
   completeJSON.mockReset();
-  _resetAnthropicClientCache();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -56,7 +72,6 @@ describe("POST /api/theme", () => {
   });
 
   it("returns 200 with the generated theme on success", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     const themeFixture = {
       categories: [
         { name: "Pirate", values: ["A", "B", "C", "D"], noun: "" },
@@ -97,7 +112,7 @@ describe("POST /api/theme", () => {
     expect(validateThemeResult(themeFixture, 4, 4)).toEqual([]);
     completeJSON.mockResolvedValue(themeFixture);
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ theme: "pirates", size: 4, categories: 4 }),
     });
 
@@ -112,7 +127,7 @@ describe("POST /api/theme", () => {
     ]);
     // The env key actually flowed through to the Anthropic client factory —
     // not just covered transitively by the unit test.
-    expect(vi.mocked(createAnthropicClient)).toHaveBeenCalledWith("sk-test");
+    expect(createAnthropicClient).toHaveBeenCalledWith("sk-test");
   });
 
   it("returns 400 on invalid JSON body", async () => {
@@ -138,10 +153,9 @@ describe("POST /api/theme", () => {
   });
 
   it("returns generic 500 when AI generation throws a non-MissingEnvError", async () => {
-    envProxy.ANTHROPIC_API_KEY = "sk-test";
     completeJSON.mockRejectedValue(new Error("upstream blew up"));
 
-    const res = await post({
+    const res = await postWithKey({
       request: postBody({ theme: "pirates", size: 4, categories: 4 }),
     });
 

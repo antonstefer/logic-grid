@@ -1,7 +1,9 @@
+import adapter from "@sveltejs/adapter-cloudflare";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import path from "path";
 import fs from "fs";
+import { alias } from "./aliases.ts";
 
 // Walk up from this config until we find a `node_modules/@sveltejs/kit` —
 // handles both the main repo and git worktrees (which share the main repo's
@@ -25,17 +27,14 @@ function findDepsRoot(start: string): string {
 }
 
 export default defineConfig({
-  plugins: [sveltekit()],
-  resolve: {
-    alias: {
-      // Resolve to source for hot reload during dev
-      "logic-grid": path.resolve(__dirname, "../logic-grid/src/index.ts"),
-      "logic-grid-ai": path.resolve(__dirname, "../logic-grid-ai/src/index.ts"),
-    },
-  },
+  plugins: [sveltekit({ adapter: adapter() })],
+  resolve: { alias },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, "../.."), findDepsRoot(__dirname)],
+      allow: [
+        path.resolve(import.meta.dirname, "../.."),
+        findDepsRoot(import.meta.dirname),
+      ],
     },
   },
 });
