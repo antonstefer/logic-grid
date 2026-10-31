@@ -1,5 +1,5 @@
-import { env } from "$env/dynamic/private";
-import type { ServerInit } from "@sveltejs/kit";
+import type { ServerInit } from "@sveltejs/kit/hooks";
+import { ANTHROPIC_API_KEY } from "$app/env/private";
 
 /**
  * Runs once per server isolate before its first request (SvelteKit ≥2.10).
@@ -10,7 +10,7 @@ import type { ServerInit } from "@sveltejs/kit";
  * endpoints will return 503 with a clear "missing_api_key" code on demand.
  */
 export const init: ServerInit = () => {
-  if (!env.ANTHROPIC_API_KEY) {
+  if (!ANTHROPIC_API_KEY) {
     console.warn(
       "ANTHROPIC_API_KEY is not configured — AI theme generation and clue rewriting will return 503. " +
         "Plain puzzle generation continues to work.",

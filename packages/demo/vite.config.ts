@@ -1,3 +1,4 @@
+import adapter from "@sveltejs/adapter-cloudflare";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import path from "path";
@@ -25,10 +26,17 @@ function findDepsRoot(start: string): string {
 }
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [
+    sveltekit({
+      adapter: adapter(),
+      // SvelteKit throws at startup unless this is "" or a root-relative path.
+      paths: { base: (process.env.BASE_PATH || "") as "" | `/${string}` },
+    }),
+  ],
   resolve: {
     alias: {
-      // Resolve to source for hot reload during dev
+      // Resolve to source, so the demo needs no library build and hot reloads
+      // library changes. The `paths` in tsconfig.json mirror these.
       "logic-grid": path.resolve(__dirname, "../logic-grid/src/index.ts"),
       "logic-grid-ai": path.resolve(__dirname, "../logic-grid-ai/src/index.ts"),
     },

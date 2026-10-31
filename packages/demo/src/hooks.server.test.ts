@@ -5,8 +5,10 @@ const { envProxy } = vi.hoisted(() => ({
   envProxy: {} as { ANTHROPIC_API_KEY?: string },
 }));
 
-vi.mock("$env/dynamic/private", () => ({
-  env: envProxy,
+vi.mock("$app/env/private", () => ({
+  get ANTHROPIC_API_KEY() {
+    return envProxy.ANTHROPIC_API_KEY;
+  },
 }));
 
 beforeEach(() => {

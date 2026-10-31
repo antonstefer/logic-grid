@@ -1,9 +1,8 @@
-import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 import { translate, LOCALE_RE } from "logic-grid-ai";
 import type { Puzzle } from "logic-grid";
-import { MissingEnvError } from "$lib/server/env";
-import { getAnthropicClient } from "$lib/server/anthropic";
+import { MissingEnvError } from "#lib/server/env.js";
+import { getAnthropicClient } from "#lib/server/anthropic.js";
 
 /**
  * Hard caps applied at the HTTP boundary, before any AI call. Each cap
@@ -87,22 +86,22 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     ({ puzzle, locale } = await request.json());
   } catch {
-    return json({ error: "Invalid JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   if (!isValidPuzzleShape(puzzle)) {
-    return json({ error: "Invalid puzzle" }, { status: 400 });
+    return Response.json({ error: "Invalid puzzle" }, { status: 400 });
   }
   // Locale is interpolated into the AI prompt verbatim, so the format
   // must be tight enough to prevent injection. Reuse `LOCALE_RE` from
   // the package (defense in depth without divergence risk). Trim first
   // so trailing spaces don't survive into the prompt.
   if (typeof locale !== "string") {
-    return json({ error: "Invalid locale" }, { status: 400 });
+    return Response.json({ error: "Invalid locale" }, { status: 400 });
   }
   const cleanLocale = locale.trim();
   if (!LOCALE_RE.test(cleanLocale)) {
-    return json({ error: "Invalid locale" }, { status: 400 });
+    return Response.json({ error: "Invalid locale" }, { status: 400 });
   }
 
   try {
@@ -114,11 +113,11 @@ export const POST: RequestHandler = async ({ request }) => {
       locale: cleanLocale,
       client: getAnthropicClient(),
     });
-    return json(result);
+    return Response.json(result);
   } catch (e) {
     if (e instanceof MissingEnvError) {
       console.error(`${e.variable} is not configured`);
-      return json(
+      return Response.json(
         {
           error:
             "AI translation is unavailable: the server is missing required configuration.",
@@ -128,6 +127,6 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
     console.error("Translation failed:", e);
-    return json({ error: "Translation failed" }, { status: 500 });
+    return Response.json({ error: "Translation failed" }, { status: 500 });
   }
 };

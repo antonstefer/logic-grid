@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./+server";
 import { createAnthropicClient, VALIDATOR_PROMPT_HEADER } from "logic-grid-ai";
-import { _resetAnthropicClientCache } from "$lib/server/anthropic";
+import { _resetAnthropicClientCache } from "#lib/server/anthropic.js";
 
 const { envProxy, completeJSON } = vi.hoisted(() => ({
   envProxy: {} as { ANTHROPIC_API_KEY?: string },
   completeJSON: vi.fn(),
 }));
 
-vi.mock("$env/dynamic/private", () => ({
-  env: envProxy,
+vi.mock("$app/env/private", () => ({
+  get ANTHROPIC_API_KEY() {
+    return envProxy.ANTHROPIC_API_KEY;
+  },
 }));
 
 vi.mock("logic-grid-ai", async (importOriginal) => {
