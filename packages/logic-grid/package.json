@@ -31,8 +31,8 @@
     "format:check": "prettier --check .",
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.mts",
-    "bench:profile": "tsdown --no-config --no-dts bench/cpu-profile.ts && node --cpu-prof dist/cpu-profile.mjs",
-    "sample": "tsdown --no-config --no-dts scripts/sample-explanations.ts && node dist/sample-explanations.mjs",
+    "bench:profile": "tsdown --no-config --no-dts --no-clean bench/cpu-profile.ts && node --cpu-prof dist/cpu-profile.mjs",
+    "sample": "tsdown --no-config --no-dts --no-clean scripts/sample-explanations.ts && node dist/sample-explanations.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
     "prepublishOnly": "npm run check && npm run build"
   },
