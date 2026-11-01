@@ -11,10 +11,10 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
-    "check": "npm run check --workspaces --if-present",
+    "check": "prettier --check . \"!packages/**\" && npm run check --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "format": "npm run format --workspaces --if-present",
-    "format:check": "npm run format:check --workspaces --if-present"
+    "format": "prettier --write . \"!packages/**\" && npm run format --workspaces --if-present",
+    "format:check": "prettier --check . \"!packages/**\" && npm run format:check --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
