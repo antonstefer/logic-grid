@@ -1,6 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from "vitest";
 import { createPuzzleState } from "./puzzle-state.svelte";
-import { defaultHouseCategory, type Category } from "logic-grid";
+import { defaultHouseCategory, type Category, type Clue } from "logic-grid";
 
 /**
  * Locks in the originalClues invariant: every translatePuzzle call sends
@@ -35,6 +43,9 @@ const SAMPLE_CATEGORIES: Category[] = [
   },
 ];
 
+/** The part of a /api/translate request body these tests read. */
+type TranslateRequest = { locale: string; puzzle: { clues: Clue[] } };
+
 function makeValueLabels(
   categories: Category[],
   fn: (v: string) => string,
@@ -49,11 +60,11 @@ function makeValueLabels(
 }
 
 describe("createPuzzleState — originalClues invariant", () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let fetchMock: Mock<typeof fetch>;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    fetchMock = vi.fn();
+    fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -61,6 +72,13 @@ describe("createPuzzleState — originalClues invariant", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
+
+  /** The JSON body that the `n`th fetch call sent. */
+  function sentBody(n: number): TranslateRequest {
+    return JSON.parse(
+      fetchMock.mock.calls[n][1]?.body as string,
+    ) as TranslateRequest;
+  }
 
   it("sends English source clues on every translatePuzzle call, even after a prior translation", async () => {
     const state = createPuzzleState();
@@ -84,19 +102,18 @@ describe("createPuzzleState — originalClues invariant", () => {
       ...c,
       text: `[de] clue ${i + 1}`,
     }));
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
         clues: germanText,
         categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
         valueLabels: makeValueLabels(SAMPLE_CATEGORIES, (v) => `[de]${v}`),
       }),
-    });
+    );
     state.translatePuzzle("German");
     await vi.runAllTimersAsync();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const firstBody = sentBody(0);
     expect(firstBody.locale).toBe("German");
     // First request: source clues match the canonical English text.
     expect(firstBody.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
@@ -107,9 +124,8 @@ describe("createPuzzleState — originalClues invariant", () => {
     expect(state.puzzle!.clues[0].text).toBe("[de] clue 1");
 
     // Second translation: respond with mock French.
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
         clues: englishClues.map((c, i) => ({
           ...c,
           text: `[fr] clue ${i + 1}`,
@@ -117,12 +133,12 @@ describe("createPuzzleState — originalClues invariant", () => {
         categoryNames: { House: "Maison", Name: "Nom", Color: "Couleur" },
         valueLabels: makeValueLabels(SAMPLE_CATEGORIES, (v) => `[fr]${v}`),
       }),
-    });
+    );
     state.translatePuzzle("French");
     await vi.runAllTimersAsync();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    const secondBody = sentBody(1);
     expect(secondBody.locale).toBe("French");
     // Critical assertion: still English, NOT the previously-translated
     // German text. This is the regression guard.
@@ -144,10 +160,12 @@ describe("createPuzzleState — originalClues invariant", () => {
     const firstClues = state.puzzle!.clues.map((c) => c.text);
 
     // Attempt a themed regenerate that fails — /api/theme returns 503.
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ error: "AI theme generation is unavailable" }),
-    });
+    fetchMock.mockResolvedValueOnce(
+      Response.json(
+        { error: "AI theme generation is unavailable" },
+        { status: 503 },
+      ),
+    );
     state.newPuzzle({
       size: 3,
       categories: 3,
@@ -162,9 +180,8 @@ describe("createPuzzleState — originalClues invariant", () => {
     // Critical: originalClues should still match the still-current
     // (first) puzzle, NOT have been wiped by the failed regenerate.
     // The Translate button must keep working.
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
         clues: firstClues.map((_, i) => ({
           constraint: state.puzzle!.clues[i].constraint,
           text: `[de] ${i}`,
@@ -172,12 +189,12 @@ describe("createPuzzleState — originalClues invariant", () => {
         categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
         valueLabels: makeValueLabels(SAMPLE_CATEGORIES, (v) => `[de]${v}`),
       }),
-    });
+    );
     state.translatePuzzle("German");
     await vi.runAllTimersAsync();
 
     // Body's source clues should be the (still-active) first puzzle's.
-    const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+    const body = sentBody(1);
     expect(body.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
       firstClues,
     );
@@ -205,9 +222,8 @@ describe("createPuzzleState — originalClues invariant", () => {
 
     // Translate the second puzzle and verify the request uses the
     // SECOND puzzle's English clues, not the first.
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
         clues: secondClues.map((_, i) => ({
           constraint: state.puzzle!.clues[i].constraint,
           text: `[de] ${i}`,
@@ -215,11 +231,11 @@ describe("createPuzzleState — originalClues invariant", () => {
         categoryNames: { House: "Haus", Name: "Name", Color: "Farbe" },
         valueLabels: makeValueLabels(SAMPLE_CATEGORIES, (v) => `[de]${v}`),
       }),
-    });
+    );
     state.translatePuzzle("German");
     await vi.runAllTimersAsync();
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const body = sentBody(0);
     expect(body.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
       secondClues,
     );

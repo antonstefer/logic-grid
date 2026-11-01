@@ -18,8 +18,8 @@ const { completeJSON, createAnthropicClient } = vi.hoisted(() => {
   };
 });
 
-vi.mock("logic-grid-ai", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("logic-grid-ai")>()),
+vi.mock(import("logic-grid-ai"), async (importOriginal) => ({
+  ...(await importOriginal()),
   createAnthropicClient,
 }));
 

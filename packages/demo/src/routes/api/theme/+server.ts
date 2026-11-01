@@ -6,7 +6,10 @@ import { getAnthropicClient } from "#lib/server/anthropic.js";
 export const POST: RequestHandler = async ({ request }) => {
   let theme: unknown, size: unknown, categories: unknown;
   try {
-    ({ theme, size, categories } = await request.json());
+    ({ theme, size, categories } = (await request.json()) as Record<
+      string,
+      unknown
+    >);
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }

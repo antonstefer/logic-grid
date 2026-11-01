@@ -318,8 +318,8 @@
           puzzleGrid={puzzleState.puzzle.grid}
           pair={puzzleState.pair}
           localization={puzzleState.localization}
-          onConfirm={(coord) => puzzleState.toggleConfirm(coord)}
-          onEliminate={(coord) => puzzleState.toggleEliminate(coord)}
+          onConfirm={puzzleState.toggleConfirm}
+          onEliminate={puzzleState.toggleEliminate}
         />
 
         <div class="actions">
