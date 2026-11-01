@@ -17,7 +17,7 @@ export default defineConfig({
       exclude: [
         "src/index.ts",
         "src/types.ts",
-        "src/test-utils.ts",
+        "src/test-helpers.ts",
         "src/**/*.test.ts",
       ],
       thresholds: {
