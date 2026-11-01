@@ -4,7 +4,7 @@ import {
   collectLabels,
   validateTranslation,
 } from "./translate-validation";
-import { hasCode } from "./test-utils";
+import { hasCode } from "./test-helpers";
 import type { AIClient } from "./types";
 import type { Puzzle } from "logic-grid";
 

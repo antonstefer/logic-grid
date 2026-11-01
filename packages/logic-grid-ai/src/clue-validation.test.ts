@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateRewrittenClues } from "./clue-validation";
-import { hasCode } from "./test-utils";
+import { hasCode } from "./test-helpers";
 import type { RewriteCluesResult } from "./types";
 
 function validResult(count: number = 3): RewriteCluesResult {

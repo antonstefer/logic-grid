@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateThemeResult } from "./validation";
-import { hasCode } from "./test-utils";
+import { hasCode } from "./test-helpers";
 
 /** All 7 comparators, in the shapes logic-grid renders. */
 function comparators() {
