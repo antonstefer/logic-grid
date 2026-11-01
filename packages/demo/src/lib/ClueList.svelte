@@ -7,7 +7,7 @@
 <div class="clue-list">
   <h2>Clues</h2>
   <ol>
-    {#each clues as clue}
+    {#each clues as clue (clue)}
       <li>{clue.text}</li>
     {/each}
   </ol>

@@ -130,15 +130,15 @@
     <tr>
       <td class="corner"></td>
       <td class="corner"></td>
-      {#each topCats as { cat: topCat }}
+      {#each topCats as { cat: topCat, idx: topCatIdx } (topCatIdx)}
         <th class="top-cat-label" colspan={S}>{categoryLabel(topCat.name)}</th>
       {/each}
     </tr>
     <tr>
       <td class="corner"></td>
       <td class="corner"></td>
-      {#each topCats as { idx: topCatIdx }}
-        {#each cats[topCatIdx].values as _, tvi}
+      {#each topCats as { idx: topCatIdx } (topCatIdx)}
+        {#each cats[topCatIdx].values as value, tvi (value)}
           <th
             class="top-value"
             class:sub-start={tvi === 0}
@@ -151,8 +151,8 @@
     </tr>
   </thead>
   <tbody>
-    {#each rowCats as { cat: rowCat, idx: rowCatIdx }, p}
-      {#each rowCat.values as _, rvi}
+    {#each rowCats as { cat: rowCat, idx: rowCatIdx }, p (rowCatIdx)}
+      {#each rowCat.values as value, rvi (value)}
         <tr>
           {#if rvi === 0}
             <th class="left-cat-label" rowspan={S}
@@ -166,13 +166,13 @@
           >
             {valueLabel(rowCatIdx, rvi)}
           </th>
-          {#each topCats as { idx: topCatIdx }, q}
+          {#each topCats as { idx: topCatIdx }, q (topCatIdx)}
             <!-- Staircase: render a sub-grid at (rowPos=p, topPos=q) iff
                  p + q ≤ N − 2. Below the diagonal, emit one big blank
                  spanning S×S cells (only on the first sub-row of each
                  row category to avoid over-generating <td>s). -->
             {#if p + q <= N - 2}
-              {#each cats[topCatIdx].values as _, tvi}
+              {#each cats[topCatIdx].values as value, tvi (value)}
                 {@const cell = pair[rowCatIdx][rvi][topCatIdx][tvi]}
                 {@const coord = {
                   a: rowCatIdx,
