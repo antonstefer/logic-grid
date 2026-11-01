@@ -20,6 +20,7 @@ Monorepo for logic grid puzzle generation and solving.
 - Commit often — after each logical change, not batched at the end
 - Always run `npm run check` before committing
 - Keep the library zero-dependency
+- Pin GitHub Actions to a full commit hash with its release in a comment (`uses: actions/checkout@<hash> # v7.0.1`). Dependabot updates both.
 - Supported grid sizes: 3–8
 - Throw on errors — never silently swallow or use fallback values
 - Prefer simple solutions — don't over-engineer
