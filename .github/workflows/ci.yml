@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # A newer commit on a PR or Release PR branch cancels CI for the one it replaces.
 # Runs on main each get their own group, so they're never cancelled.
 concurrency:
