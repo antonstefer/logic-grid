@@ -34,6 +34,9 @@ on:
       - "package-lock.json"
       - ".github/workflows/regression.yml"
 
+permissions:
+  contents: read
+
 jobs:
   regression:
     # Single Node version on purpose — perf budgets are calibrated for one
