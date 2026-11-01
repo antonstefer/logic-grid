@@ -7,10 +7,9 @@
     "binding": "ASSETS",
     "directory": ".svelte-kit/cloudflare"
   },
+  // The top-level "enabled" is what turns Workers Logs on. With only
+  // logs.enabled set, wrangler leaves it out and the Worker keeps no logs.
   "observability": {
-    "logs": {
-      "enabled": true,
-      "invocation_logs": true
-    }
+    "enabled": true
   }
 }
