@@ -241,7 +241,7 @@
       Preset
       <select bind:value={preset}>
         <option value="none">Default</option>
-        {#each Object.entries(presets) as [key, p]}
+        {#each Object.entries(presets) as [key, p] (key)}
           <option value={key}>{p.label}</option>
         {/each}
       </select>
@@ -251,7 +251,7 @@
       <label>
         Size
         <select bind:value={size}>
-          {#each [3, 4, 5, 6, 7, 8] as s}
+          {#each [3, 4, 5, 6, 7, 8] as s (s)}
             <option value={s}>{s}</option>
           {/each}
         </select>
@@ -260,7 +260,7 @@
       <label>
         Categories
         <select bind:value={categories}>
-          {#each [3, 4, 5, 6, 7, 8] as c}
+          {#each [3, 4, 5, 6, 7, 8] as c (c)}
             <option value={c}>{c}</option>
           {/each}
         </select>

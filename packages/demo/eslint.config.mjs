@@ -1,22 +1,19 @@
+import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 import svelte from "eslint-plugin-svelte";
-import svelteParser from "svelte-eslint-parser";
 
-export default [
-  ...tseslint.configs.recommended,
+export default defineConfig(
   {
-    files: ["src/**/*.svelte"],
-    plugins: { svelte },
-    processor: "svelte/svelte",
+    files: ["src/**/*.ts", "src/**/*.svelte"],
+    extends: [tseslint.configs.recommended, svelte.configs.recommended],
     languageOptions: {
-      parser: svelteParser,
       parserOptions: {
+        // svelte-eslint-parser parses .svelte and .svelte.ts files and hands
+        // their TypeScript to this parser.
         parser: tseslint.parser,
       },
     },
-  },
-  {
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "error",
@@ -25,4 +22,5 @@ export default [
     },
   },
   prettier,
-];
+  svelte.configs.prettier,
+);
