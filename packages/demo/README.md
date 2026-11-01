@@ -21,4 +21,4 @@ Build: `npm run build` produces `.svelte-kit/cloudflare/`. Adapter: `@sveltejs/a
 ### Cloudflare config
 
 - Set `ANTHROPIC_API_KEY` as a Worker secret (`wrangler secret put ANTHROPIC_API_KEY` or via the dashboard).
-- Workers Logs are turned on by `observability.enabled` in [`wrangler.jsonc`](wrangler.jsonc), which every deploy applies; no dashboard step is needed. They show up in the Worker's Observability tab in the dashboard. If new events don't appear there, reload the page instead of using the tab's Refresh button.
+- Workers Logs are turned on by `observability.enabled` in [`wrangler.jsonc`](wrangler.jsonc), which every deploy applies; no dashboard step is needed. They show up in the Worker's Observability tab in the dashboard. New events can take a few minutes to appear there; if they still don't, reload the page.
