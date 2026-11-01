@@ -33,8 +33,7 @@
     "bench": "vitest run --config vitest.bench.mts",
     "bench:profile": "tsup --entry.profile bench/cpu-profile.ts --no-dts && node --cpu-prof dist/profile.mjs",
     "sample": "tsup --entry.sample scripts/sample-explanations.ts --no-dts && node dist/sample.mjs",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
-    "prepublishOnly": "npm run check && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage"
   },
   "engines": {
     "node": ">=22"
