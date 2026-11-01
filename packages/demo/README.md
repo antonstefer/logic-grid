@@ -20,5 +20,6 @@ Build: `npm run build` produces `.svelte-kit/cloudflare/`. Adapter: `@sveltejs/a
 
 ### Cloudflare config
 
+- Keep `compatibility_date` in [`wrangler.jsonc`](wrangler.jsonc) no newer than the installed workerd supports, so local dev runs like production. Its version gives that date: workerd 1.20261023.1 supports 2026-10-23. To move the date forward, check the flags that become defaults in between in workerd's `src/workerd/io/compatibility-date.capnp` at that version. Node.js APIs are on by default from 2026-08-04, so the config doesn't list `nodejs_compat`.
 - Set `ANTHROPIC_API_KEY` as a Worker secret (`wrangler secret put ANTHROPIC_API_KEY` or via the dashboard).
 - Workers Logs are turned on by `observability.enabled` in [`wrangler.jsonc`](wrangler.jsonc), which every deploy applies; no dashboard step is needed. They show up in the Worker's Observability tab in the dashboard. New events can take a few minutes to appear there; if they still don't, reload the page.
