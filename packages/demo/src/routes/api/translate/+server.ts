@@ -84,7 +84,7 @@ function isValidPuzzleShape(p: unknown): p is Puzzle {
 export const POST: RequestHandler = async ({ request }) => {
   let puzzle: unknown, locale: unknown;
   try {
-    ({ puzzle, locale } = await request.json());
+    ({ puzzle, locale } = (await request.json()) as Record<string, unknown>);
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
