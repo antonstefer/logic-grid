@@ -116,7 +116,7 @@ describe("createPuzzleState — originalClues invariant", () => {
     const firstBody = sentBody(0);
     expect(firstBody.locale).toBe("German");
     // First request: source clues match the canonical English text.
-    expect(firstBody.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
+    expect(firstBody.puzzle.clues.map((c) => c.text)).toEqual(
       englishClues.map((c) => c.text),
     );
 
@@ -142,9 +142,9 @@ describe("createPuzzleState — originalClues invariant", () => {
     expect(secondBody.locale).toBe("French");
     // Critical assertion: still English, NOT the previously-translated
     // German text. This is the regression guard.
-    expect(
-      secondBody.puzzle.clues.map((c: { text: string }) => c.text),
-    ).toEqual(englishClues.map((c) => c.text));
+    expect(secondBody.puzzle.clues.map((c) => c.text)).toEqual(
+      englishClues.map((c) => c.text),
+    );
     expect(secondBody.puzzle.clues[0].text).not.toContain("[de]");
   });
 
@@ -195,9 +195,7 @@ describe("createPuzzleState — originalClues invariant", () => {
 
     // Body's source clues should be the (still-active) first puzzle's.
     const body = sentBody(1);
-    expect(body.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
-      firstClues,
-    );
+    expect(body.puzzle.clues.map((c) => c.text)).toEqual(firstClues);
   });
 
   it("clears originalClues on regenerate so a stale snapshot can't leak", async () => {
@@ -236,16 +234,12 @@ describe("createPuzzleState — originalClues invariant", () => {
     await vi.runAllTimersAsync();
 
     const body = sentBody(0);
-    expect(body.puzzle.clues.map((c: { text: string }) => c.text)).toEqual(
-      secondClues,
-    );
+    expect(body.puzzle.clues.map((c) => c.text)).toEqual(secondClues);
     // If originalClues had leaked from puzzle 1, the bodies would match
     // firstClues; deduce passing this assertion means the snapshot was
     // refreshed correctly.
     if (firstClues.join("|") !== secondClues.join("|")) {
-      expect(
-        body.puzzle.clues.map((c: { text: string }) => c.text),
-      ).not.toEqual(firstClues);
+      expect(body.puzzle.clues.map((c) => c.text)).not.toEqual(firstClues);
     }
   });
 });
