@@ -66,8 +66,8 @@ jobs:
           package-manager-cache: false
       - run: npm install -g npm@^11.5
       - run: npm ci
-      - run: npm run check
-      - run: npm run build
+      # npm publish runs each package's prepublishOnly script, which checks and
+      # builds that package, so the job has no separate check or build step.
       - if: ${{ needs.release-please.outputs.logic_grid_released == 'true' }}
         run: npm publish -w packages/logic-grid --provenance --access public
       - if: ${{ needs.release-please.outputs.logic_grid_ai_released == 'true' }}
