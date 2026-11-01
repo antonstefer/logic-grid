@@ -10,7 +10,7 @@ Monorepo for logic grid puzzle generation and solving.
 
 ## Commands
 
-- `npm run check` — Runs typecheck + lint + format + test for all packages
+- `npm run check` — Checks the root files' formatting, then runs typecheck + lint + format + test for all packages
 - `npm run build` — Builds all packages
 - `npm test` — Runs tests across all workspaces
 

@@ -31,3 +31,5 @@ yarn-error.log*
 
 # Claude Code
 .claude/worktrees
+# Often ignored globally as well, but Prettier only reads this file
+.claude/settings.local.json

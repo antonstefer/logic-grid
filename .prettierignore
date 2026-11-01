@@ -1,3 +1,5 @@
 dist
 coverage
 *.cpuprofile
+# npm writes it in its own style
+package-lock.json
